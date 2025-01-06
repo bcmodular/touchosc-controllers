@@ -36,8 +36,8 @@ local controlsInfoArray = {
   },
   {-- 5: djfx looper
   {'length_fader', false},
-  {'speed_fader', false}--,
-  --{'high_fader', false}
+  {'speed_fader', false},
+  {'on_off_grid', false}
   }
 }
 

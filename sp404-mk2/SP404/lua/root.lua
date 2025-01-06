@@ -10,7 +10,7 @@ local fxBusAvailability = {
   "12", "1234", "5", "5", "5", "5"
 }
 
-function setFXAvailability(fxPage, index, channel)
+function fxBusAvailability(fxPage, index, channel)
   local busAvailability = fxBusAvailability[index]
   
   if busAvailability == "1234" and channel == 4 then

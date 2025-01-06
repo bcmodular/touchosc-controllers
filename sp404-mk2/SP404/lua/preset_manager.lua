@@ -108,7 +108,7 @@ function init()
   local fxNum
   
   -- To be updated as more FX are implemented
-  if root.children.control_pager.values.page < 4 then
+  if root.children.control_pager.values.page < 5 then
     fxNum = root.children.control_pager.values.page + 1
   else
     fxNum = 1

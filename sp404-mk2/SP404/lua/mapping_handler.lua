@@ -26,6 +26,16 @@ local midiToEQRangeMap = {
   '11.74', '12.00'
 }
 
+local bipolarHundredRangeMap = {
+    -100, -99, -97, -96, -94, -93, -91, -89, -88, -86, -85, -83, -82, -80, -78, -77, -75,
+    -74, -72, -71, -69, -67, -66, -64, -63, -61, -60, -58, -56, -55, -53, -52, -50, -48,
+    -47, -45, -44, -42, -41, -39, -37, -36, -34, -33, -31, -30, -28, -26, -25, -23, -22,
+    -20, -19, -17, -15, -14, -12, -11, -9, -7, -6, -4, -3, -1, 0, 2, 4, 5, 7, 8, 10, 11,
+    13, 15, 16, 18, 19, 21, 22, 24, 26, 27, 29, 30, 32, 34, 35, 37, 38, 40, 41, 43, 45,
+    46, 48, 49, 51, 52, 54, 56, 57, 59, 60, 62, 63, 65, 67, 68, 70, 71, 73, 74, 76, 78,
+    79, 81, 82, 84, 86, 87, 89, 90, 92, 93, 95, 97, 98, 100
+}
+
 function midiToFrequency(midiValue)
 
 --    print("midiToFrequency called with midiValue:", midiValue)
@@ -68,17 +78,11 @@ function getZeroOneHundred(value)
 
 end
 
-function getMinusOneHundredToOneHundred(value)
-  --TODO: This is not correct
+function getBipolarHundred(value)
+ 
   local midiValue = math.floor(value * 127 + 0.5)
 
-  if midiValue == 127 then
-    return 100
-  elseif midiValue == 0 then
-    return -100
-  else
-    return math.floor((midiValue / 127.5) * 200) - 100
-  end
+  return bipolarHundredRangeMap[midiValue + 1]
 
 end
 
@@ -111,14 +115,15 @@ end
 function getLooperLength(value)
   -- TODO
   -- Seems to be very close now - just need to check one last time
-  if value == 1 then
+  local midiValue = math.floor(value * 127 + 0.5)
+    
+  if midiValue == 127 then
     return 0.012
   else
-    local midiValue = math.floor(value * 127 + 0.5)
     local looperValue = 0.230 - (midiValue / 127.5 * 0.218)
     looperValue = math.floor(looperValue * 1000 + 0.5) / 1000
     looperValue = string.format("%.3f", looperValue)
-    print("getLooperLength called with value:", value, "looperValue:", looperValue)
+    
     return looperValue
   end
 end
@@ -144,9 +149,9 @@ function onReceiveNotify(key, value)
     local result = getZeroOneHundred(value[2])
     value[1]:notify('result', result)
 
-  elseif key == 'get_minus_one_hundred_to_one_hundred' then
+  elseif key == 'get_bipolar_hundred' then
 
-    local result = getMinusOneHundredToOneHundred(value[2])
+    local result = getBipolarHundred(value[2])
     value[1]:notify('result', result)
 
   elseif key == 'get_zero_ninety_nine' then
