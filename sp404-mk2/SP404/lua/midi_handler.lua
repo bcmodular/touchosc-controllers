@@ -111,7 +111,7 @@ function onReceiveNotify(key, value)
 
     local exclude_marked_presets = false
     
-    if controlGroup.tag == 1 then
+    if controlGroup.tag == '1' then
       exclude_marked_presets = true
     end
     
