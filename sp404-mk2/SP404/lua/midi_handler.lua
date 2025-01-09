@@ -38,6 +38,19 @@ local controlsInfoArray = {
   {'length_fader', false},
   {'speed_fader', false},
   {'on_off_grid', false}
+  },
+  {-- 6: scatter
+  {'type_grid', false},
+  {'depth_grid', false},
+  {'on_off_grid', false},
+  {'speed_grid', false}
+  },
+  {-- 7: downer
+  {'depth_fader', false},
+  {'rate_grid', false},
+  {'filter_fader', false},
+  {'pitch_on_off_grid', false},
+  {'resonance_fader', false},
   }
 }
 
