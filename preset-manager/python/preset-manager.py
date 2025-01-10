@@ -2,10 +2,13 @@ import sys
 import socket
 import json
 import os
+import psutil
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QWidget, QLabel, QPushButton, QLineEdit, QTextEdit, QFileDialog
 )
+from functools import partial
 from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtGui import QIntValidator
 from pythonosc.dispatcher import Dispatcher
 from pythonosc.osc_server import BlockingOSCUDPServer
 from pythonosc.udp_client import SimpleUDPClient
@@ -17,9 +20,9 @@ SETTINGS_FILE = "settings.json"
 class OSCListenerThread(QThread):
     message_received = pyqtSignal(str)
 
-    def __init__(self, port, message_type, save_file):
+    def __init__(self, ip, port, message_type, save_file):
         super().__init__()
-        self.ip = "127.0.0.1"  # Always listen on localhost
+        self.ip = ip
         self.port = port
         self.message_type = message_type
         self.save_file = save_file
@@ -58,16 +61,26 @@ class MainWindow(QMainWindow):
 
         # Layout
         layout = QVBoxLayout()
-
-        # Display current IP address
-        current_ip = self.get_current_ip()
-        layout.addWidget(QLabel(f"Your Current IP Address: {current_ip}"))
+        # Display current IP addresses
+        current_ips = self.get_current_ips()
+        layout.addWidget(QLabel("Your Current IP Addresses:"))
+        for ip in current_ips:
+            ip_parts = ip.split(": ")
+            ip_address = ip_parts[1] if len(ip_parts) > 1 else ip_parts[0]
+            ip_label = QLabel(f"<a href='#'>{ip_address}</a>")
+            ip_label.linkActivated.connect(partial(self.copy_to_clipboard, ip=ip_address))
+            ip_label.linkActivated.connect(partial(self.copy_to_clipboard, ip=ip_address))
+            layout.addWidget(ip_label)
 
         # Listener Inputs
         layout.addWidget(QLabel("Listener Configuration"))
 
-        layout.addWidget(QLabel("Listener Port:"))
+        layout.addWidget(QLabel("Local IP Address:"))
+        self.listener_ip_input = QLineEdit(self.settings.get("listener_ip", "127.0.0.1"))
+        layout.addWidget(self.listener_ip_input)
+
         self.listener_port_input = QLineEdit(self.settings.get("listener_port", "5005"))
+        self.listener_port_input.setValidator(QIntValidator(1, 65535))
         layout.addWidget(self.listener_port_input)
 
         layout.addWidget(QLabel("OSC Message Type (e.g., /example):"))
@@ -94,10 +107,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("Sender Configuration"))
 
         layout.addWidget(QLabel("Target IP Address:"))
-        self.sender_ip_input = QLineEdit(self.settings.get("sender_ip", current_ip))
+        self.sender_ip_input = QLineEdit(self.settings.get("sender_ip", current_ips[0] if current_ips else "127.0.0.1"))
         layout.addWidget(self.sender_ip_input)
 
-        layout.addWidget(QLabel("Target Port:"))
+        
+        self.sender_port_input = QLineEdit(self.settings.get("sender_port", "5005"))
         self.sender_port_input = QLineEdit(self.settings.get("sender_port", "5005"))
         layout.addWidget(self.sender_port_input)
 
@@ -125,11 +139,25 @@ class MainWindow(QMainWindow):
         # OSC Listener Thread
         self.listener_thread = None
 
-    def get_current_ip(self):
-        try:
-            return socket.gethostbyname(socket.gethostname())
-        except socket.error:
-            return "127.0.0.1"  # Fallback to localhost if unable to fetch
+    def display_message(self, message):
+        self.listener_output.append(message)
+
+    def copy_to_clipboard(self, ip):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(ip)
+        self.listener_output.append(f"Copied to clipboard: {ip}")
+
+    def get_current_ips(self):
+        ip_list = []
+        for interface, addrs in psutil.net_if_addrs().items():
+            for addr in addrs:
+                if addr.family == socket.AF_INET:
+                    if "wlan" in interface or "wifi" in interface:
+                        connection_type = "Wireless"
+                    else:
+                        connection_type = "Wired"
+                    ip_list.append(f"{interface} ({connection_type}): {addr.address}")
+        return ip_list
 
     def browse_save_file(self):
         file_name, _ = QFileDialog.getSaveFileName(self, "Select Save File", "", "JSON Files (*.json);;All Files (*)")
@@ -148,37 +176,47 @@ class MainWindow(QMainWindow):
             self.listener_start_button.setText("Start Listener")
             return
 
+        ip = self.listener_ip_input.text()
         port = int(self.listener_port_input.text())
         message_type = self.listener_message_type_input.text()
         save_file = self.listener_save_file_input.text()
 
-        self.listener_thread = OSCListenerThread(port, message_type, save_file)
-        self.listener_thread.message_received.connect(self.display_message)
-        self.listener_thread.start()
-        self.listener_start_button.setText("Stop Listener")
+        self.listener_thread = OSCListenerThread(ip, port, message_type, save_file)
+        if self.listener_thread is not None:
+            self.listener_thread.message_received.connect(self.display_message)
+            self.listener_thread.start()
+            self.listener_start_button.setText("Stop Listener")
 
-    def display_message(self, message):
-        self.listener_output.append(message)
+        try:
+            port = int(self.sender_port_input.text())
+        except ValueError:
+            self.listener_output.append("Invalid port number. Please enter a valid integer.")
+            return
 
     def send_messages(self):
         ip = self.sender_ip_input.text()
         port = int(self.sender_port_input.text())
         load_file = self.sender_load_file_input.text()
-
         client = SimpleUDPClient(ip, port)
         try:
             with open(load_file, "r") as f:
                 for line in f:
-                    message = json.loads(line.strip())
-                    address = message["address"]
-                    args = message["args"]
-                    client.send_message(address, args)
-                    self.listener_output.append(f"Sent: {message}")
+                    try:
+                        message = json.loads(line.strip())
+                        address = message["address"]
+                        args = message["args"]
+                        client.send_message(address, args)
+                        self.listener_output.append(f"Sent: {message}")
+                    except json.JSONDecodeError:
+                        self.listener_output.append(f"Invalid JSON: {line.strip()}")
+        except OSError as e:
+            self.listener_output.append(f"Error opening file: {e}")
         except FileNotFoundError:
             self.listener_output.append(f"File not found: {load_file}")
 
     def save_settings(self):
         settings = {
+            "listener_ip": self.listener_ip_input.text(),
             "listener_port": self.listener_port_input.text(),
             "listener_message_type": self.listener_message_type_input.text(),
             "listener_save_file": self.listener_save_file_input.text(),
@@ -186,9 +224,12 @@ class MainWindow(QMainWindow):
             "sender_port": self.sender_port_input.text(),
             "sender_load_file": self.sender_load_file_input.text(),
         }
-        with open(SETTINGS_FILE, "w") as f:
-            json.dump(settings, f)
-        self.listener_output.append("Settings saved.")
+        try:
+            with open(SETTINGS_FILE, "w") as f:
+                json.dump(settings, f)
+            self.listener_output.append("Settings saved.")
+        except json.JSONDecodeError as e:
+            self.listener_output.append(f"Error saving settings: {e}")
 
     def load_settings(self):
         if os.path.exists(SETTINGS_FILE):
