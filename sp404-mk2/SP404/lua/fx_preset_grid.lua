@@ -65,6 +65,9 @@ function onReceiveNotify(key, value)
     local childCount = #self.children
     local halfCount = childCount / 2
 
+    print('childCount:', childCount, 'halfCount:', halfCount)
+    print('storedPresets:', unpack(storedPresets))
+    
     -- Initialise the entries first
     for index = 1, childCount do
       if index <= halfCount then

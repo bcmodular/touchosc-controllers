@@ -47,7 +47,7 @@ function storedPresetsPerFX(fxNum)
     end
   
   end
-  
+  print('Returning stored presets for FX:', fxNum, unpack(result))
   return result
   
 end
@@ -119,4 +119,20 @@ function init()
 
   fxPresetHandler:notify('change_fx', fxNum)
   
+end
+
+function onReceiveOSC(message, connections)
+  local path = message[1]
+  local arguments = message[2]
+  local presetJSON = arguments[1].value
+  
+  print('Received OSC message:', path, 'with preset JSON:', presetJSON)
+  self.tag = presetJSON
+  
+  local presetTable = json.toTable(presetJSON)
+  presetArray = presetTable
+  
+  print('Converted preset json to table:', unpack(presetTable))
+
+  init()
 end

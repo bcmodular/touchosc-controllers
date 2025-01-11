@@ -1,11 +1,11 @@
-import sys
 import socket
 import json
 import os
-import psutil
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QWidget, QLabel, QPushButton, QLineEdit, QTextEdit, QFileDialog
 )
+import psutil
+import sys
 from functools import partial
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QIntValidator
@@ -40,9 +40,16 @@ class OSCListenerThread(QThread):
         dispatcher = Dispatcher()
         dispatcher.map(self.message_type, self.save_message)
 
-        self.server = BlockingOSCUDPServer((self.ip, self.port), dispatcher)
-        while self.running:
-            self.server.handle_request()
+        try:
+            self.server = BlockingOSCUDPServer((self.ip, self.port), dispatcher)
+            self.server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            while self.running:
+                self.server.handle_request()
+        except OSError as e:
+            if e.errno == 48:  # Address already in use
+                self.message_received.emit(f"Error: Address {self.ip}:{self.port} already in use.")
+            else:
+                self.message_received.emit(f"Error: {e}")
 
     def stop(self):
         self.running = False
@@ -61,6 +68,14 @@ class MainWindow(QMainWindow):
 
         # Layout
         layout = QVBoxLayout()
+        
+        # Listener Inputs
+        layout.addWidget(QLabel("Listener Configuration"))
+
+        layout.addWidget(QLabel("Local IP Address:"))
+        self.listener_ip_input = QLineEdit(self.settings.get("listener_ip", "127.0.0.1"))
+        layout.addWidget(self.listener_ip_input)
+
         # Display current IP addresses
         current_ips = self.get_current_ips()
         layout.addWidget(QLabel("Your Current IP Addresses:"))
@@ -68,16 +83,8 @@ class MainWindow(QMainWindow):
             ip_parts = ip.split(": ")
             ip_address = ip_parts[1] if len(ip_parts) > 1 else ip_parts[0]
             ip_label = QLabel(f"<a href='#'>{ip_address}</a>")
-            ip_label.linkActivated.connect(partial(self.copy_to_clipboard, ip=ip_address))
-            ip_label.linkActivated.connect(partial(self.copy_to_clipboard, ip=ip_address))
+            ip_label.linkActivated.connect(partial(self.listener_ip_input.setText, ip_address))
             layout.addWidget(ip_label)
-
-        # Listener Inputs
-        layout.addWidget(QLabel("Listener Configuration"))
-
-        layout.addWidget(QLabel("Local IP Address:"))
-        self.listener_ip_input = QLineEdit(self.settings.get("listener_ip", "127.0.0.1"))
-        layout.addWidget(self.listener_ip_input)
 
         self.listener_port_input = QLineEdit(self.settings.get("listener_port", "5005"))
         self.listener_port_input.setValidator(QIntValidator(1, 65535))
@@ -107,7 +114,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("Sender Configuration"))
 
         layout.addWidget(QLabel("Target IP Address:"))
-        self.sender_ip_input = QLineEdit(self.settings.get("sender_ip", current_ips[0] if current_ips else "127.0.0.1"))
+        default_ip = self.settings.get("sender_ip", "127.0.0.1")
+        if current_ips:
+            default_ip = current_ips[0].split(": ")[-1]
+        self.sender_ip_input = QLineEdit(self.settings.get("sender_ip", default_ip))
         layout.addWidget(self.sender_ip_input)
 
         

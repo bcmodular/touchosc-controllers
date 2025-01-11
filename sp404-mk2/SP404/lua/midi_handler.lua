@@ -18,7 +18,7 @@ local controlsInfoArray = {
   {'root_label', true},
   {'bright_fader', false},
   {'feedback_fader', false},
-  {'chord_label', true},
+  {'chord_grid', true},
   {'panning_fader', false},
   {'env_mod_fader', false}
   },
