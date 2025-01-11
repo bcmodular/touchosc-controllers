@@ -51,6 +51,14 @@ local controlsInfoArray = {
   {'filter_fader', false},
   {'pitch_on_off_grid', false},
   {'resonance_fader', false},
+  },
+  {-- 8: ha dou
+  {'mod_depth_fader', false},
+  {'time_fader', false},
+  {'level_fader', false},
+  {'low_cut_grid', false},
+  {'high_cut_grid', false},
+  {'pre_delay_fader', false},
   }
 }
 

@@ -107,12 +107,10 @@ function init()
   
   local fxNum
   
-  -- To be updated as more FX are implemented
-  -- EDIT HERE
-  if root.children.control_pager.values.page < 7 then
+  if root.children.control_pager.values.page < 46 then
     fxNum = root.children.control_pager.values.page + 1
   else
-    fxNum = 1
+    fxNum = 47
   end
   
   print('Initialising preset manager for FX:', fxNum)
