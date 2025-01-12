@@ -5,7 +5,7 @@ local BUTTON_STATE = {
 }
 
 local BUTTON_STATE_COLORS = {
-  EMPTY = "FFA61AFF",
+  EMPTY = "FF5C21FF",
   ON = "00FF00FF",
   OFF = "FF0000FF"
 }
@@ -33,7 +33,9 @@ function onValueChanged(key, value)
     print('onValueChanged called with key:', key, 'value:', value)
     local buttonState = tonumber(self.name)
     print('Button state:', buttonState)
-    
+
+    root.children.bus_grid.children[self.index].values.x = 1
+
     if buttonState == BUTTON_STATE.OFF then
       
       print('Turning FX on for channel:', tostring(self.index))
@@ -44,6 +46,9 @@ function onValueChanged(key, value)
         print('Turning FX off for channel:', tostring(self.index))
         self.parent:notify('turn_off', self.index)
     
+    else
+      root.children.control_pager.values.page = 47
+      root.children.fx_preset_selector_group.visible = false
     end  
   end
 end

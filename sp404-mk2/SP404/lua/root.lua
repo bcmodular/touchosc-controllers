@@ -146,7 +146,7 @@ function setUpChannel(channel)
     local controlGroup = fxPage.children.control_group
     
     if controlGroup then
-      print('Setting channel tag for:', fxPage.name, controlGroup.name)
+      print('Setting channel tag for:', fxPage.name, controlGroup.name, 'index:', i)
       setChannelTagsForChildren(controlGroup, channel)
       setFXBusAvailability(fxPage, i, channel)
     else
@@ -157,8 +157,8 @@ function setUpChannel(channel)
 
   end
 
-  local fxSelector = root:findByName('fx_selector_label', true)
-  fxSelector:notify('channel', channel)
+  local fxEditors = root:findByName('fx_editors', true)
+  fxEditors:notify('channel', channel)
 
   local midiHandler = root.children.midi_handler
   midiHandler:notify('channel', channel)
