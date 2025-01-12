@@ -180,7 +180,8 @@ end
 function init()
   
   local control_pager = root.children.control_pager
-
+  fxPages = {}
+  
   for i = 1, 46 do
     local fxPage = control_pager.children[i]
 
