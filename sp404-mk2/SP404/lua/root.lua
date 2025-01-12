@@ -10,9 +10,43 @@ local fxBusAvailability = {
   "12", "1234", "5", "5", "5", "5"
 }
 
+local onButtonMidiValues = {
+  "1, 10, 0", "2, 17, 0", "3, 23, 0", "4, 8, 0", "5, 35, 0",
+  "6, 36, 0", "7, 5, 10", "8, 21, 0", "9, 25, 0", "10, 22, 0",
+  "11, 34, 0", "12, 16, 0", "13, 0, 0", "14, 26, 0", "15, 24, 8",
+  "16, 9, 0", "17, 11, 11", "18, 1, 12", "19, 2, 13", "20, 3, 14",
+  "21, 4, 15", "22, 20, 7", "23, 27, 5", "24, 28, 6", "25, 29, 0",
+  "26, 30, 0", "27, 31, 0", "28, 32, 0", "29, 33, 0", "30, 19, 9",
+  "31, 18, 0", "32, 15, 0", "33, 14, 0", "34, 12, 0", "35, 13, 0",
+  "36, 7, 16", "37, 6, 17", "38, 37, 0", "39, 38, 0", "40, 39, 0",
+  "41, 0, 0", "42, 40, 0", "0, 0, 1", "0, 0, 2", "0, 0, 3", "0, 0, 4"
+}
+
+local onButtonScript = [[
+local midiValues = {%s}
+
+function onValueChanged(key, value)
+  if key == 'x' and value == 0 then
+    local channel = tonumber(self.tag)
+    local ccValue = midiValues[1]
+    
+    if channel <= 1 then
+      ccValue = midiValues[1]
+    elseif channel <= 3 then
+      ccValue = midiValues[2]
+    else
+      ccValue = midiValues[3]
+    end
+    
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + self.tag, 83, ccValue })
+  end
+end
+]]
+
 function setFXBusAvailability(fxPage, index, channel)
   local busAvailability = fxBusAvailability[index]
-  
+  --print('Bus availability for:', fxPage.name, busAvailability, index, channel)
+
   if busAvailability == "1234" then
     local bus5Hidden = fxPage:findByName('bus_5_hidden')
     
@@ -50,6 +84,8 @@ function onReceiveNotify(key, value)
   
     local channel = value
     
+    local i = 1
+
     for name, fxPage in pairs(fxPages) do
       
       local controlGroup = fxPage.children.control_group
@@ -61,6 +97,8 @@ function onReceiveNotify(key, value)
       else
         break
       end
+      
+      i = i + 1
 
     end
 
@@ -88,7 +126,14 @@ function init()
     local fxPageLabel = fxPage:findByName('fx_page_label')
     
     if fxPageLabel then
+      print('Setting fx page label:', fxPage.name)
       fxPageLabel.values.text = string.upper(string.gsub(fxPage.name, "_", " "))
+
+      local onButton = fxPage:findByName('fx_on_button', true)
+      print('Assigning onButtonScript to:', fxPage.name, onButton.name)
+
+      local onButtonScript = string.format(onButtonScript, onButtonMidiValues[i])
+      onButton.script = onButtonScript
     else
       break
     end
