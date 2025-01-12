@@ -59,7 +59,15 @@ local controlsInfoArray = {
   {'low_cut_grid', false},
   {'high_cut_grid', false},
   {'pre_delay_fader', false},
-  }
+  },
+  {-- 9: ko da ma
+  {'time_grid', false},
+  {'feedback_fader', false},
+  {'level_fader', false},
+  {'l_damp_f_grid', false},
+  {'h_damp_f_grid', false},
+  {'mode_grid'}
+  },
 }
 
 function floatToMIDI(floatValue)

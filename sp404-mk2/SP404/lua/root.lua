@@ -24,6 +24,7 @@ local onButtonMidiValues = {
 
 local onButtonScript = [[
 local midiValues = {%s}
+local fxNum = %s
 
 function onValueChanged(key, value)
   if key == 'x' and value == 0 then
@@ -38,14 +39,72 @@ function onValueChanged(key, value)
       ccValue = midiValues[3]
     end
     
+    -- Update the bus FX label to indicate which bus the effect is on
+    local busFXLabelGrid = root:findByName('bus_fx_label_grid', true)
+    local busFXLabel = busFXLabelGrid.children[channel + 1]
+    local fxName = string.upper(string.gsub(self.parent.parent.parent.name, "_", " "))
+    busFXLabel.values.text = fxName
+
+    -- Change the bus FX button to enable on/off for this effect
+    local busFXGrid = root:findByName('bus_fx_grid', true)
+    print('Changing bus FX button state to:', ccValue, 'for busNum:', tostring(channel + 1))
+    busFXGrid:notify('new_fx', {channel + 1, 'ON', ccValue})
+
+    -- Change the name of the relevant bus_grid button to fxNum
+    -- This is used to jump to the relevant fx editor when we
+    -- change buses to one that has an effect assigned
+    local busGrid = root:findByName('bus_grid', true)
+    print('Setting bus grid button name to:', fxNum, 'for busNum:', tostring(channel + 1))
+    busGrid:notify('change_name', {channel + 1, fxNum})
+
     sendMIDI({ MIDIMessageType.CONTROLCHANGE + self.tag, 83, ccValue })
+  end
+end
+]]
+
+local offButtonScript = [[
+local midiValues = {%s}
+local fxNum = %s
+
+function onValueChanged(key, value)
+  if key == 'x' and value == 0 then
+    local channel = tonumber(self.tag)
+    local ccValue = midiValues[1]
+    
+    if channel <= 1 then
+      ccValue = midiValues[1]
+    elseif channel <= 3 then
+      ccValue = midiValues[2]
+    else
+      ccValue = midiValues[3]
+    end
+    
+    -- Update the bus FX label to indicate which bus the effect is on
+    local busFXLabelGrid = root:findByName('bus_fx_label_grid', true)
+    local busFXLabel = busFXLabelGrid.children[channel + 1]
+    local fxName = string.upper(string.gsub(self.parent.parent.parent.name, "_", " "))
+    busFXLabel.values.text = fxName
+
+    -- Change the bus FX button to enable on/off for this effect
+    local busFXGrid = root:findByName('bus_fx_grid', true)
+    print('Changing bus FX button state to:', ccValue, 'for busNum:', channel + 1)
+    busFXGrid:notify('new_fx', {channel + 1, 'OFF', ccValue})
+    
+    -- Change the name of the relevant bus_grid button to fxNum
+    -- This is used to jump to the relevant fx editor when we
+    -- change buses to one that has an effect assigned
+    local busGrid = root:findByName('bus_grid', true)
+    print('Setting bus grid button name to:', fxNum, 'for busNum:', tostring(channel + 1))
+    busGrid:notify('change_name', {channel + 1, fxNum})
+
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + self.tag, 83, 0 })
   end
 end
 ]]
 
 function setFXBusAvailability(fxPage, index, channel)
   local busAvailability = fxBusAvailability[index]
-  --print('Bus availability for:', fxPage.name, busAvailability, index, channel)
+  print('Bus availability for:', fxPage.name, busAvailability, index, channel)
 
   if busAvailability == "1234" then
     local bus5Hidden = fxPage:findByName('bus_5_hidden')
@@ -78,38 +137,41 @@ function setChannelTagsForChildren(parentControl, channel)
   end
 end
 
+function setUpChannel(channel)
+  
+  local i = 1
+
+  for name, fxPage in pairs(fxPages) do
+    
+    local controlGroup = fxPage.children.control_group
+    
+    if controlGroup then
+      print('Setting channel tag for:', fxPage.name, controlGroup.name)
+      setChannelTagsForChildren(controlGroup, channel)
+      setFXBusAvailability(fxPage, i, channel)
+    else
+      break
+    end
+    
+    i = i + 1
+
+  end
+
+  local fxSelector = root:findByName('fx_selector_label', true)
+  fxSelector:notify('channel', channel)
+
+  local midiHandler = root.children.midi_handler
+  midiHandler:notify('channel', channel)
+
+end
+
 function onReceiveNotify(key, value)
 
   if key == 'channel' then
-  
+    print('Setting channel to:', value)
     local channel = value
     
-    local i = 1
-
-    for name, fxPage in pairs(fxPages) do
-      
-      local controlGroup = fxPage.children.control_group
-      
-      if controlGroup then
-        print('Setting channel tag for:', fxPage.name, controlGroup.name)
-        setChannelTagsForChildren(controlGroup, channel)
-        setFXBusAvailability(fxPage, i, channel)
-      else
-        break
-      end
-      
-      i = i + 1
-
-    end
-
-    local fx_off_button = self.children.top_button_group.children.fx_off_button
-    fx_off_button.tag = channel
-
-    local fxSelector = root:findByName('fx_selector_label', true)
-    fxSelector:notify('channel', channel)
-
-    local midiHandler = root.children.midi_handler
-    midiHandler:notify('channel', channel)
+    setUpChannel(channel)
   
   end
   
@@ -131,15 +193,24 @@ function init()
 
       local onButton = fxPage:findByName('fx_on_button', true)
       print('Assigning onButtonScript to:', fxPage.name, onButton.name)
-
-      local onButtonScript = string.format(onButtonScript, onButtonMidiValues[i])
+      
+      local onButtonScript = string.format(onButtonScript, onButtonMidiValues[i], i)
       onButton.script = onButtonScript
+
+      local offButton = fxPage:findByName('fx_off_button', true)
+      print('Assigning offButtonScript to:', fxPage.name, offButton.name)
+
+      local offButtonScript = string.format(offButtonScript, onButtonMidiValues[i], i)
+      offButton.script = offButtonScript
+
     else
       break
     end
 
-    print('Adding fx page:', fxPage.name)
+    print('Adding fx page:', fxPage.name, 'index:', i)
     table.insert(fxPages, fxPage)
   end
+
+  setUpChannel(0)
 
 end
