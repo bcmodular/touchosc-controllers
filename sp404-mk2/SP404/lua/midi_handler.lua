@@ -66,7 +66,15 @@ local controlsInfoArray = {
   {'level_fader', false},
   {'l_damp_f_grid', false},
   {'h_damp_f_grid', false},
-  {'mode_grid'}
+  {'mode_grid', false}
+  },
+  {-- 10: zan zou TODO: How to handle two controls for one value????
+  {'time_fader', false},
+  {'feedback_fader', false},
+  {'hf_damp_grid', false},
+  {'level_fader', false},
+  {'mode_grid', false},
+  {'sync_grid', false}
   },
 }
 

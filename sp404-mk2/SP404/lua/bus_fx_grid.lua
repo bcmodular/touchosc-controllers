@@ -87,6 +87,9 @@ function onReceiveNotify(key, value)
       local busNum = value
       print('Clearing bus:', busNum)
       setButtonState(self.children[busNum], 'EMPTY')
+
+      root.children.bus_grid:notify('change_name', {busNum, ''})
+
       local busFXLabelGrid = root:findByName('bus_fx_label_grid', true)
       local busFXLabel = busFXLabelGrid.children[busNum]
       busFXLabel.values.text = 'Select'
