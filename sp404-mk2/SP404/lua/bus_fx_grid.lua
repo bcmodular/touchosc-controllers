@@ -82,6 +82,16 @@ function onReceiveNotify(key, value)
       setButtonState(self.children[busNum], 'ON')
       sendMIDI({ MIDIMessageType.CONTROLCHANGE + busNum - 1, 83, ccValues[busNum] })
 
+    elseif key == 'clear' then
+
+      local busNum = value
+      print('Clearing bus:', busNum)
+      setButtonState(self.children[busNum], 'EMPTY')
+      local busFXLabelGrid = root:findByName('bus_fx_label_grid', true)
+      local busFXLabel = busFXLabelGrid.children[busNum]
+      busFXLabel.values.text = 'Select'
+      sendMIDI({ MIDIMessageType.CONTROLCHANGE + busNum - 1, 83, 0 })
+
     end
   end
 end

@@ -22,6 +22,9 @@ function onValueChanged(key, value)
       root.children.control_pager.values.page = fxPage
       root.children.fx_preset_selector_group.visible = true
       root.children.fx_preset_handler:notify('change_fx', fxPage + 1)
+    else
+      root.children.control_pager.values.page = 47
+      root.children.fx_preset_selector_group.visible = false
     end
     
     self.values.x = 1
