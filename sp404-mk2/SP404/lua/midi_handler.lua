@@ -68,7 +68,7 @@ local controlsInfoArray = {
   {'h_damp_f_grid', false},
   {'mode_grid', false}
   },
-  {-- 10: zan zou TODO: How to handle two controls for one value????
+  {-- 10: zan zou
   {'time_fader', false},
   {'feedback_fader', false},
   {'hf_damp_grid', false},
@@ -149,6 +149,7 @@ function onReceiveNotify(key, value)
     local exclude_marked_presets = false
     
     if controlGroup.tag == '1' then
+      --print('Excluding marked presets')
       exclude_marked_presets = true
     end
     
@@ -156,7 +157,7 @@ function onReceiveNotify(key, value)
       local controlObject = controlGroup:findByName(controlInfo[1], true)
       local isExcludable = controlInfo[2]
 
-      --print(index, controlObject.name)
+      --print(index, controlObject.name, controlObject.type, isExcludable, exclude_marked_presets)
       
       if not isExcludable or not exclude_marked_presets then
       
