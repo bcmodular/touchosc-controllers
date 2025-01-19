@@ -22,12 +22,13 @@ local onButtonMidiValues = {
   "41, 0, 0", "42, 40, 0", "0, 0, 1", "0, 0, 2", "0, 0, 3", "0, 0, 4"
 }
 
-local onButtonScript = [[
+local buttonScriptTemplate = [[
 local midiValues = {%s}
 local fxNum = %s
 
 function onValueChanged(key, value)
   if key == 'x' and value == 0 then
+    %s -- Optional buttonDown logic
     local channel = tonumber(self.tag)
     local ccValue = midiValues[1]
     
@@ -48,7 +49,7 @@ function onValueChanged(key, value)
     -- Change the bus FX button to enable on/off for this effect
     local busFXGrid = root:findByName('bus_fx_grid', true)
     print('Changing bus FX button state to:', ccValue, 'for busNum:', tostring(channel + 1))
-    busFXGrid:notify('new_fx', {channel + 1, 'ON', ccValue})
+    %s -- Notification for ON/OFF or grab logic
 
     -- Change the name of the relevant bus_grid button to fxNum
     -- This is used to jump to the relevant fx editor when we
@@ -57,50 +58,39 @@ function onValueChanged(key, value)
     print('Setting bus grid button name to:', fxNum, 'for busNum:', tostring(channel + 1))
     busGrid:notify('change_name', {channel + 1, fxNum})
 
-    sendMIDI({ MIDIMessageType.CONTROLCHANGE + self.tag, 83, ccValue })
+    %s -- MIDI logic for ON/OFF or grab logic
   end
 end
 ]]
 
-local offButtonScript = [[
-local midiValues = {%s}
-local fxNum = %s
-
-function onValueChanged(key, value)
-  if key == 'x' and value == 0 then
-    local channel = tonumber(self.tag)
-    local ccValue = midiValues[1]
-    
-    if channel <= 1 then
-      ccValue = midiValues[1]
-    elseif channel <= 3 then
-      ccValue = midiValues[2]
-    else
-      ccValue = midiValues[3]
-    end
-    
-    -- Update the bus FX label to indicate which bus the effect is on
-    local busFXLabelGrid = root:findByName('bus_fx_label_grid', true)
-    local busFXLabel = busFXLabelGrid.children[channel + 1]
-    local fxName = string.upper(string.gsub(self.parent.parent.parent.name, "_", " "))
-    busFXLabel.values.text = fxName
-
-    -- Change the bus FX button to enable on/off for this effect
-    local busFXGrid = root:findByName('bus_fx_grid', true)
-    print('Changing bus FX button state to:', ccValue, 'for busNum:', channel + 1)
+function generateButtonScript(midiValues, fxNum, isGrabButton, midiValueOverride)
+  local buttonDownLogic = isGrabButton and [[
+  local buttonDown = true
+  if self.values.x == 0 then
+    buttonDown = false
+  end
+  ]] or ""
+  local notificationLogic = isGrabButton and [[
+  if buttonDown then
+    busFXGrid:notify('new_fx', {channel + 1, 'ON', ccValue})
+  else
     busFXGrid:notify('new_fx', {channel + 1, 'OFF', ccValue})
-    
-    -- Change the name of the relevant bus_grid button to fxNum
-    -- This is used to jump to the relevant fx editor when we
-    -- change buses to one that has an effect assigned
-    local busGrid = root:findByName('bus_grid', true)
-    print('Setting bus grid button name to:', fxNum, 'for busNum:', tostring(channel + 1))
-    busGrid:notify('change_name', {channel + 1, fxNum})
-
+  end
+  ]] or [[
+  busFXGrid:notify('new_fx', {channel + 1, '%s', ccValue})
+  ]]
+  local midiLogic = isGrabButton and [[
+  if buttonDown then
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + self.tag, 83, ccValue })
+  else
     sendMIDI({ MIDIMessageType.CONTROLCHANGE + self.tag, 83, 0 })
   end
+  ]] or string.format([[
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + self.tag, 83, %s })
+  ]], midiValueOverride or "ccValue")
+  local script = string.format(buttonScriptTemplate, midiValues, fxNum, buttonDownLogic, notificationLogic, midiLogic)
+  return script
 end
-]]
 
 function setFXBusAvailability(fxPage, index, channel)
   local busAvailability = fxBusAvailability[index]
@@ -192,17 +182,29 @@ function init()
       print('Setting fx page label:', fxPage.name)
       fxPageLabel.values.text = string.upper(string.gsub(fxPage.name, "_", " "))
 
-      local onButton = fxPage:findByName('fx_on_button', true)
+    -- Assign On Button Script
+    local onButton = fxPage:findByName('fx_on_button', true)
+    if onButton then
       print('Assigning onButtonScript to:', fxPage.name, onButton.name)
-      
-      local onButtonScript = string.format(onButtonScript, onButtonMidiValues[i], i)
+      local onButtonScript = generateButtonScript(onButtonMidiValues[i], i, false, nil):gsub('%%s', 'ON')
       onButton.script = onButtonScript
+    end
 
-      local offButton = fxPage:findByName('fx_off_button', true)
+    -- Assign Off Button Script
+    local offButton = fxPage:findByName('fx_off_button', true)
+    if offButton then
       print('Assigning offButtonScript to:', fxPage.name, offButton.name)
-
-      local offButtonScript = string.format(offButtonScript, onButtonMidiValues[i], i)
+      local offButtonScript = generateButtonScript(onButtonMidiValues[i], i, false, "0"):gsub('%%s', 'OFF')
       offButton.script = offButtonScript
+    end
+
+    -- Assign Grab Button Script (if present)
+    local grabButton = fxPage:findByName('fx_grab_button', true)
+    if grabButton then
+      print('Assigning grabButtonScript to:', fxPage.name, grabButton.name)
+      local grabButtonScript = generateButtonScript(onButtonMidiValues[i], i, true)
+      grabButton.script = grabButtonScript
+    end
 
     else
       break
