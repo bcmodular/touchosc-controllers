@@ -216,8 +216,10 @@ function onReceiveNotify(key, value)
           controlObject:notify('change_selection', ccValues[index])
 
         else
+          -- Need to force update here
+          controlObject:notify('new_value', midiToFloat(ccValues[index]))
           
-          controlObject.values.x = midiToFloat(ccValues[index])
+          --controlObject.values.x = midiToFloat(ccValues[index])
 
         end
 
