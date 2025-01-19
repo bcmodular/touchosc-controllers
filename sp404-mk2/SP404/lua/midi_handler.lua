@@ -76,6 +76,52 @@ local controlsInfoArray = {
   {'mode_grid', false},
   {'sync_grid', false}
   },
+  {-- 11: to gu ro
+  {'depth_fader', false},
+  {'rate_fader', false},
+  {'resonance_fader', false},
+  {'flt_mod_fader', false},
+  {'amp_mod_fader', false},
+  {'sync_grid', false}
+  },
+  {-- 12: sbf
+  {'interval_fader', false},
+  {'width_fader', false},
+  {'balance_fader', false},
+  {'type_grid', false},
+  {'gain_fader', false}
+  },
+  {-- 13: stopper
+  {'depth_fader', false},
+  {'rate_grid', false},
+  {'resonance_fader', false},
+  {'flt_mod_grid', false},
+  {'amp_mod_fader', false}
+  },
+  {-- 14: tape echo
+  {'time_fader', false},
+  {'feedback_fader', false},
+  {'level_fader', false},
+  {'mode_grid', false},
+  {'wf_rate_fader', false},
+  {'wf_depth_fader', false}
+  },
+  {-- 15: time ctrl delay
+  {'time_fader', false},
+  {'feedback_fader', false},
+  {'level_fader', false},
+  {'l_damp_f_grid', false},
+  {'h_damp_f_grid', false},
+  {'sync_grid', false}
+},
+  {-- 16: super filter
+  {'cutoff_fader', false},
+  {'resonance_fader', false},
+  {'filter_type_grid', false},
+  {'depth_fader', false},
+  {'time_fader', false},
+  {'sync_grid', false}
+  },
 }
 
 function floatToMIDI(floatValue)
@@ -157,7 +203,7 @@ function onReceiveNotify(key, value)
       local controlObject = controlGroup:findByName(controlInfo[1], true)
       local isExcludable = controlInfo[2]
 
-      --print(index, controlObject.name, controlObject.type, isExcludable, exclude_marked_presets)
+      print(index, controlObject.name, controlObject.type, isExcludable, exclude_marked_presets)
       
       if not isExcludable or not exclude_marked_presets then
       

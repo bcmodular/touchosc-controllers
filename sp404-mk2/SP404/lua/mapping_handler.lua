@@ -46,6 +46,35 @@ local hundredMSRangeMap = {
     92, 93, 94, 95, 95, 96, 97, 98, 99, 99, 100
 }
 
+local balanceRangeMap = {
+  0, 1, 2, 2, 3, 4, 5, 5, 6, 7, 8, 9, 9, 10, 11, 12, 13, 13, 14, 15, 16, 16,
+  17, 18, 19, 20, 20, 21, 22, 23, 24, 24, 25, 26, 27, 27, 28, 29, 30, 31, 31,
+  32, 33, 34, 35, 35, 36, 37, 38, 38, 39, 40, 41, 42, 42, 43, 44, 45, 45, 46,
+  47, 48, 49, 49, 50, 51, 52, 53, 53, 54, 55, 56, 56, 57, 58, 59, 60, 60, 61,
+  62, 63, 64, 64, 65, 66, 67, 67, 68, 69, 70, 71, 71, 72, 73, 74, 75, 75, 76,
+  77, 78, 78, 79, 80, 81, 82, 82, 83, 84, 85, 85, 86, 87, 88, 89, 89, 90, 91,
+  92, 93, 93, 94, 95, 96, 96, 97, 98, 99, 100
+}
+
+local sbfGainMap = {
+  '-INF', '-52.3', '-51.0', '-49.7', '-48.5', '-47.3', '-46.2', '-45.1',
+  '-44.0', '-43.0', '-42.0', '-41.1', '-40.2', '-39.3', '-38.5', '-37.7',
+  '-36.9', '-36.2', '-35.5', '-34.8', '-34.2', '-33.6', '-33.0', '-32.4',
+  '-31.8', '-31.3', '-30.8', '-30.3', '-29.8', '-29.4', '-28.9', '-28.5',
+  '-28.1', '-27.7', '-27.4', '-27.0', '-26.6', '-26.3', '-26.0', '-25.6',
+  '-25.3', '-25.0', '-24.7', '-24.4', '-24.1', '-23.8', '-23.6', '-23.3',
+  '-23.0', '-22.7', '-22.5', '-22.2', '-21.9', '-21.6', '-21.4', '-21.1',
+  '-20.8', '-20.6', '-20.3', '-20.0', '-19.7', '-19.4', '-19.1', '-18.8',
+  '-18.6', '-18.2', '-17.9', '-17.6', '-17.3', '-17.0', '-16.7', '-16.3',
+  '-16.0', '-15.6', '-15.3', '-14.9', '-14.5', '-14.2', '-13.8', '-13.4',
+  '-13.0', '-12.6', '-12.2', '-11.7', '-11.3', '-10.9', '-10.4', '-10.0',
+  '-9.5', '-9.1', '-8.6', '-8.2', '-7.7', '-7.2', '-6.7', '-6.2',
+  '-5.7', '-5.2', '-4.7', '-4.2', '-3.7', '-3.2', '-2.6', '-2.1',
+  '-1.6', '-1.1', '-0.5', '0.0', '+0.5', '+1.1', '+1.6', '+2.1',
+  '+2.6', '+3.2', '+3.7', '+4.2', '+4.7', '+5.2', '+5.7', '+6.2',
+  '+6.7', '+7.2', '+7.6', '+8.1', '+8.5', '+9.0', '+9.4', '+10.0'
+}
+
 function midiToFrequency(midiValue)
 
 --    print("midiToFrequency called with midiValue:", midiValue)
@@ -55,7 +84,7 @@ end
 
 function midiToEQRange(midiValue)
 
-  print("midiToEQRange called with midiValue:", midiValue)
+--  print("midiToEQRange called with midiValue:", midiValue)
   return midiToEQRangeMap[midiValue + 1]
   
 end
@@ -63,7 +92,7 @@ end
 function getEQ(value)
 
   local scaledValue = midiToEQRange(math.floor(value * 127 + 0.5))
-  print("getEQ called with value:", value, "scaledValue:", scaledValue)
+--  print("getEQ called with value:", value, "scaledValue:", scaledValue)
   return scaledValue
   
 end
@@ -96,7 +125,23 @@ function getBipolarHundred(value)
 
 end
 
+function getBalance(value)
+ 
+  local midiValue = math.floor(value * 127 + 0.5)
+
+  return balanceRangeMap[midiValue + 1]
+
+end
+
 function getHundredMS(value)
+ 
+  local midiValue = math.floor(value * 127 + 0.5)
+
+  return hundredMSRangeMap[midiValue + 1]
+
+end
+
+function getTapeSpeed(value)
  
   local midiValue = math.floor(value * 127 + 0.5)
 
@@ -130,6 +175,14 @@ function get24dB(value)
 
 end
 
+function getSBFGain(value)
+
+  local midiValue = math.floor(value * 127 + 0.5)
+
+  return sbfGainMap[midiValue + 1]
+
+end
+
 function getLooperLength(value)
   local midiValue = math.floor(value * 127 + 0.5)
     
@@ -149,46 +202,66 @@ function onReceiveNotify(key, value)
   --------------------------------
   -- MAPPING NOTIFICATION HANDLING
   --------------------------------
-
+  local resultKey = 'result'
+  
+  if value[3] ~= nil then
+    resultKey = value[3]
+  end
+    
   if key == 'get_freq' then
     
     local result = getFreq(value[2])
-    value[1]:notify('result', result)
+    value[1]:notify(resultKey, result)
 
   elseif key == 'get_eq' then
     
     local result = getEQ(value[2])
-    value[1]:notify('result', result)
+    value[1]:notify(resultKey, result)
 
   elseif key == 'get_zero_one_hundred' then
 
     local result = getZeroOneHundred(value[2])
-    value[1]:notify('result', result)
+    value[1]:notify(resultKey, result)
 
   elseif key == 'get_hundred_ms' then
 
     local result = getHundredMS(value[2])
-    value[1]:notify('result', result)
+    value[1]:notify(resultKey, result)
+
+  elseif key == 'get_tape_speed' then
+
+    local result = getTapeSpeed(value[2])
+    value[1]:notify(resultKey, result)
 
   elseif key == 'get_bipolar_hundred' then
 
     local result = getBipolarHundred(value[2])
-    value[1]:notify('result', result)
+    value[1]:notify(resultKey, result)
+
+  elseif key == 'get_balance' then
+
+    local result = getBalance(value[2])
+    value[1]:notify(resultKey, result)
 
   elseif key == 'get_zero_ninety_nine' then
 
     local result = getZeroNinetyNine(value[2])
-    value[1]:notify('result', result)    
+    value[1]:notify(resultKey, result)    
 
   elseif key == 'get_24_dB' then
 
     local result = get24dB(value[2])
-    value[1]:notify('result', result)
+    value[1]:notify(resultKey, result)
+
+  elseif key == 'get_sbf_gain' then
+
+    local result = getSBFGain(value[2])
+    value[1]:notify(resultKey, result)
 
   elseif key == 'get_looper_length' then
 
     local result = getLooperLength(value[2])
-    value[1]:notify('result', result)
+    value[1]:notify(resultKey, result)
 
   end
 
