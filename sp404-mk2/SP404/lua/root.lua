@@ -1,15 +1,5 @@
 local fxPages = {}
 
--- This array indicates which buses are valid for each effect
--- e.g. 1234 means it's available for all but 5
-local fxBusAvailability = {
-  "1234", "1234", "1234", "1234", "1234", "1234", "12345", "1234", "1234", "1234",
-  "1234", "1234", "12", "1234", "12345", "1234", "12345", "12345", "12345", "12345",
-  "12345", "12345", "12345", "12345", "1234", "1234", "1234", "1234", "1234", "12345",
-  "1234", "1234", "1234", "1234", "1234", "12345", "12345", "1234", "1234", "1234",
-  "12", "1234", "5", "5", "5", "5"
-}
-
 local onButtonMidiValues = {
   "1, 10, 0", "2, 17, 0", "3, 23, 0", "4, 8, 0", "5, 35, 0",
   "6, 36, 0", "7, 5, 10", "8, 21, 0", "9, 25, 0", "10, 22, 0",
@@ -92,23 +82,6 @@ function generateButtonScript(midiValues, fxNum, isGrabButton, midiValueOverride
   return script
 end
 
-function setFXBusAvailability(fxPage, index, channel)
-  local busAvailability = fxBusAvailability[index]
-  print('Bus availability for:', fxPage.name, busAvailability, index, channel)
-
-  if busAvailability == "1234" then
-    local bus5Hidden = fxPage:findByName('bus_5_hidden')
-    
-    if channel == 4 then
-      bus5Hidden.visible = true
-      bus5Hidden.interactive = true
-    else
-      bus5Hidden.visible = false
-      bus5Hidden.interactive = false
-    end
-  end
-end
-
 function setChannelTagsForChildren(parentControl, channel)
   local buttons = parentControl:findAllByType(ControlType.BUTTON, true)
   local faders = parentControl:findAllByType(ControlType.FADER, true)
@@ -138,7 +111,6 @@ function setUpChannel(channel)
     if controlGroup then
       print('Setting channel tag for:', fxPage.name, controlGroup.name, 'index:', i)
       setChannelTagsForChildren(controlGroup, channel)
-      setFXBusAvailability(fxPage, i, channel)
     else
       break
     end
