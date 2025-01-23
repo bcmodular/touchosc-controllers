@@ -13,43 +13,43 @@ local controlsInfoArray = {
   -- {controlName, isExcludable}
   --
   {-- 1: filter + drive
-  {'cutoff_fader', false, 'cutoff_label', 'getFreq', 'CUTOFF: %s Hz'},
-  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s'},
-  {'drive_fader', false, 'drive_label', 'getZeroOneHundred', 'DRIVE: %s'},
-  {'filter_type_grid', false},
-  {'low_freq_fader', false, 'low_freq_label', 'getFreq', 'LOW FREQ: %s Hz'},
-  {'low_gain_fader', false, 'low_gain_label', 'get24dB', 'LOW GAIN: %s dB'}
+  {'cutoff_fader', false, 'cutoff_label', 'getFreq', 'CUTOFF: %s Hz', '{}'},
+  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', '{}'},
+  {'drive_fader', false, 'drive_label', 'getZeroOneHundred', 'DRIVE: %s', '{}'},
+  {'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', '{"filter_type_grid"}'},
+  {'low_freq_fader', false, 'low_freq_label', 'getFreq', 'LOW FREQ: %s Hz', '{}'},
+  {'low_gain_fader', false, 'low_gain_label', 'get24dB', 'LOW GAIN: %s dB', '{}'}
   },
   {-- 2: resonator
-  {'root_label', true},
-  {'bright_fader', false},
-  {'feedback_fader', false},
-  {'chord_grid', true},
-  {'panning_fader', false},
-  {'env_mod_fader', false}
+  {'root_fader', true, 'root_value_label', 'getRoot', '%s', '{"root_label"}'},
+  {'bright_fader', false, 'bright_value_label', 'getZeroOneHundred', '%s', '{}'},
+  {'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s%%', '{}'},
+  {'chord_fader', true, 'chord_label', 'getChord', '%s', '{"chord_grid"}'},
+  {'panning_fader', false, 'panning_value_label', 'getZeroOneHundred', '%s', '{}'},
+  {'env_mod_fader', false, 'env_mod_value_label', 'getZeroOneHundred', '%s', '{}'}
   },
   {-- 3: sync delay
-  {'time_grid', false},
-  {'feedback_fader', false},
-  {'level_fader', false},
-  {'l_damp_f_grid', false},
-  {'h_damp_f_grid', false}
+  {'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', '{"delay_time_grid"}'},
+  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', '{}'},
+  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', '{}'},
+  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', '{"l_damp_f_grid"}'},
+  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', '{"h_damp_f_grid"}'},
   },
   {-- 4: isolator
-  {'low_fader', false},
-  {'mid_fader', false},
-  {'high_fader', false}
+  {'low_fader', false, 'low_label', 'getEQ', '%s', '{}'},
+  {'mid_fader', false, 'mid_label', 'getEQ', '%s', '{}'},
+  {'high_fader', false, 'high_label', 'getEQ', '%s', '{}'}
   },
   {-- 5: djfx looper
-  {'length_fader', false},
-  {'speed_fader', false},
-  {'on_off_grid', false}
+  {'length_fader', false, 'length_label', 'getLooperLength', '%s', '{}'},
+  {'speed_fader', false, 'speed_label', 'getBipolarHundred', '%s', '{}'},
+  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', '{"on_off_grid"}'}
   },
   {-- 6: scatter
-  {'type_grid', false},
-  {'depth_grid', false},
-  {'on_off_grid', false},
-  {'speed_grid', false}
+  {'scatter_type_fader', false, 'scatter_type_label', 'getScatterType', '%s', '{"scatter_type_grid"}'},
+  {'scatter_depth_fader', false, 'scatter_depth_label', 'getScatterDepth', '%s', '{"scatter_depth_grid"}'},
+  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', '{"on_off_grid"}'},
+  {'scatter_speed_fader', false, 'scatter_speed_label', 'getScatterSpeed', '%s', '{"scatter_speed_grid"}'}
   },
   {-- 7: downer
   {'depth_fader', false},
@@ -347,7 +347,110 @@ local mappingScripts = {
         return looperValue
       end
     end
-  ]]
+  ]],
+
+  getFilterType = [[
+    function getFilterType(value)
+      local filterTypes = {'High-pass', 'Low-pass'}
+      local roundedValue = math.floor(value + 0.5)
+      return filterTypes[roundedValue + 1]
+    end
+  ]],
+
+  getRoot = [[
+    local rootNotes = {'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'}
+    local rootOctaves = {'-1', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+    
+    function getRoot(value)
+      local midiValue = math.floor(value * 127 + 0.5)
+      local rootNote = rootNotes[(midiValue % 12) + 1]
+      local rootOctave = rootOctaves[math.floor(midiValue / 12) + 1]
+      return rootNote..rootOctave
+    end
+  ]],
+
+  getChord = [[
+    local chords = {
+      'Root', 'Oct', 'UpDn', 'P5', 
+      'm3', 'm5', 'm7', 'm7oct', 
+      'm0', 'm11', 'M3', 'M5', 
+      'M7', 'M7oct', 'M9', 'M11'
+    }
+
+    function getChord(value)
+      local chord = chords[math.floor(value * 15 + 0.5) + 1]
+      return chord
+    end
+  ]],
+
+  getDelayTimes = [[
+    local delayTimes = {
+        '1/32', '1/16T', '1/32D', '1/16', 
+        '1/8T', '1/16D', '1/8', '1/4T', 
+        '1/8D', '1/4', '1/2T', '1/4D', 
+        '1/2', '1/1T', '1/2D', '1/1'
+    }
+
+    function getDelayTimes(value)
+      local delayTime = delayTimes[math.floor(value * 15 + 0.5) + 1]
+      return delayTime
+    end
+  ]],
+
+  getLDampFValues = [[
+    local lDampFValues = {'FLAT', '80', '100', '125', '160', '200', '250', '315', '400', '500', '630', '800'}
+
+    function getLDampFValues(value)
+      local lDampFValue = lDampFValues[math.floor(value * 11 + 0.5) + 1]
+      return lDampFValue
+    end
+  ]],   
+
+  getHDampFValues = [[
+    local hDampFValues = {'630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000', '10000', '12500', 'FLAT'}
+
+    function getHDampFValues(value)
+      local hDampFValue = hDampFValues[math.floor(value * 14 + 0.5) + 1]
+      return hDampFValue
+    end
+  ]],
+
+  getOnOff = [[
+    local onOff = {'Off', 'On'}
+        
+    function getOnOff(value)
+      local roundedValue = math.floor(value + 0.5)
+      return onOff[roundedValue + 1]
+    end
+  ]],
+
+  getScatterSpeed = [[
+    local speeds = {'SINGLE', 'DOUBLE'}
+      
+    function getScatterSpeed(value)
+      local roundedValue = math.floor(value + 0.5)
+      return speeds[roundedValue + 1]
+    end
+  ]],  
+
+  getScatterType = [[
+    local types = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10'}
+      
+    function getScatterType(value)
+      local type = types[math.floor(value * 9 + 0.5) + 1]
+      return type
+    end
+  ]],  
+  
+  getScatterDepth = [[
+    local depths = {'10', '20', '30', '40', '50', '60', '70', '80', '90', '100'}
+      
+    function getScatterDepth(value)
+      local depth = depths[math.floor(value * 9 + 0.5) + 1]
+      return depth
+    end
+  ]],    
+
 }
 
 -- CONTROL SCRIPTS *******************************************
@@ -355,22 +458,48 @@ local faderScriptTemplate = [[
   local labelName = '%s'
   local mappingFunction = %s
 
+  function midiToFloat(midiValue)
+    local floatValue = midiValue / 127
+    return floatValue
+  end
+
+  function floatToMidi(floatValue)
+    local midiValue = math.floor(floatValue * 127 + 0.5) -- Convert to nearest integer in MIDI range
+    return midiValue
+  end
+
   function updateLabel(value)
     local label = self.parent:findByName(labelName)
     local newText = mappingFunction(value)
     label:notify('update_text', newText)
   end
 
+  -- Table of controls to notify when x changes
+  local controlsToNotify = %s
+
+  function notifySyncedControls(value)
+    local midiValue = floatToMidi(value)
+    for _, controlName in ipairs(controlsToNotify) do
+      local control = self.parent:findByName(controlName, true)
+      control:notify('new_value', midiValue)
+    end
+  end
+
   function onReceiveNotify(key, value)
     if key == 'new_value' then
       self.values.x = value
       updateLabel(value)
+    elseif key == 'new_cc_value' then
+      local floatValue = midiToFloat(value)
+      self.values.x = floatValue
+      updateLabel(floatValue)
     end
   end
 
   function onValueChanged(value)
-    if (value == 'x') then
+    if value == 'x' then
       updateLabel(self.values.x)
+      notifySyncedControls(self.values.x)
     end
   end
 ]]
@@ -386,6 +515,117 @@ local labelScriptTemplate = [[
   end
 ]]
 
+-- Format: {ccValues, syncedFader}
+local gridDefinitions = {
+  filter_type_grid = {'{0, 127}', 'filter_type_fader'},
+  chord_grid = {'{4, 12, 20, 28, 36, 44, 52, 60, 68, 76, 84, 92, 100, 108, 116, 124}', 'chord_fader'},
+  delay_time_grid = {'{4, 12, 20, 28, 36, 44, 52, 60, 68, 76, 84, 92, 100, 108, 116, 124}', 'delay_time_fader'},
+  l_damp_f_grid = {'{5, 15, 26, 37, 48, 58, 69, 80, 91, 101, 112, 123}', 'l_damp_f_fader'},
+  h_damp_f_grid = {'{4, 13, 21, 30, 38, 47, 55, 64, 72, 81, 89, 98, 106, 115, 124}', 'h_damp_f_fader'},
+  on_off_grid = {'{0, 127}', 'on_off_fader'},
+  scatter_type_grid = {'{6, 19, 32, 44, 57, 70, 82, 95, 108, 120}', 'scatter_type_fader'},
+  scatter_depth_grid = {'{6, 19, 32, 44, 57, 70, 82, 95, 108, 120}', 'scatter_depth_fader'},
+  scatter_speed_grid = {'{0, 127}', 'scatter_speed_fader'},
+}
+
+local gridScriptTemplate = [[
+  local ccValues = %s 
+  local targetGridName = '%s'
+  local syncedFaderName = '%s'
+
+  local function findNearest(array, target)
+    local nearestIndex = nil
+    local nearestDistance = 127
+
+    for i, value in ipairs(array) do
+      local distance = math.abs(value - target)
+      if distance < nearestDistance then
+        nearestDistance = distance
+        nearestIndex = i
+      end
+    end
+
+    return nearestIndex
+  end
+
+  function init()
+    if self.name ~= targetGridName then
+      self.outline = true
+      self.outlineStyle = OutlineStyle.FULL
+    else
+      self.outline = false
+    end
+  end
+
+  function onValueChanged(key, value)
+    if self.name ~= targetGridName and key == 'x' and self.values.x == 1 and self.parent.tag == '1' then
+      local myCCValue = ccValues[self.index]
+      local syncedFader = self.parent.parent:findByName(syncedFaderName)
+      syncedFader:notify('new_cc_value', myCCValue)
+    
+    elseif self.name == targetGridName and key == 'touch' then
+      -- We're taking control
+      self.tag = 1
+    end
+  end
+
+  function onReceiveNotify(key, value)
+    if key == 'new_child_value' then
+      self.values.x = 1
+    elseif key == 'new_value' then
+      local newCCValue = value
+      local childToSelect = findNearest(ccValues, newCCValue)
+
+      -- Relinquish control, because we received input
+      -- from outside
+      self.tag = 0
+      self.children[childToSelect]:notify('new_child_value')
+    end
+  end
+
+]]
+
+function generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, syncedControls)
+  -- Generate and assign fader script
+  local faderObject = controlGroup:findByName(controlName, true)
+  local mappingScript = mappingScripts[labelMapping]
+  print('Mapping script:', mappingScript)
+  local faderScript = string.format(faderScriptTemplate, labelName, labelMapping, syncedControls)
+  if faderObject then
+    faderObject.script = mappingScript..faderScript
+  else
+    print(string.format("Fader '%s' not found.", controlName))
+  end
+  print(string.format("Generated script for control '%s':\n%s", controlName, faderScript))
+end
+
+function generateAndAssignLabelScript(controlGroup, labelName, labelFormat)
+  -- Generate and assign label script
+  local labelObject = controlGroup:findByName(labelName, true)
+  local labelScript = string.format(labelScriptTemplate, labelFormat)
+  if labelObject then
+    labelObject.script = labelScript
+    print(string.format("Generated label script for '%s':\n%s", labelName, labelScript))
+  else
+    print(string.format("Label '%s' not found.", labelName))
+  end
+end
+
+function generateAndAssignGridScript(controlGroup, gridName, gridTemplate, ccValues, syncedFader)
+  -- Generate and assign grid script
+  local gridScript = string.format(gridTemplate, ccValues, gridName, syncedFader)
+
+  -- Find the grid object
+  local gridObject = controlGroup:findByName(gridName, true)
+  if gridObject then
+    -- Assign the generated script
+    gridObject.script = gridScript
+    print(string.format("Assigned script to grid '%s':\n%s", gridName, gridScript))
+  else
+    print(string.format("Grid '%s' not found.", gridName))
+  end
+end
+
 function init()
   for i, category in ipairs(controlsInfoArray) do
     print('Initialising category with fxPage:', i)
@@ -395,33 +635,19 @@ function init()
     print('controlGroup:', controlGroup.name)
         
     for _, controlInfo in ipairs(category) do
-      local controlName, _, labelName, labelMapping, labelFormat = table.unpack(controlInfo)
+      local controlName, _, labelName, labelMapping, labelFormat, syncedControls = table.unpack(controlInfo)
 
       -- Skip controls without extra values
       if labelName and labelMapping and labelFormat then
-        print('Initialising control:', controlName, labelName, labelMapping, labelFormat)
-        -- Generate and assign fader script
-        local faderObject = controlGroup:findByName(controlName, true)
-        local mappingScript = mappingScripts[labelMapping]
-        print('Mapping script:', mappingScript)
-        local faderScript = string.format(faderScriptTemplate, labelName, labelMapping)
-        if faderObject then
-          faderObject.script = mappingScript..faderScript
-        else
-          print(string.format("Fader '%s' not found.", controlName))
-        end
-        print(string.format("Generated script for control '%s':\n%s", controlName, faderScript))
-
-        -- Generate and assign label script
-        local labelObject = controlGroup:findByName(labelName, true)
-        local labelScript = string.format(labelScriptTemplate, labelFormat)
-        if labelObject then
-          labelObject.script = labelScript
-        else
-          print(string.format("Label '%s' not found.", labelName))
-        end
-        print(string.format("Generated label script for '%s':\n%s", labelName, labelScript))
+        print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedControls)
+        generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, syncedControls)
+        generateAndAssignLabelScript(controlGroup, labelName, labelFormat)
       end
+    end
+
+    for gridName, gridDefinition in pairs(gridDefinitions) do
+      local ccValues, syncedFader = table.unpack(gridDefinition)
+      generateAndAssignGridScript(controlGroup, gridName, gridScriptTemplate, ccValues, syncedFader)
     end
   end
 end
