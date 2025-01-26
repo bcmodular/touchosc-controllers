@@ -7,118 +7,114 @@ local presetManager = root.children.preset_manager
 
 local controlsInfoArray = {
   -- Array structure:
-  -- For faders:
-  -- {controlName, isExcludable, labelName, labelMapping, labelFormat}
-  -- For grids:
-  -- {controlName, isExcludable}
-  --
+  -- {controlName, isExcludable, labelName, labelMapping, labelFormat, syncedGrid}
   {-- 1: filter + drive
-  {'cutoff_fader', false, 'cutoff_label', 'getFreq', 'CUTOFF: %s Hz', '{}'},
-  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', '{}'},
-  {'drive_fader', false, 'drive_label', 'getZeroOneHundred', 'DRIVE: %s', '{}'},
-  {'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', '{"filter_type_grid"}'},
-  {'low_freq_fader', false, 'low_freq_label', 'getFreq', 'LOW FREQ: %s Hz', '{}'},
-  {'low_gain_fader', false, 'low_gain_label', 'get24dB', 'LOW GAIN: %s dB', '{}'}
+  {'cutoff_fader', false, 'cutoff_label', 'getFreq', 'CUTOFF: %s Hz', ''},
+  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+  {'drive_fader', false, 'drive_label', 'getZeroOneHundred', 'DRIVE: %s', ''},
+  {'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid'},
+  {'low_freq_fader', false, 'low_freq_label', 'getFreq', 'LOW FREQ: %s Hz', ''},
+  {'low_gain_fader', false, 'low_gain_label', 'get24dB', 'LOW GAIN: %s dB', ''}
   },
   {-- 2: resonator
-  {'root_fader', true, 'root_value_label', 'getRoot', '%s', '{"root_label"}'},
-  {'bright_fader', false, 'bright_value_label', 'getZeroOneHundred', '%s', '{}'},
-  {'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s%%', '{}'},
-  {'chord_fader', true, 'chord_label', 'getChord', '%s', '{"chord_grid"}'},
-  {'panning_fader', false, 'panning_value_label', 'getZeroOneHundred', '%s', '{}'},
-  {'env_mod_fader', false, 'env_mod_value_label', 'getZeroOneHundred', '%s', '{}'}
+  {'root_fader', true, 'root_value_label', 'getRoot', '%s', 'root_label'},
+  {'bright_fader', false, 'bright_value_label', 'getZeroOneHundred', '%s', ''},
+  {'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s%%', ''},
+  {'chord_fader', true, 'chord_label', 'getChord', '%s', 'chord_grid'},
+  {'panning_fader', false, 'panning_value_label', 'getZeroOneHundred', '%s', ''},
+  {'env_mod_fader', false, 'env_mod_value_label', 'getZeroOneHundred', '%s', ''}
   },
   {-- 3: sync delay
-  {'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', '{"delay_time_grid"}'},
-  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', '{}'},
-  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', '{}'},
-  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', '{"l_damp_f_grid"}'},
-  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', '{"h_damp_f_grid"}'},
+  {'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', 'delay_time_grid'},
+  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
+  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid'},
+  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid'},
   },
   {-- 4: isolator
-  {'low_fader', false, 'low_label', 'getEQ', '%s', '{}'},
-  {'mid_fader', false, 'mid_label', 'getEQ', '%s', '{}'},
-  {'high_fader', false, 'high_label', 'getEQ', '%s', '{}'}
+  {'low_fader', false, 'low_label', 'getEQ', '%s', ''},
+  {'mid_fader', false, 'mid_label', 'getEQ', '%s', ''},
+  {'high_fader', false, 'high_label', 'getEQ', '%s', ''}
   },
   {-- 5: djfx looper
-  {'length_fader', false, 'length_label', 'getLooperLength', '%s', '{}'},
-  {'speed_fader', false, 'speed_label', 'getBipolarHundred', '%s', '{}'},
-  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', '{"on_off_grid"}'}
+  {'length_fader', false, 'length_label', 'getLooperLength', '%s', ''},
+  {'speed_fader', false, 'speed_label', 'getBipolarHundred', '%s', ''},
+  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid'}
   },
   {-- 6: scatter
-  {'scatter_type_fader', false, 'scatter_type_label', 'getScatterType', '%s', '{"scatter_type_grid"}'},
-  {'scatter_depth_fader', false, 'scatter_depth_label', 'getScatterDepth', '%s', '{"scatter_depth_grid"}'},
+  {'scatter_type_fader', false, 'scatter_type_label', 'getScatterType', '%s', 'scatter_type_grid'},
+  {'scatter_depth_fader', false, 'scatter_depth_label', 'getScatterDepth', '%s', 'scatter_depth_grid'},
   {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', '{"on_off_grid"}'},
-  {'scatter_speed_fader', false, 'scatter_speed_label', 'getScatterSpeed', '%s', '{"scatter_speed_grid"}'}
+  {'scatter_speed_fader', false, 'scatter_speed_label', 'getScatterSpeed', '%s', 'scatter_speed_grid'}
   },
   {-- 7: downer
-  {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', '{}'},
-  {'downer_rate_fader', false, 'downer_rate_label', 'getDownerRate', '%s', '{"downer_rate_grid"}'},
-  {'filter_fader', false, 'filter_label', 'getZeroOneHundred', 'FILTER: %s', '{}'},
-  {'pitch_on_off_fader', false, 'pitch_on_off_label', 'getPitchOnOff', '%s', '{"pitch_on_off_grid"}'},
-  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', '{}'},
+  {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
+  {'downer_rate_fader', false, 'downer_rate_label', 'getDownerRate', '%s', 'downer_rate_grid'},
+  {'filter_fader', false, 'filter_label', 'getZeroOneHundred', 'FILTER: %s', ''},
+  {'pitch_on_off_fader', false, 'pitch_on_off_label', 'getPitchOnOff', '%s', 'pitch_on_off_grid'},
+  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
   },
   {-- 8: ha dou
-  {'mod_depth_fader', false, 'mod_depth_label', 'getZeroOneHundred', 'MOD DEPTH: %s', '{}'},
-  {'time_fader', false, 'time_label', 'getZeroOneHundred', 'TIME %s', '{}'},
-  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', '{}'},
-  {'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', '{"low_cut_grid"}'},
-  {'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', '{"high_cut_grid"}'},
-  {'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s', '{}'},
+  {'mod_depth_fader', false, 'mod_depth_label', 'getZeroOneHundred', 'MOD DEPTH: %s', ''},
+  {'time_fader', false, 'time_label', 'getZeroOneHundred', 'TIME %s', ''},
+  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+  {'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid'},
+  {'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid'},
+  {'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s', ''},
   },
   {-- 9: ko da ma
-  {'ko_da_ma_time_fader', false, 'ko_da_ma_time_label', 'getDelayTimes', '%s', '{"ko_da_ma_time_grid"}'},
-  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', '{}'},
-  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', '{}'},
-  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', '{"l_damp_f_grid"}'},
-  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', '{"h_damp_f_grid"}'},
-  {'ko_da_ma_mode_fader', false, 'ko_da_ma_mode_label', 'getKoDaMaMode', '%s', '{"ko_da_ma_mode_grid"}'}
+  {'ko_da_ma_time_fader', false, 'ko_da_ma_time_label', 'getDelayTimes', '%s', 'ko_da_ma_time_grid'},
+  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
+  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid'},
+  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid'},
+  {'ko_da_ma_mode_fader', false, 'ko_da_ma_mode_label', 'getKoDaMaMode', '%s', 'ko_da_ma_mode_grid'}
   },
   {-- 10: zan zou
-  {'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', '{"zan_zou_time_grid"}'},
-  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s', '{}'},
-  {'hf_damp_fader', false, 'hf_damp_label', 'getHFDampValues', '%s', '{"hf_damp_grid"}'},
-  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', '{}'},
-  {'zan_zou_mode_fader', false, 'zan_zou_mode_label', 'getZanZouMode', '%s', '{"zan_zou_mode_grid"}'},
-  {'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', '{"zan_zou_sync_grid"}'}
+  {'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', 'zan_zou_time_grid'},
+  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s', ''},
+  {'hf_damp_fader', false, 'hf_damp_label', 'getHFDampValues', '%s', 'hf_damp_grid'},
+  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+  {'zan_zou_mode_fader', false, 'zan_zou_mode_label', 'getZanZouMode', '%s', 'zan_zou_mode_grid'},
+  {'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', 'zan_zou_sync_grid'}
   },
   {-- 11: to gu ro
-  {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', '{}'},
-  {'to_gu_ro_rate_fader', false, 'to_gu_ro_rate_label', 'getZeroOneHundred', 'RATE: %s', '{"to_gu_ro_rate_grid"}'},
-  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', '{}'},
-  {'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', '{}'},
-  {'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', '{}'},
-  {'to_gu_ro_sync_fader', false, 'to_gu_ro_sync_label', 'getSync', '%s', '{"to_gu_ro_sync_grid"}'}
+  {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
+  {'to_gu_ro_rate_fader', false, 'to_gu_ro_rate_label', 'getZeroOneHundred', 'RATE: %s', 'to_gu_ro_rate_grid'},
+  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+  {'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
+  {'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''},
+  {'to_gu_ro_sync_fader', false, 'to_gu_ro_sync_label', 'getSync', '%s', 'to_gu_ro_sync_grid'}
   },
   {-- 12: sbf
-  {'interval_fader', false, 'interval_label', 'getZeroOneHundred', 'INTERVAL: %s', '{}'},
-  {'width_fader', false, 'width_label', 'getZeroOneHundred', 'WIDTH: %s', '{}'},
-  {'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', '{}'},
-  {'sbf_type_fader', false, 'sbf_type_label', 'getSBFType', '%s', '{"sbf_type_grid"}'},
-  {'gain_fader', false, 'gain_label', 'getSBFGain', 'GAIN: %s dB', '{}'}
+  {'interval_fader', false, 'interval_label', 'getZeroOneHundred', 'INTERVAL: %s', ''},
+  {'width_fader', false, 'width_label', 'getZeroOneHundred', 'WIDTH: %s', ''},
+  {'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
+  {'sbf_type_fader', false, 'sbf_type_label', 'getSBFType', '%s', 'sbf_type_grid'},
+  {'gain_fader', false, 'gain_label', 'getSBFGain', 'GAIN: %s dB', ''}
   },
   {-- 13: stopper
-  {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', '{}'},
-  {'stopper_rate_fader', false, 'stopper_rate_label', 'getStopperRate', '%s', '{"stopper_rate_grid"}'},
-  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', '{}'},
-  {'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', '{}'},
-  {'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', '{}'}
+  {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
+  {'stopper_rate_fader', false, 'stopper_rate_label', 'getStopperRate', '%s', 'stopper_rate_grid'},
+  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+  {'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
+  {'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''}
   },
   {-- 14: tape echo
-  {'time_fader', false, 'time_label', 'getTapeSpeed', 'TIME: %s ms', '{}'},
-  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s %%', '{}'},
-  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', '{}'},
-  {'tape_echo_mode_fader', false, 'tape_echo_mode_label', 'getTapeEchoMode', '%s', '{"tape_echo_mode_grid"}'},
-  {'wf_rate_fader', false, 'wf_rate_label', 'getZeroOneHundred', 'W/F RATE: %s', '{}'},
-  {'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', 'W/F DEPTH: %s', '{}'}
+  {'time_fader', false, 'time_label', 'getTapeSpeed', 'TIME: %s ms', ''},
+  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s %%', ''},
+  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+  {'tape_echo_mode_fader', false, 'tape_echo_mode_label', 'getTapeEchoMode', '%s', 'tape_echo_mode_grid'},
+  {'wf_rate_fader', false, 'wf_rate_label', 'getZeroOneHundred', 'W/F RATE: %s', ''},
+  {'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', 'W/F DEPTH: %s', ''}
   },
   {-- 15: time ctrl delay
-  {'time_fader', false},
-  {'feedback_fader', false},
-  {'level_fader', false},
-  {'l_damp_f_grid', false},
-  {'h_damp_f_grid', false},
-  {'sync_grid', false}
+  {'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getZeroOneHundred', 'TIME: %s', 'time_ctrl_dly_time_grid'},
+  {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
+  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid'},
+  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid'},
+  {'time_ctrl_dly_sync_fader', false, 'time_ctrl_dly_sync_label', 'getSync', '%s', 'time_ctrl_dly_sync_grid'}
   },
   {-- 16: super filter
   {'cutoff_fader', false},
@@ -410,7 +406,9 @@ local mappingScripts = {
     local hDampFValues = {'630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000', '10000', '12500', 'FLAT'}
 
     function getHDampFValues(value)
+      print('getHDampFValues', tostring(value))
       local hDampFValue = hDampFValues[math.floor(value * 14 + 0.5) + 1]
+      print('hDampFValue', tostring(hDampFValue))
       return hDampFValue
     end
   ]],
@@ -568,7 +566,8 @@ local mappingScripts = {
 -- CONTROL SCRIPTS *******************************************
 local faderScriptTemplate = [[
   local labelName = '%s'
-  local mappingFunction = %s
+  %s  -- Include the mapping function definition here
+  local gridRanges = %s  -- This needs to be parsed from the string into a table
 
   function midiToFloat(midiValue)
     local floatValue = midiValue / 127
@@ -576,21 +575,36 @@ local faderScriptTemplate = [[
   end
 
   function floatToMidi(floatValue)
-    local midiValue = math.floor(floatValue * 127 + 0.5) -- Convert to nearest integer in MIDI range
-    return midiValue
+    if not gridRanges then
+      return math.floor(floatValue * 127 + 0.5)
+    end
+
+    print("floatToMidi called with floatValue:", floatValue, "gridRanges:", gridRanges)
+    
+    -- Get the index directly from the mapping calculation
+    local index = math.floor(floatValue * 14 + 0.5) + 1
+    print("Index for grid:", index)
+    
+    -- Use the index to get the corresponding grid range
+    if index and gridRanges[index] then
+      return gridRanges[index]
+    end
+    
+    return math.floor(floatValue * 127 + 0.5)  -- Fallback
   end
 
   function updateLabel(value)
     local label = self.parent:findByName(labelName)
-    local newText = mappingFunction(value)
+    local newText = %s(value)  -- Just use the function name directly
+    print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
     label:notify('update_text', newText)
   end
 
-  -- Table of controls to notify when x changes
   local controlsToNotify = %s
 
   function notifySyncedControls(value)
     local midiValue = floatToMidi(value)
+    print("Fader float: " .. tostring(value) .. " to MIDI: " .. tostring(midiValue))
     for _, controlName in ipairs(controlsToNotify) do
       local control = self.parent:findByName(controlName, true)
       control:notify('new_value', midiValue)
@@ -627,7 +641,8 @@ local labelScriptTemplate = [[
   end
 ]]
 
--- Format: {ccRanges, syncedFader}
+-- Format: {ccRanges, syncedFader} -- for regular grids
+-- or {ccRanges, syncedFader, showHideFader, showHideLabel, showHideGrid, showHideGridLabel} -- for sync grids
 local gridDefinitions = {
   [1] = { -- filter + drive
     filter_type_grid = {
@@ -762,7 +777,25 @@ local gridDefinitions = {
       "{0, 21, 42, 63, 84, 105, 127}",
       'tape_echo_mode_fader'
     }
-  }
+  },
+  [15] = { -- time ctrl dly
+    time_ctrl_dly_time_grid = {
+      "{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}",
+      'time_ctrl_dly_time_fader'
+    },
+    l_damp_f_grid = {
+      "{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}",
+      'l_damp_f_fader'
+    },
+    h_damp_f_grid = {
+      "{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}",
+      'h_damp_f_fader'
+    },
+    time_ctrl_dly_sync_grid = {
+      "{0, 64}",
+      'time_ctrl_dly_sync_fader', 'time_ctrl_dly_time_fader', 'time_ctrl_dly_time_label', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid'
+    }      
+  },
 }
 
 local gridScriptTemplate = [[
@@ -772,6 +805,8 @@ local gridScriptTemplate = [[
   local amSyncGrid = %s
 
   local function findRange(ranges, target)
+    print("Finding range for target: " .. tostring(target))
+    
     for i, rangeStart in ipairs(ranges) do
       -- Special handling for the last range when it starts at 127
       if i == #ranges and rangeStart == 127 then
@@ -782,8 +817,10 @@ local gridScriptTemplate = [[
         end
       end
 
-      local rangeEnd = (ranges[i + 1] or 128) - 1
+      local rangeEnd = ranges[i + 1] or 128
+      print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
       if target >= rangeStart and target < rangeEnd then
+        print("Found range " .. tostring(i))
         return i
       end
     end
@@ -815,7 +852,7 @@ local gridScriptTemplate = [[
 
   function onValueChanged(key, value)
     if self.name ~= targetGridName and key == 'x' and self.values.x == 1 and self.parent.tag == '1' then
-      local myCCValue = startValues[self.index] -- Use start value as CC value
+      local myCCValue = startValues[self.index] -- Already in 0-127 range
       local syncedFader = self.parent.parent:findByName(syncedFaderName)
       syncedFader:notify('new_cc_value', myCCValue)
       
@@ -833,8 +870,8 @@ local gridScriptTemplate = [[
     if key == 'new_child_value' then
       self.values.x = 1
     elseif key == 'new_value' then
-      local newCCValue = value
-      local childToSelect = findRange(startValues, newCCValue)
+      print("Received value: " .. tostring(value))
+      local childToSelect = findRange(startValues, value)  -- Use value directly as MIDI value
 
       -- Relinquish control, because we received input
       -- from outside
@@ -844,18 +881,26 @@ local gridScriptTemplate = [[
   end
 ]]
 
-function generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, syncedControls)
-  -- Generate and assign fader script
+function generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, labelFormat, syncedControls, gridRanges)
+  print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedControls, gridRanges)
+  
+  -- If no grid ranges provided, use a simple string "nil"
+  local gridRangesStr = gridRanges or "nil"
+  
+  local faderScript = string.format(faderScriptTemplate, 
+    labelName,
+    mappingScripts[labelMapping],  -- Include the actual function definition
+    gridRangesStr,
+    labelMapping,  -- Pass the function name for floatToMidi
+    labelMapping,  -- Pass the function name for updateLabel
+    syncedControls)
+
+  -- Find the fader object
   local faderObject = controlGroup:findByName(controlName, true)
-  local mappingScript = mappingScripts[labelMapping]
-  --print('Mapping script:', mappingScript)
-  local faderScript = string.format(faderScriptTemplate, labelName, labelMapping, syncedControls)
   if faderObject then
-    faderObject.script = mappingScript..faderScript
-  else
-    --print(string.format("Fader '%s' not found.", controlName))
+    -- Assign the generated script
+    faderObject.script = faderScript
   end
-  --print(string.format("Generated script for control '%s':\n%s", controlName, faderScript))
 end
 
 function generateAndAssignLabelScript(controlGroup, labelName, labelFormat)
@@ -910,6 +955,28 @@ function generateAndAssignSyncGridScript(controlGroup, gridName, gridTemplate, g
   end
 end
 
+-- Example control info array elements (controlsInfoArray[i])
+
+-- 1) Simple fader with label
+-- {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s', ''},
+
+-- 2) Fader with label and synced controls
+-- {'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', '{"zan_zou_time_grid"}'},
+
+-- 3) Synced fader with label
+-- {'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', '{"zan_zou_sync_grid"}'}
+
+-- Example grid definition (gridDefinitions[i])
+-- 1) Simple grid with synced fader
+--  zan_zou_mode_grid = {
+--    "{0, 43, 86}",
+--    'zan_zou_mode_fader'
+-- },
+-- 2) Synced grid with additional view parameters
+-- zan_zou_sync_grid = {
+--  "{0, 64}",
+--  'zan_zou_sync_fader', 'zan_zou_time_fader', 'zan_zou_time_label', 'zan_zou_time_grid', 'zan_zou_time_label_grid'
+-- },
 function init()
   for i, category in ipairs(controlsInfoArray) do
     print('Initialising category with fxPage:', i)
@@ -924,7 +991,26 @@ function init()
       -- Skip controls without extra values
       if labelName and labelMapping and labelFormat then
         print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedControls)
-        generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, syncedControls)
+                
+        -- Check if there are any synced controls
+        local hasSyncedControls = false
+        if syncedControls != '' then
+          numSyncedControls = true
+        end
+        
+        local gridValues = '{}'
+        -- Check if we have a grid name and corresponding definition
+        if hasSyncedControls then
+          print("Generating fader script for grid:", gridName, gridDefinitions[i][gridName])
+          -- Ensure syncedControls is properly formatted as a string array
+          local syncedControlsStr = syncedControls or '{}'
+          generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, labelFormat, syncedControlsStr, gridDefinitions[i][gridName][1])
+        else
+          if gridName then
+            print("Warning: No grid definition found for grid: " .. tostring(gridName))
+          end
+          generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, labelFormat, '{}', '')
+        end
         generateAndAssignLabelScript(controlGroup, labelName, labelFormat)
       end
     end
