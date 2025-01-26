@@ -114,7 +114,7 @@ local controlsInfoArray = {
   {-- 11: to gu ro
   {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
   {'to_gu_ro_rate_fader', false, 'to_gu_ro_rate_label', 'getZeroOneHundred', 'RATE: %s', 'to_gu_ro_rate_grid',
-    '{0, 20, 35, 52, 70, 85, 105, 120, 127}', 'true'},
+    '{0, 16, 32, 48, 64, 80, 96, 112, 127}', 'true'},
   {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
   {'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
   {'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''},
@@ -142,19 +142,19 @@ local controlsInfoArray = {
   {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s %%', ''},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
   {'tape_echo_mode_fader', false, 'tape_echo_mode_label', 'getTapeEchoMode', '%s', 'tape_echo_mode_grid',
-    '{0, 21, 42, 63, 84, 105, 127}'},
+    '{0, 19, 37, 55, 73, 91, 110}'},
   {'wf_rate_fader', false, 'wf_rate_label', 'getZeroOneHundred', 'W/F RATE: %s', ''},
   {'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', 'W/F DEPTH: %s', ''}
   },
   {-- 15: time ctrl delay
-  {'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getZeroOneHundred', 'TIME: %s', 'time_ctrl_dly_time_grid',
-    '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}', 'true'},
+  {'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getTapeSpeed', 'TIME: %s ms', 'time_ctrl_dly_time_grid',
+    '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}', 'true'},
   {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
   {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid',
-    '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
+    '{0, 11, 22, 32, 43, 54, 64, 75, 85, 96, 107, 117}'},
   {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid',
-    '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
+    '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119}'},
   {'time_ctrl_dly_sync_fader', false, 'time_ctrl_dly_sync_label', 'getSync', '%s', 'time_ctrl_dly_sync_grid',
     '{0, 64}', 'false', 'time_ctrl_dly_time_fader', 'time_ctrl_dly_time_label', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid'}
   },
@@ -297,7 +297,10 @@ local mappingScripts = {
     }
 
     function getBalance(value)
-      return balanceRangeMap[value]
+      local rangeValue = balanceRangeMap[value]
+      local inverseValue = 100 - rangeValue
+      local displayString = inverseValue .. '-' .. rangeValue
+      return displayString
     end  
   ]],
 
@@ -609,7 +612,7 @@ local faderScriptTemplate = [[
   end
 
   local function findRange(ranges, target)
-    print("Finding range for target: " .. tostring(target))
+    --print("Finding range for target: " .. tostring(target))
     
     for i, rangeStart in ipairs(ranges) do
       -- Special handling for the last range when it starts at 127
@@ -622,9 +625,9 @@ local faderScriptTemplate = [[
       end
 
       local rangeEnd = ranges[i + 1] or 128
-      print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
+      --print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
       if target >= rangeStart and target < rangeEnd then
-        print("Found range " .. tostring(i))
+        --print("Found range " .. tostring(i))
         return i
       end
     end
@@ -640,15 +643,15 @@ local faderScriptTemplate = [[
     if next(startValues) == nil then
       -- Return full midi range as the range
       local index = midiValue + 1
-      print("Returning index in full midi range:", index)
+      --print("Returning index in full midi range:", index)
       return index
     end
 
-    print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
+    --print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
     
     local index = findRange(startValues, midiValue)
 
-    print("Index in grid range:", index)
+    --print("Index in grid range:", index)
     
     return index
   end
@@ -656,7 +659,7 @@ local faderScriptTemplate = [[
   function updateLabel(value)
     local label = self.parent:findByName(labelName)
     local newText = %s(value)  -- Just use the function name directly
-    print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
+    --print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
     label:notify('update_text', newText)
   end
 
@@ -664,7 +667,7 @@ local faderScriptTemplate = [[
 
   function notifyGrid(value)
     local rangeIndex = value
-    print("Fader float: " .. tostring(value) .. " to Range: " .. tostring(rangeIndex))
+    --print("Fader float: " .. tostring(value) .. " to Range: " .. tostring(rangeIndex))
     local gridControl = self.parent:findByName(gridToNotify, true)
     gridControl:notify('new_index', rangeIndex)
   end
@@ -779,7 +782,7 @@ local gridScriptTemplate = [[
     if key == 'new_child_value' then
       self.values.x = 1
     elseif key == 'new_index' then
-      print("Received value: " .. tostring(value))
+      --print("Received value: " .. tostring(value))
       local childToSelect = value
 
       -- Relinquish control, because we received input
