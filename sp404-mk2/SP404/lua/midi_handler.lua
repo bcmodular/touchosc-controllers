@@ -847,7 +847,7 @@ function generateAndAssignFaderScript(controlGroup, controlInfo)
     amSyncFader = 'false'
   end
 
-  print('Generating fader script for:', faderName, labelName, labelMapping, gridName, startValues, amSyncFader, mappingScripts[labelMapping])
+  --print('Generating fader script for:', faderName, labelName, labelMapping, gridName, startValues, amSyncFader, mappingScripts[labelMapping])
 
   local faderScript = string.format(faderScriptTemplate, 
     amSyncFader,
@@ -890,7 +890,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
     showHideGridLabel = ''
   end
 
-  print('Generating grid script for:', faderName, gridName, startValues, amSyncGrid, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel)
+  --print('Generating grid script for:', faderName, gridName, startValues, amSyncGrid, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel)
 
   local gridScript = string.format(gridScriptTemplate, 
     startValues,
@@ -909,7 +909,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
     gridObject.script = gridScript
   end
 
-  print('Generating grid label script for:', gridLabelName, labelMapping)
+  --print('Generating grid label script for:', gridLabelName, labelMapping)
 
   local gridLabelObject = controlGroup:findByName(gridLabelName, true)
 
@@ -925,11 +925,11 @@ end
 
 function init()
   for i, category in ipairs(controlsInfoArray) do
-    print('Initialising category with fxPage:', i)
+    --print('Initialising category with fxPage:', i)
     local fxPage = root.children.control_pager.children[i]
-    print('fxPage:', fxPage.name)
+    --print('fxPage:', fxPage.name)
     local controlGroup = fxPage.children.control_group
-    print('controlGroup:', controlGroup.name)
+    --print('controlGroup:', controlGroup.name)
         
     for _, controlInfo in ipairs(category) do
       local _, controlName, _, labelName, labelMapping, labelFormat, syncedGrid = table.unpack(controlInfo)
@@ -937,7 +937,7 @@ function init()
       -- Skip controls without extra values (while WIP)
       -- Can remove this check once all controls have been updated
       if labelName then
-        print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedGrid)
+        --print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedGrid)
         
         generateAndAssignFaderScript(controlGroup, controlInfo)
         generateAndAssignLabelScript(controlGroup, controlInfo)
@@ -968,7 +968,7 @@ function syncMIDI(midiCC, ccValue)
 end
 
 function onReceiveNotify(key, value)
-  print('Action requested:', key, value)
+  --print('Action requested:', key, value)
   if key == 'change_fx' then
     fxNum = value
   elseif key == 'channel' then
@@ -982,11 +982,11 @@ function onReceiveNotify(key, value)
     local controlGroup = fxPage.children.control_group
 
     -- Debugging information
-    print('fxNum:', fxNum)
-    print('Storing MIDI values:', unpack(ccValues))
-    print('Controls:', unpack(controlInfoArray))
-    print('Control group:', controlGroup.name)
-    print('Control group tag:', controlGroup.tag)
+    --print('fxNum:', fxNum)
+    --print('Storing MIDI values:', unpack(ccValues))
+    --print('Controls:', unpack(controlInfoArray))
+    --print('Control group:', controlGroup.name)
+    --print('Control group tag:', controlGroup.tag)
     
     for index, controlInfo in ipairs(controlInfoArray) do
       local controlObject = controlGroup:findByName(controlInfo[2], true)
@@ -998,7 +998,7 @@ function onReceiveNotify(key, value)
       end
     end
 
-    print('Current MIDI values:', unpack(ccValues))
+    --print('Current MIDI values:', unpack(ccValues))
 
     local presetNum = value
     local presetIndex = tostring(fxNum)..' '..tostring(presetNum)
@@ -1009,7 +1009,7 @@ function onReceiveNotify(key, value)
   elseif key == 'recall_preset' then
     local controlInfoArray = controlsInfoArray[fxNum]
     ccValues = value
-    print('Recalling MIDI values:', unpack(ccValues))
+    --print('Recalling MIDI values:', unpack(ccValues))
 
     local fxPage = root.children.control_pager.children[fxNum]
     local controlGroup = fxPage.children.control_group
@@ -1026,13 +1026,13 @@ function onReceiveNotify(key, value)
     
       local controlObject = controlGroup:findByName(controlName, true)
       
-      print(index, controlObject.name, controlObject.type, isExcludable, exclude_marked_presets)
+      --print(index, controlObject.name, controlObject.type, isExcludable, exclude_marked_presets)
       
       if not isExcludable or not exclude_marked_presets then
         controlObject:notify('new_value', midiToFloat(ccValues[index]))
         syncMIDI(ccNumber, ccValues[index])
       end
     end
-    print('Recalled MIDI values:', unpack(ccValues))
+    --print('Recalled MIDI values:', unpack(ccValues))
   end
 end

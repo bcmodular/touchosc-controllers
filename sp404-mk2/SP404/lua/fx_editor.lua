@@ -58,7 +58,7 @@ function toggleButtonInteractivity()
 end
 
 function init()
-  print('Initialising editor button:', self.name, isNonZero(tonumber(self.tag) + 1, 0))
+  --print('Initialising editor button:', self.name, isNonZero(tonumber(self.tag) + 1, 0))
   toggleButtonInteractivity()
 end
 
@@ -85,7 +85,7 @@ end
 function onReceiveNotify(key, value)
   if key == 'channel' then
     local channel = value
-    print('Channel changed to:', channel)
+    --print('Channel changed to:', channel)
     self.tag = channel
   end
 
