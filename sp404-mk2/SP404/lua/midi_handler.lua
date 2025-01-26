@@ -13,18 +13,19 @@ local controlsInfoArray = {
 -- 4) Label mapping function
 -- 5) Label format string
 -- 6) Synced grid (optional)
--- 7) Grid ranges (optional, used for grids)
--- 8) Am synced fader (optional, used for sync grids)
--- 9) Show/hide fader name (optional, used for sync grids)
--- 10) Show/hide fader label name (optional, used for sync grids)
--- 11) Show/hide grid name (optional, used for sync grids)
--- 12) Show/hide grid label name (optional, used for sync grids)
+-- 7) Synced label grid (optional)
+-- 8) Grid ranges (optional, used for grids)
+-- 9) Am synced fader (optional, used for sync grids)
+-- 10) Show/hide fader name (optional, used for sync grids)
+-- 11) Show/hide fader label name (optional, used for sync grids)
+-- 12) Show/hide grid name (optional, used for sync grids)
+-- 13) Show/hide grid label name (optional, used for sync grids)
 
   {-- 1: filter + drive
   {'cutoff_fader', false, 'cutoff_label', 'getFreq', 'CUTOFF: %s Hz', ''},
   {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
   {'drive_fader', false, 'drive_label', 'getZeroOneHundred', 'DRIVE: %s', ''},
-  {'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid',
+  {'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid',
     '{0, 64}'},
   {'low_freq_fader', false, 'low_freq_label', 'getFreq', 'LOW FREQ: %s Hz', ''},
   {'low_gain_fader', false, 'low_gain_label', 'get24dB', 'LOW GAIN: %s dB', ''}
@@ -33,19 +34,19 @@ local controlsInfoArray = {
   {'root_fader', true, 'root_value_label', 'getRoot', '%s', ''},
   {'bright_fader', false, 'bright_value_label', 'getZeroOneHundred', '%s', ''},
   {'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s%%', ''},
-  {'chord_fader', true, 'chord_label', 'getChord', '%s', 'chord_grid',
+  {'chord_fader', true, 'chord_label', 'getChord', '%s', 'chord_grid', 'chord_label_grid',
     '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
   {'panning_fader', false, 'panning_value_label', 'getZeroOneHundred', '%s', ''},
   {'env_mod_fader', false, 'env_mod_value_label', 'getZeroOneHundred', '%s', ''}
   },
   {-- 3: sync delay
-  {'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', 'delay_time_grid',
+  {'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', 'delay_time_grid', 'delay_time_label_grid',
     '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
   {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid',
+  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid',
     '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
-  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid',
+  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid',
     '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
   },
   {-- 4: isolator
@@ -56,24 +57,25 @@ local controlsInfoArray = {
   {-- 5: djfx looper
   {'length_fader', false, 'length_label', 'getLooperLength', '%s s', ''},
   {'speed_fader', false, 'speed_label', 'getBipolarHundred', '%s', ''},
-  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', '{0, 64}'}
+  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid',
+     '{0, 64}'}
   },
   {-- 6: scatter
-  {'scatter_type_fader', false, 'scatter_type_label', 'getScatterType', '%s', 'scatter_type_grid',
+  {'scatter_type_fader', false, 'scatter_type_label', 'getScatterType', '%s', 'scatter_type_grid', 'scatter_type_label_grid',
     '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
-  {'scatter_depth_fader', false, 'scatter_depth_label', 'getScatterDepth', '%s', 'scatter_depth_grid',
+  {'scatter_depth_fader', false, 'scatter_depth_label', 'getScatterDepth', '%s', 'scatter_depth_grid', 'scatter_depth_label_grid',
     '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
-  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid',
+  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid',
     '{0, 64}'},
-  {'scatter_speed_fader', false, 'scatter_speed_label', 'getScatterSpeed', '%s', 'scatter_speed_grid',
+  {'scatter_speed_fader', false, 'scatter_speed_label', 'getScatterSpeed', '%s', 'scatter_speed_grid', 'scatter_speed_label_grid',
     '{0, 64}'}
   },
   {-- 7: downer
   {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-  {'downer_rate_fader', false, 'downer_rate_label', 'getDownerRate', '%s', 'downer_rate_grid',
+  {'downer_rate_fader', false, 'downer_rate_label', 'getDownerRate', '%s', 'downer_rate_grid', 'downer_rate_label_grid',
     '{0, 19, 37, 55, 73, 91, 127}'},
   {'filter_fader', false, 'filter_label', 'getZeroOneHundred', 'FILTER: %s', ''},
-  {'pitch_on_off_fader', false, 'pitch_on_off_label', 'getPitchOnOff', '%s', 'pitch_on_off_grid',
+  {'pitch_on_off_fader', false, 'pitch_on_off_label', 'getPitchOnOff', '%s', 'pitch_on_off_grid', 'pitch_on_off_label_grid',
     '{0, 64}'},
   {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
   },
@@ -81,57 +83,57 @@ local controlsInfoArray = {
   {'mod_depth_fader', false, 'mod_depth_label', 'getZeroOneHundred', 'MOD DEPTH: %s', ''},
   {'time_fader', false, 'time_label', 'getZeroOneHundred', 'TIME %s', ''},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid',
+  {'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid', 'low_cut_label_grid',
     '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
-  {'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid',
+  {'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid', 'high_cut_label_grid',
     '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
   {'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s ms', ''},
   },
   {-- 9: ko da ma
-  {'ko_da_ma_time_fader', false, 'ko_da_ma_time_label', 'getDelayTimes', '%s', 'ko_da_ma_time_grid',
+  {'ko_da_ma_time_fader', false, 'ko_da_ma_time_label', 'getDelayTimes', '%s', 'ko_da_ma_time_grid', 'ko_da_ma_time_label_grid',
     '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
   {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid',
+  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid',
     '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
-  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid',
+  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid',
     '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-  {'ko_da_ma_mode_fader', false, 'ko_da_ma_mode_label', 'getKoDaMaMode', '%s', 'ko_da_ma_mode_grid',
+  {'ko_da_ma_mode_fader', false, 'ko_da_ma_mode_label', 'getKoDaMaMode', '%s', 'ko_da_ma_mode_grid', 'ko_da_ma_mode_label_grid',
     '{0, 64}'}
   },
   {-- 10: zan zou
-  {'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', 'zan_zou_time_grid',
+  {'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', 'zan_zou_time_grid', 'zan_zou_time_label_grid',
     '{0, 9, 17, 28, 36, 44, 52, 60, 68, 77, 87, 95, 103, 114, 122, 127}', 'true'},
   {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s', ''},
-  {'hf_damp_fader', false, 'hf_damp_label', 'getHFDampValues', '%s', 'hf_damp_grid',
+  {'hf_damp_fader', false, 'hf_damp_label', 'getHFDampValues', '%s', 'hf_damp_grid', 'hf_damp_label_grid',
     '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {'zan_zou_mode_fader', false, 'zan_zou_mode_label', 'getZanZouMode', '%s', 'zan_zou_mode_grid',
+  {'zan_zou_mode_fader', false, 'zan_zou_mode_label', 'getZanZouMode', '%s', 'zan_zou_mode_grid', 'zan_zou_mode_label_grid',
     '{0, 43, 86}'},
-  {'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', 'zan_zou_sync_grid',
+  {'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', 'zan_zou_sync_grid', 'zan_zou_sync_label_grid',
     '{0, 64}', 'false', 'zan_zou_time_fader', 'zan_zou_time_label', 'zan_zou_time_grid', 'zan_zou_time_label_grid'}
   },
   {-- 11: to gu ro
   {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-  {'to_gu_ro_rate_fader', false, 'to_gu_ro_rate_label', 'getZeroOneHundred', 'RATE: %s', 'to_gu_ro_rate_grid',
+  {'to_gu_ro_rate_fader', false, 'to_gu_ro_rate_label', 'getZeroOneHundred', 'RATE: %s', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid',
     '{0, 16, 32, 48, 64, 80, 96, 112, 127}', 'true'},
   {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
   {'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
   {'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''},
-  {'to_gu_ro_sync_fader', false, 'to_gu_ro_sync_label', 'getSync', '%s', 'to_gu_ro_sync_grid',
+  {'to_gu_ro_sync_fader', false, 'to_gu_ro_sync_label', 'getSync', '%s', 'to_gu_ro_sync_grid', 'to_gu_ro_sync_label_grid',
     '{0, 64}', 'false', 'to_gu_ro_rate_fader', 'to_gu_ro_rate_label', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid'},
   },
   {-- 12: sbf
   {'interval_fader', false, 'interval_label', 'getZeroOneHundred', 'INTERVAL: %s', ''},
   {'width_fader', false, 'width_label', 'getZeroOneHundred', 'WIDTH: %s', ''},
   {'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
-  {'sbf_type_fader', false, 'sbf_type_label', 'getSBFType', '%s', 'sbf_type_grid',
+  {'sbf_type_fader', false, 'sbf_type_label', 'getSBFType', '%s', 'sbf_type_grid', 'sbf_type_label_grid',
     '{0, 25, 51, 76, 102, 127}'},
   {'gain_fader', false, 'gain_label', 'getSBFGain', 'GAIN: %s dB', ''}
   },
   {-- 13: stopper
   {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-  {'stopper_rate_fader', false, 'stopper_rate_label', 'getStopperRate', '%s', 'stopper_rate_grid',
+  {'stopper_rate_fader', false, 'stopper_rate_label', 'getStopperRate', '%s', 'stopper_rate_grid', 'stopper_rate_label_grid',
     '{0, 16, 32, 48, 64, 80, 96, 112, 127}'},
   {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
   {'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
@@ -141,36 +143,39 @@ local controlsInfoArray = {
   {'time_fader', false, 'time_label', 'getTapeSpeed', 'TIME: %s ms', ''},
   {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s %%', ''},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {'tape_echo_mode_fader', false, 'tape_echo_mode_label', 'getTapeEchoMode', '%s', 'tape_echo_mode_grid',
+  {'tape_echo_mode_fader', false, 'tape_echo_mode_label', 'getTapeEchoMode', '%s', 'tape_echo_mode_grid', 'tape_echo_mode_label_grid',
     '{0, 19, 37, 55, 73, 91, 110}'},
   {'wf_rate_fader', false, 'wf_rate_label', 'getZeroOneHundred', 'W/F RATE: %s', ''},
   {'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', 'W/F DEPTH: %s', ''}
   },
   {-- 15: time ctrl delay
-  {'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getTapeSpeed', 'TIME: %s ms', 'time_ctrl_dly_time_grid',
+  {'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getTapeSpeed', 'TIME: %s ms', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid',
     '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}', 'true'},
   {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid',
+  {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid',
     '{0, 11, 22, 32, 43, 54, 64, 75, 85, 96, 107, 117}'},
-  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid',
-    '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119}'},
-  {'time_ctrl_dly_sync_fader', false, 'time_ctrl_dly_sync_label', 'getSync', '%s', 'time_ctrl_dly_sync_grid',
+  {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid',
+    '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}'},
+  {'time_ctrl_dly_sync_fader', false, 'time_ctrl_dly_sync_label', 'getSync', '%s', 'time_ctrl_dly_sync_grid', 'time_ctrl_dly_sync_label_grid',
     '{0, 64}', 'false', 'time_ctrl_dly_time_fader', 'time_ctrl_dly_time_label', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid'}
   },
   {-- 16: super filter
-  {'cutoff_fader', false},
-  {'resonance_fader', false},
-  {'filter_type_grid', false},
-  {'depth_fader', false},
-  {'time_fader', false},
-  {'sync_grid', false}
+  {'cutoff_fader', false, 'cutoff_label', 'getZeroOneHundred', 'CUTOFF: %s', ''},
+  {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+  {'filter_type_fader', false, 'filter_type_label', 'getSuperFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid',
+    '{0, 43, 85}'},
+  {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
+  {'rate_fader', false, 'rate_label', 'getZeroOneHundred', 'RATE: %s', 'rate_grid', 'rate_label_grid',
+    '{0, 7, 13, 19, 25, 31, 37, 43, 49, 55, 61, 67, 73, 79, 85, 92, 98, 104, 110, 116, 122, 127}', 'true'},
+  {'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid',
+    '{0, 64}', 'false', 'rate_fader', 'rate_label', 'rate_grid', 'rate_label_grid'}
   },
   {-- 17: wrm saturator
-  {'drive_fader', false},
-  {'eq_low_fader', false},
-  {'eq_high_fader', false},
-  {'level_fader', false}
+  {'drive_fader', false, 'drive_label', 'get48dB', 'DRIVE: %s dB', ''},
+  {'eq_low_fader', false, 'eq_low_label', 'get24dB', 'EQ LOW: %s dB', ''},
+  {'eq_high_fader', false, 'eq_high_label', 'get24dB', 'EQ HIGH: %s dB', ''},
+  {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
   },
 }
 
@@ -392,6 +397,13 @@ local mappingScripts = {
     end
   ]],
 
+  getSuperFilterType = [[
+    function getSuperFilterType(value)
+      local filterTypes = {'Low-pass', 'Band-pass', 'High-pass'}
+      return filterTypes[value]
+    end
+  ]],  
+
   getRoot = [[
     local rootNotes = {'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'}
     local rootOctaves = {'-1', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
@@ -590,6 +602,15 @@ local mappingScripts = {
     function getTapeEchoMode(value)
       local mode = modes[value]
       return mode
+    end
+  ]],
+
+  getRate = [[
+    local rates = {'2/1', '1/1D', '2/1T', '1/1', '1/2D', '1/1T', '1/2', '1/4D', '1/2T', '1/4', '1/8D', '1/4T', '1/8', '1/16D', '1/8T', '1/16', '1/32D', '1/16T', '1/32', '1/32T', '1/64', '1/64T'}
+
+    function getRate(value)
+      local rate = rates[value]
+      return rate
     end
   ]],
 }
@@ -796,8 +817,19 @@ local gridScriptTemplate = [[
   end
 ]]
 
+local gridLabelScriptTemplate = [[
+  %s -- Include the mapping function definition here
+  local gridLabelName = '%s'
+
+  function init()
+    if self.name ~= gridLabelName then
+      self.values.text = %s(self.index) -- Just use the function name directly
+    end
+  end
+]]
+
 function generateAndAssignFaderScript(controlGroup, controlInfo)
-  local faderName, _, labelName, labelMapping, _, gridName, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
+  local faderName, _, labelName, labelMapping, _, gridName, _, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
 
   if not startValues or startValues == '' then
     -- Just so we don't break the script
@@ -827,7 +859,7 @@ function generateAndAssignFaderScript(controlGroup, controlInfo)
 end
 
 function generateAndAssignLabelScript(controlGroup, controlInfo)
-  local _, _, labelName, _, labelFormat, _, _, _, _, _, _, _ = table.unpack(controlInfo)
+  local _, _, labelName, _, labelFormat, _, _, _, _, _, _, _, _ = table.unpack(controlInfo)
 
   -- Generate and assign label script
   local labelObject = controlGroup:findByName(labelName, true)
@@ -839,7 +871,7 @@ end
 
 function generateAndAssignGridScript(controlGroup, controlInfo)
   -- Generate and assign grid script
-  local faderName, _, _, _, _, gridName, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = table.unpack(controlInfo)
+  local faderName, _, _, _, _, gridName, gridLabelName, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = table.unpack(controlInfo)
 
   local amSyncGrid = 'true'
   if not showHideFader then
@@ -868,6 +900,19 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
     -- Assign the generated script
     gridObject.script = gridScript
   end
+
+  print('Generating grid label script for:', gridLabelName, labelMapping)
+  
+  local gridLabelObject = controlGroup:findByName(gridLabelName, true)
+
+  local gridLabelScript = string.format(gridLabelScriptTemplate, 
+    mappingScripts[labelMapping],
+    gridLabelName,
+    labelMapping)
+
+  if gridLabelObject then
+    gridLabelObject.script = gridLabelScript
+  end
 end
 
 -- Example control info array elements (controlsInfoArray[i])
@@ -890,12 +935,13 @@ end
 -- 4) Label mapping function
 -- 5) Label format string
 -- 6) Synced grid (optional)
--- 7) Grid ranges (optional, used for grids)
--- 8) Am synced fader (optional, used for sync grids)
--- 9) Show/hide fader name (optional, used for sync grids)
--- 10) Show/hide fader label name (optional, used for sync grids)
--- 11) Show/hide grid name (optional, used for sync grids)
--- 12) Show/hide grid label name (optional, used for sync grids)
+-- 7) Synced grid label name (optional)
+-- 8) Start values for ranges (optional, used for grids)
+-- 9) Am synced fader (optional, used for sync grids)
+-- 10) Show/hide fader name (optional, used for sync grids)
+-- 11) Show/hide fader label name (optional, used for sync grids)
+-- 12) Show/hide grid name (optional, used for sync grids)
+-- 13) Show/hide grid label name (optional, used for sync grids)
 
 function init()
   for i, category in ipairs(controlsInfoArray) do
