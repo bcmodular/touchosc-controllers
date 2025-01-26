@@ -751,10 +751,10 @@ local gridScriptTemplate = [[
   end
 
   function toggleTimeViews(showFader)
-    local fader = self.parent.parent:findByName('%s')
-    local faderLabel = self.parent.parent:findByName('%s')
-    local grid = self.parent.parent:findByName('%s')
-    local gridLabel = self.parent.parent:findByName('%s')
+    local fader = self.parent.parent:findByName('%s', true)
+    local faderLabel = self.parent.parent:findByName('%s', true)
+    local grid = self.parent.parent:findByName('%s', true)
+    local gridLabel = self.parent.parent:findByName('%s', true)
     
     fader.visible = showFader
     faderLabel.visible = showFader
@@ -789,6 +789,9 @@ local gridScriptTemplate = [[
       -- from outside
       self.tag = 0
       self.children[childToSelect]:notify('new_child_value')
+      if amSyncGrid then
+        toggleTimeViews(value == 1)
+      end
     end
   end
 ]]
