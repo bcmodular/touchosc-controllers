@@ -6,18 +6,31 @@ local midiChannel = 0
 local presetManager = root.children.preset_manager
 
 local controlsInfoArray = {
-  -- Array structure:
-  -- {controlName, isExcludable, labelName, labelMapping, labelFormat, syncedGrid}
+-- Array structure:
+-- 1) Fader name
+-- 2) Is excludable (true/false)
+-- 3) Label name
+-- 4) Label mapping function
+-- 5) Label format string
+-- 6) Synced grid (optional)
+-- 7) Grid ranges (optional, used for grids)
+-- 8) Am synced fader (optional, used for sync grids)
+-- 9) Show/hide fader name (optional, used for sync grids)
+-- 10) Show/hide fader label name (optional, used for sync grids)
+-- 11) Show/hide grid name (optional, used for sync grids)
+-- 12) Show/hide grid label name (optional, used for sync grids)
+
   {-- 1: filter + drive
   {'cutoff_fader', false, 'cutoff_label', 'getFreq', 'CUTOFF: %s Hz', ''},
   {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
   {'drive_fader', false, 'drive_label', 'getZeroOneHundred', 'DRIVE: %s', ''},
-  {'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid', '{0, 64}'},
+  {'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid',
+    '{0, 64}'},
   {'low_freq_fader', false, 'low_freq_label', 'getFreq', 'LOW FREQ: %s Hz', ''},
   {'low_gain_fader', false, 'low_gain_label', 'get24dB', 'LOW GAIN: %s dB', ''}
   },
   {-- 2: resonator
-  {'root_fader', true, 'root_value_label', 'getRoot', '%s', 'root_label'},
+  {'root_fader', true, 'root_value_label', 'getRoot', '%s', ''},
   {'bright_fader', false, 'bright_value_label', 'getZeroOneHundred', '%s', ''},
   {'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s%%', ''},
   {'chord_fader', true, 'chord_label', 'getChord', '%s', 'chord_grid',
@@ -41,7 +54,7 @@ local controlsInfoArray = {
   {'high_fader', false, 'high_label', 'getEQ', '%s', ''}
   },
   {-- 5: djfx looper
-  {'length_fader', false, 'length_label', 'getLooperLength', '%s', ''},
+  {'length_fader', false, 'length_label', 'getLooperLength', '%s s', ''},
   {'speed_fader', false, 'speed_label', 'getBipolarHundred', '%s', ''},
   {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', '{0, 64}'}
   },
@@ -50,7 +63,7 @@ local controlsInfoArray = {
     '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
   {'scatter_depth_fader', false, 'scatter_depth_label', 'getScatterDepth', '%s', 'scatter_depth_grid',
     '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
-  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', '{"on_off_grid"}',
+  {'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid',
     '{0, 64}'},
   {'scatter_speed_fader', false, 'scatter_speed_label', 'getScatterSpeed', '%s', 'scatter_speed_grid',
     '{0, 64}'}
@@ -72,7 +85,7 @@ local controlsInfoArray = {
     '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
   {'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid',
     '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-  {'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s', ''},
+  {'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s ms', ''},
   },
   {-- 9: ko da ma
   {'ko_da_ma_time_fader', false, 'ko_da_ma_time_label', 'getDelayTimes', '%s', 'ko_da_ma_time_grid',
@@ -88,24 +101,25 @@ local controlsInfoArray = {
   },
   {-- 10: zan zou
   {'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', 'zan_zou_time_grid',
-    '{0, 9, 17, 28, 36, 44, 52, 60, 68, 77, 87, 95, 103, 114, 122, 127}'},
+    '{0, 9, 17, 28, 36, 44, 52, 60, 68, 77, 87, 95, 103, 114, 122, 127}', 'true'},
   {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s', ''},
   {'hf_damp_fader', false, 'hf_damp_label', 'getHFDampValues', '%s', 'hf_damp_grid',
     '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {'zan_zou_mode_fader', false, 'zan_zou_mode_label', 'getZanZouMode', '%s', 'zan_zou_mode_grid', '{0, 43, 86}'},
+  {'zan_zou_mode_fader', false, 'zan_zou_mode_label', 'getZanZouMode', '%s', 'zan_zou_mode_grid',
+    '{0, 43, 86}'},
   {'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', 'zan_zou_sync_grid',
-    '{0, 64}', 'zan_zou_time_fader', 'zan_zou_time_label', 'zan_zou_time_grid', 'zan_zou_time_label_grid'}
+    '{0, 64}', 'false', 'zan_zou_time_fader', 'zan_zou_time_label', 'zan_zou_time_grid', 'zan_zou_time_label_grid'}
   },
   {-- 11: to gu ro
   {'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
   {'to_gu_ro_rate_fader', false, 'to_gu_ro_rate_label', 'getZeroOneHundred', 'RATE: %s', 'to_gu_ro_rate_grid',
-    '{0, 20, 35, 52, 70, 85, 105, 120, 127}'},
+    '{0, 20, 35, 52, 70, 85, 105, 120, 127}', 'true'},
   {'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
   {'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
   {'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''},
   {'to_gu_ro_sync_fader', false, 'to_gu_ro_sync_label', 'getSync', '%s', 'to_gu_ro_sync_grid',
-    '{0, 64}', 'to_gu_ro_rate_fader', 'to_gu_ro_rate_label', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid'},
+    '{0, 64}', 'false', 'to_gu_ro_rate_fader', 'to_gu_ro_rate_label', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid'},
   },
   {-- 12: sbf
   {'interval_fader', false, 'interval_label', 'getZeroOneHundred', 'INTERVAL: %s', ''},
@@ -134,7 +148,7 @@ local controlsInfoArray = {
   },
   {-- 15: time ctrl delay
   {'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getZeroOneHundred', 'TIME: %s', 'time_ctrl_dly_time_grid',
-    '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
+    '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}', 'true'},
   {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
   {'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
   {'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid',
@@ -142,7 +156,7 @@ local controlsInfoArray = {
   {'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid',
     '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
   {'time_ctrl_dly_sync_fader', false, 'time_ctrl_dly_sync_label', 'getSync', '%s', 'time_ctrl_dly_sync_grid',
-    '{0, 64}', 'time_ctrl_dly_time_fader', 'time_ctrl_dly_time_label', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid'}
+    '{0, 64}', 'false', 'time_ctrl_dly_time_fader', 'time_ctrl_dly_time_label', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid'}
   },
   {-- 16: super filter
   {'cutoff_fader', false},
@@ -183,14 +197,14 @@ local mappingScripts = {
     }
 
     function getFreq(value)
-      local scaledValue = midiToFrequencyMap[math.floor(value * 127 + 0.5) + 1]
+      local scaledValue = midiToFrequencyMap[value]
       return scaledValue
     end
   ]],
 
   getZeroOneHundred = [[
     function getZeroOneHundred(value)
-      local midiValue = math.floor(value * 127 + 0.5)
+      local midiValue = value - 1
       if midiValue == 127 then
         return 100
       else
@@ -201,7 +215,7 @@ local mappingScripts = {
 
   get24dB = [[
     function get24dB(value)
-      local midiValue = math.floor(value * 127 + 0.5)
+      local midiValue = value - 1
       local dbValue = math.floor((midiValue / 127.5) * 49) - 24
 
       -- Correct the specific case for MIDI value 13
@@ -234,7 +248,7 @@ local mappingScripts = {
     }
 
     function getEQ(value)
-      local scaledValue = midiToEQRangeMap[math.floor(value * 127 + 0.5) + 1]
+      local scaledValue = midiToEQRangeMap[value]
       return scaledValue
     end
   ]],
@@ -251,8 +265,7 @@ local mappingScripts = {
     }
 
     function getBipolarHundred(value)
-      local midiValue = math.floor(value * 127 + 0.5)
-      return bipolarHundredRangeMap[midiValue + 1]
+      return bipolarHundredRangeMap[value]
     end
   ]],
 
@@ -268,8 +281,7 @@ local mappingScripts = {
     }
 
     function getHundredMS(value)
-      local midiValue = math.floor(value * 127 + 0.5)
-      return hundredMSRangeMap[midiValue + 1]
+      return hundredMSRangeMap[value]
     end
   ]],
 
@@ -285,8 +297,7 @@ local mappingScripts = {
     }
 
     function getBalance(value)
-      local midiValue = math.floor(value * 127 + 0.5)
-      return balanceRangeMap[midiValue + 1]
+      return balanceRangeMap[value]
     end  
   ]],
 
@@ -311,8 +322,7 @@ local mappingScripts = {
     }
 
     function getSBFGain(value)
-      local midiValue = math.floor(value * 127 + 0.5)
-      return sbfGainMap[midiValue + 1]
+      return sbfGainMap[value]
     end
   ]],
 
@@ -335,14 +345,13 @@ local mappingScripts = {
     }
 
     function getTapeSpeed(value)
-      local midiValue = math.floor(value * 127 + 0.5)
-      return tapeSpeedMap[midiValue + 1]
+      return tapeSpeedMap[value]
     end  
   ]],
 
   getZeroNinetyNine = [[
     function getZeroNinetyNine(value)
-      local midiValue = math.floor(value * 127 + 0.5)
+      local midiValue = value - 1
       if midiValue == 127 then
         return 99
       else
@@ -353,7 +362,7 @@ local mappingScripts = {
 
   get48dB = [[
     function get48dB(value)
-      local midiValue = math.floor(value * 127 + 0.5)
+      local midiValue = value - 1
       local dbValue = math.floor((midiValue / 127.5) * 49)
       return dbValue
     end
@@ -361,7 +370,7 @@ local mappingScripts = {
 
   getLooperLength = [[
     function getLooperLength(value)
-      local midiValue = math.floor(value * 127 + 0.5)    
+      local midiValue = value - 1    
       if midiValue == 127 then
         return 0.012
       else
@@ -376,8 +385,7 @@ local mappingScripts = {
   getFilterType = [[
     function getFilterType(value)
       local filterTypes = {'High-pass', 'Low-pass'}
-      local roundedValue = math.floor(value + 0.5)
-      return filterTypes[roundedValue + 1]
+      return filterTypes[value]
     end
   ]],
 
@@ -386,7 +394,7 @@ local mappingScripts = {
     local rootOctaves = {'-1', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
     
     function getRoot(value)
-      local midiValue = math.floor(value * 127 + 0.5)
+      local midiValue = value - 1
       local rootNote = rootNotes[(midiValue % 12) + 1]
       local rootOctave = rootOctaves[math.floor(midiValue / 12) + 1]
       return rootNote..rootOctave
@@ -402,7 +410,7 @@ local mappingScripts = {
     }
 
     function getChord(value)
-      local chord = chords[math.floor(value * 15 + 0.5) + 1]
+      local chord = chords[value]
       return chord
     end
   ]],
@@ -416,7 +424,7 @@ local mappingScripts = {
     }
 
     function getDelayTimes(value)
-      local delayTime = delayTimes[math.floor(value * 15 + 0.5) + 1]
+      local delayTime = delayTimes[value]
       return delayTime
     end
   ]],
@@ -425,7 +433,7 @@ local mappingScripts = {
     local lDampFValues = {'FLAT', '80', '100', '125', '160', '200', '250', '315', '400', '500', '630', '800'}
 
     function getLDampFValues(value)
-      local lDampFValue = lDampFValues[math.floor(value * 11 + 0.5) + 1]
+      local lDampFValue = lDampFValues[value]
       return lDampFValue
     end
   ]],   
@@ -434,9 +442,7 @@ local mappingScripts = {
     local hDampFValues = {'630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000', '10000', '12500', 'FLAT'}
 
     function getHDampFValues(value)
-      print('getHDampFValues', tostring(value))
-      local hDampFValue = hDampFValues[math.floor(value * 14 + 0.5) + 1]
-      print('hDampFValue', tostring(hDampFValue))
+      local hDampFValue = hDampFValues[value]
       return hDampFValue
     end
   ]],
@@ -445,8 +451,7 @@ local mappingScripts = {
     local onOff = {'Off', 'On'}
         
     function getOnOff(value)
-      local roundedValue = math.floor(value + 0.5)
-      return onOff[roundedValue + 1]
+      return onOff[value]
     end
   ]],
 
@@ -454,8 +459,7 @@ local mappingScripts = {
     local speeds = {'SINGLE', 'DOUBLE'}
       
     function getScatterSpeed(value)
-      local roundedValue = math.floor(value + 0.5)
-      return speeds[roundedValue + 1]
+      return speeds[value]
     end
   ]],  
 
@@ -463,7 +467,7 @@ local mappingScripts = {
     local types = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10'}
       
     function getScatterType(value)
-      local type = types[math.floor(value * 9 + 0.5) + 1]
+      local type = types[value]
       return type
     end
   ]],  
@@ -472,7 +476,7 @@ local mappingScripts = {
     local depths = {'10', '20', '30', '40', '50', '60', '70', '80', '90', '100'}
       
     function getScatterDepth(value)
-      local depth = depths[math.floor(value * 9 + 0.5) + 1]
+      local depth = depths[value]
       return depth
     end
   ]], 
@@ -481,8 +485,7 @@ local mappingScripts = {
     local pitchOnOff = {'PITCH OFF', 'PITCH ON'}
       
     function getPitchOnOff(value)
-      local roundedValue = math.floor(value + 0.5)
-      return pitchOnOff[roundedValue + 1]
+      return pitchOnOff[value]
     end
   ]],
 
@@ -490,7 +493,7 @@ local mappingScripts = {
     local downerRates = {'2/1', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32'}
 
     function getDownerRate(value)
-      local downerRate = downerRates[math.floor(value * 6 + 0.5) + 1]
+      local downerRate = downerRates[value]
       return downerRate
     end
   ]],
@@ -499,7 +502,7 @@ local mappingScripts = {
     local lowCutValues = {'FLAT', '20', '25', '31', '40', '50', '63', '80', '100', '125', '160', '200', '250', '315', '400', '500', '630', '800'}
 
     function getLowCut(value)
-      local lowCutValue = lowCutValues[math.floor(value * 17 + 0.5) + 1]
+      local lowCutValue = lowCutValues[value]
       return lowCutValue
     end
   ]],
@@ -508,7 +511,7 @@ local mappingScripts = {
     local highCutValues = {'630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000', '10000', '12500', 'FLAT'}
 
     function getHighCut(value)
-      local highCutValue = highCutValues[math.floor(value * 14 + 0.5) + 1]
+      local highCutValue = highCutValues[value]
       return highCutValue
     end
   ]],
@@ -517,8 +520,7 @@ local mappingScripts = {
     local koDaMaModes = {'SINGLE MODE', 'PAN MODE'}
 
     function getKoDaMaMode(value)
-      local roundedValue = math.floor(value + 0.5)
-      return koDaMaModes[roundedValue + 1]
+      return koDaMaModes[value]
     end
   ]],
 
@@ -526,7 +528,7 @@ local mappingScripts = {
     local zanZouModes = {'2TAP', '3TAP', '4TAP'}
 
     function getZanZouMode(value)
-      local zanZouMode = zanZouModes[math.floor(value * 2 + 0.5) + 1]
+      local zanZouMode = zanZouModes[value]
       return zanZouMode
     end
   ]],
@@ -535,8 +537,7 @@ local mappingScripts = {
     local sync = {'SYNC OFF', 'SYNC ON'}
 
     function getSync(value)
-      local roundedValue = math.floor(value + 0.5)
-      return sync[roundedValue + 1]
+      return sync[value]
     end
   ]],
 
@@ -544,8 +545,7 @@ local mappingScripts = {
     local hfDampValues = {'200', '250', '315', '400', '500', '630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000', 'OFF'}
 
     function getHFDampValues(value)
-      local hfDampValue = hfDampValues[math.floor(value * 17 + 0.5) + 1]
-      print('HFDampValue:', hfDampValue, value)
+      local hfDampValue = hfDampValues[value]
       return hfDampValue
     end
   ]],
@@ -558,7 +558,7 @@ local mappingScripts = {
     }
 
     function getToGuRoRate(value)
-      local rate = rates[math.floor(value * 8 + 0.5) + 1]
+      local rate = rates[value]
       return rate
     end
   ]],
@@ -567,7 +567,7 @@ local mappingScripts = {
     local sbfTypes = {'SBF1', 'SBF2', 'SBF3', 'SBF4', 'SBF5', 'SBF6'}
 
     function getSBFType(value)
-      local sbfType = sbfTypes[math.floor(value * 5 + 0.5) + 1]
+      local sbfType = sbfTypes[value]
       return sbfType
     end
   ]],
@@ -576,7 +576,7 @@ local mappingScripts = {
   local rates = {'4/1', '2/1', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/64'}
 
     function getStopperRate(value)
-      local rate = rates[math.floor(value * 8 + 0.5) + 1]
+      local rate = rates[value]
       return rate
     end
   ]],
@@ -585,7 +585,7 @@ local mappingScripts = {
     local modes = {'S', 'M', 'L', 'S+M', 'S+L', 'M+L', 'S+M+L'}
 
     function getTapeEchoMode(value)
-      local mode = modes[math.floor(value * 6 + 0.5) + 1]
+      local mode = modes[value]
       return mode
     end
   ]],
@@ -593,87 +593,20 @@ local mappingScripts = {
 
 -- CONTROL SCRIPTS *******************************************
 local faderScriptTemplate = [[
+  local amSyncFader = %s
   local labelName = '%s'
   %s  -- Include the mapping function definition here
-  local gridRanges = %s  -- This needs to be parsed from the string into a table
+  local startValues = %s
 
   function midiToFloat(midiValue)
     local floatValue = midiValue / 127
     return floatValue
   end
 
-  function floatToMidi(floatValue)
-    if not gridRanges then
-      return math.floor(floatValue * 127 + 0.5)
-    end
-
-    print("floatToMidi called with floatValue:", floatValue, "gridRanges:", gridRanges)
-    
-    -- Get the index directly from the mapping calculation
-    local index = math.floor(floatValue * 14 + 0.5) + 1
-    print("Index for grid:", index)
-    
-    -- Use the index to get the corresponding grid range
-    if index and gridRanges[index] then
-      return gridRanges[index]
-    end
-    
-    return math.floor(floatValue * 127 + 0.5)  -- Fallback
+  function floatToMIDI(floatValue)
+    local midiValue = math.floor(floatValue * 127 + 0.5)
+    return midiValue
   end
-
-  function updateLabel(value)
-    local label = self.parent:findByName(labelName)
-    local newText = %s(value)  -- Just use the function name directly
-    print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
-    label:notify('update_text', newText)
-  end
-
-  local controlsToNotify = %s
-
-  function notifySyncedControls(value)
-    local midiValue = floatToMidi(value)
-    print("Fader float: " .. tostring(value) .. " to MIDI: " .. tostring(midiValue))
-    for _, controlName in ipairs(controlsToNotify) do
-      local control = self.parent:findByName(controlName, true)
-      control:notify('new_value', midiValue)
-    end
-  end
-
-  function onReceiveNotify(key, value)
-    if key == 'new_value' then
-      self.values.x = value
-      updateLabel(value)
-    elseif key == 'new_cc_value' then
-      local floatValue = midiToFloat(value)
-      self.values.x = floatValue
-      updateLabel(floatValue)
-    end
-  end
-
-  function onValueChanged(value)
-    if value == 'x' then
-      updateLabel(self.values.x)
-      notifySyncedControls(self.values.x)
-    end
-  end
-]]
-
-local labelScriptTemplate = [[
-  local labelFormat = "%s"
-
-  function onReceiveNotify(key, value)
-    if key == 'update_text' then
-      local labelText = string.format(labelFormat, tostring(value))
-      self.values.text = labelText
-    end
-  end
-]]
-
-local gridScriptTemplate = [[
-  local startValues = %s 
-  local targetGridName = '%s'
-  local syncedFaderName = '%s'
-  local amSyncGrid = %s
 
   local function findRange(ranges, target)
     print("Finding range for target: " .. tostring(target))
@@ -699,6 +632,111 @@ local gridScriptTemplate = [[
     -- Should never reach here if ranges are properly defined
     return 1
   end
+
+  function floatToRange(floatValue)
+
+    local midiValue = math.floor(floatValue * 127 + 0.5)
+
+    if next(startValues) == nil then
+      -- Return full midi range as the range
+      local index = midiValue + 1
+      print("Returning index in full midi range:", index)
+      return index
+    end
+
+    print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
+    
+    local index = findRange(startValues, midiValue)
+
+    print("Index in grid range:", index)
+    
+    return index
+  end
+
+  function updateLabel(value)
+    local label = self.parent:findByName(labelName)
+    local newText = %s(value)  -- Just use the function name directly
+    print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
+    label:notify('update_text', newText)
+  end
+
+  local gridToNotify = '%s'
+
+  function notifyGrid(value)
+    local rangeIndex = value
+    print("Fader float: " .. tostring(value) .. " to Range: " .. tostring(rangeIndex))
+    local gridControl = self.parent:findByName(gridToNotify, true)
+    gridControl:notify('new_index', rangeIndex)
+  end
+
+  function onReceiveNotify(key, value)
+    if key == 'new_value' then
+      self.values.x = value
+      local index = 0
+
+      if amSyncFader then
+        -- Override the index, as it's being used for the grid
+        -- not our label
+        index = floatToMIDI(value) + 1
+      else
+        index = floatToRange(value)
+      end
+
+      updateLabel(index)
+    elseif key == 'new_cc_value' then
+      local floatValue = midiToFloat(value)
+      self.values.x = floatValue
+
+      local index = 0
+      if amSyncFader then
+        -- Override the index, as it's being used for the grid
+        -- not our label
+        index = value + 1
+      else
+        index = floatToRange(floatValue)
+      end
+
+      updateLabel(index)
+    end
+  end
+
+  function onValueChanged(value)
+    if value == 'x' then
+      local index = 0
+      local gridIndex = floatToRange(self.values.x)
+
+      if amSyncFader then
+        -- Override the index, as it's being used for the grid
+        -- not our label
+        index = floatToMIDI(self.values.x) + 1
+      else
+        index = gridIndex
+      end
+
+      updateLabel(index)
+      if gridToNotify ~= '' then
+        notifyGrid(gridIndex)
+      end
+    end
+  end
+]]
+
+local labelScriptTemplate = [[
+  local labelFormat = "%s"
+
+  function onReceiveNotify(key, value)
+    if key == 'update_text' then
+      local labelText = string.format(labelFormat, tostring(value))
+      self.values.text = labelText
+    end
+  end
+]]
+
+local gridScriptTemplate = [[
+  local startValues = %s 
+  local targetGridName = '%s'
+  local syncedFaderName = '%s'
+  local amSyncGrid = %s
 
   function init()
     if self.name ~= targetGridName then
@@ -740,9 +778,9 @@ local gridScriptTemplate = [[
   function onReceiveNotify(key, value)
     if key == 'new_child_value' then
       self.values.x = 1
-    elseif key == 'new_value' then
+    elseif key == 'new_index' then
       print("Received value: " .. tostring(value))
-      local childToSelect = findRange(startValues, value)  -- Use value directly as MIDI value
+      local childToSelect = value
 
       -- Relinquish control, because we received input
       -- from outside
@@ -752,71 +790,71 @@ local gridScriptTemplate = [[
   end
 ]]
 
-function generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, labelFormat, syncedControls, gridRanges)
-  print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedControls, gridRanges)
-  
-  -- If no grid ranges provided, use a simple string "nil"
-  local gridRangesStr = gridRanges or "nil"
-  
+function generateAndAssignFaderScript(controlGroup, controlInfo)
+  local faderName, _, labelName, labelMapping, _, gridName, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
+
+  if not startValues or startValues == '' then
+    -- Just so we don't break the script
+    startValues = '{}'
+  end
+
+  if not amSyncFader then
+    amSyncFader = 'false'
+  end
+
+  print('Generating fader script for:', faderName, labelName, labelMapping, gridName, startValues, amSyncFader, mappingScripts[labelMapping])
+
   local faderScript = string.format(faderScriptTemplate, 
+    amSyncFader,
     labelName,
-    mappingScripts[labelMapping],  -- Include the actual function definition
-    gridRangesStr,
-    labelMapping,  -- Pass the function name for floatToMidi
-    labelMapping,  -- Pass the function name for updateLabel
-    syncedControls)
+    mappingScripts[labelMapping],
+    startValues,
+    labelMapping,
+    gridName)
 
   -- Find the fader object
-  local faderObject = controlGroup:findByName(controlName, true)
+  local faderObject = controlGroup:findByName(faderName, true)
   if faderObject then
     -- Assign the generated script
     faderObject.script = faderScript
   end
 end
 
-function generateAndAssignLabelScript(controlGroup, labelName, labelFormat)
+function generateAndAssignLabelScript(controlGroup, controlInfo)
+  local _, _, labelName, _, labelFormat, _, _, _, _, _, _, _ = table.unpack(controlInfo)
+
   -- Generate and assign label script
   local labelObject = controlGroup:findByName(labelName, true)
   local labelScript = string.format(labelScriptTemplate, labelFormat)
   if labelObject then
     labelObject.script = labelScript
-    --print(string.format("Generated label script for '%s':\n%s", labelName, labelScript))
-  else
-    --print(string.format("Label '%s' not found.", labelName))
   end
 end
 
-function generateAndAssignGridScript(controlGroup, gridName, gridTemplate, gridDefinition)
+function generateAndAssignGridScript(controlGroup, controlInfo)
   -- Generate and assign grid script
-  local gridScript = string.format(gridTemplate, 
-    gridDefinition[1],         -- The actual ranges string from config
-    gridName,                  -- The grid's name
-    gridDefinition[2] or '',   -- The synced fader name (second array item)
-    'false',                   -- Not a sync grid
-    '',                        -- No sync view params
-    '',
-    '',
-    '')
+  local faderName, _, _, _, _, gridName, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = table.unpack(controlInfo)
 
-  -- Find the grid object
-  local gridObject = controlGroup:findByName(gridName, true)
-  if gridObject then
-    -- Assign the generated script
-    gridObject.script = gridScript
+  local amSyncGrid = 'true'
+  if not showHideFader then
+    amSyncGrid = 'false'
+    showHideFader = ''
+    showHideFaderLabel = ''
+    showHideGrid = ''
+    showHideGridLabel = ''
   end
-end
 
-function generateAndAssignSyncGridScript(controlGroup, gridName, gridTemplate, gridDefinition)
-  -- Generate and assign grid script
-  local gridScript = string.format(gridTemplate, 
-    gridDefinition[1],     -- The actual ranges string from config
-    gridName,                  -- The grid's name
-    gridDefinition[2] or '',   -- The synced fader name (second array item)
-    'true',                    -- Is a sync grid
-    gridDefinition[3] or '',   -- Sync view params: fader name
-    gridDefinition[4] or '',   -- Sync view params: fader label
-    gridDefinition[5] or '',   -- Sync view params: grid name
-    gridDefinition[6] or '')   -- Sync view params: grid label
+  print('Generating grid script for:', faderName, gridName, startValues, amSyncGrid, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel)
+
+  local gridScript = string.format(gridScriptTemplate, 
+    startValues,
+    gridName,
+    faderName,
+    amSyncGrid,
+    showHideFader,
+    showHideFaderLabel,
+    showHideGrid,
+    showHideGridLabel)
 
   -- Find the grid object
   local gridObject = controlGroup:findByName(gridName, true)
@@ -828,26 +866,31 @@ end
 
 -- Example control info array elements (controlsInfoArray[i])
 
--- 1) Simple fader with label
+-- 1) Simple fader
 -- {'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s', ''},
 
--- 2) Fader with label and synced controls
--- {'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', '{"zan_zou_time_grid"}'},
+-- 2) Fader with synced grid
+-- {'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', 'zan_zou_time_grid'},
+--   '{0, 9, 17, 28, 36, 44, 52, 60, 68, 77, 87, 95, 103, 114, 122, 127}'}
 
--- 3) Synced fader with label
--- {'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', '{"zan_zou_sync_grid"}'}
+-- 3) Synced fader
+--  {'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', 'zan_zou_sync_grid',
+-- '{0, 64}', 'zan_zou_time_fader', 'zan_zou_time_label', 'zan_zou_time_grid', 'zan_zou_time_label_grid'}
 
--- Example grid definition (gridDefinitions[i])
--- 1) Simple grid with synced fader
---  zan_zou_mode_grid = {
---    "{0, 43, 86}",
---    'zan_zou_mode_fader'
--- },
--- 2) Synced grid with additional view parameters
--- zan_zou_sync_grid = {
---  "{0, 64}",
---  'zan_zou_sync_fader', 'zan_zou_time_fader', 'zan_zou_time_label', 'zan_zou_time_grid', 'zan_zou_time_label_grid'
--- },
+-- Full list of control info parameters:
+-- 1) Fader name
+-- 2) Is excludable (true/false)
+-- 3) Label name
+-- 4) Label mapping function
+-- 5) Label format string
+-- 6) Synced grid (optional)
+-- 7) Grid ranges (optional, used for grids)
+-- 8) Am synced fader (optional, used for sync grids)
+-- 9) Show/hide fader name (optional, used for sync grids)
+-- 10) Show/hide fader label name (optional, used for sync grids)
+-- 11) Show/hide grid name (optional, used for sync grids)
+-- 12) Show/hide grid label name (optional, used for sync grids)
+
 function init()
   for i, category in ipairs(controlsInfoArray) do
     print('Initialising category with fxPage:', i)
@@ -857,44 +900,18 @@ function init()
     print('controlGroup:', controlGroup.name)
         
     for _, controlInfo in ipairs(category) do
-      local controlName, _, labelName, labelMapping, labelFormat, syncedControls = table.unpack(controlInfo)
+      local controlName, _, labelName, labelMapping, labelFormat, syncedGrid = table.unpack(controlInfo)
       
-      -- Skip controls without extra values
-      if labelName and labelMapping and labelFormat then
-        print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedControls)
-                
-        -- Check if there are any synced controls
-        local hasSyncedControls = false
-        if syncedControls != '' then
-          numSyncedControls = true
-        end
+      -- Skip controls without extra values (while WIP)
+      -- Can remove this check once all controls have been updated
+      if labelName then
+        print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedGrid)
         
-        local gridValues = '{}'
-        -- Check if we have a grid name and corresponding definition
-        if hasSyncedControls then
-          print("Generating fader script for grid:", gridName, gridDefinitions[i][gridName])
-          -- Ensure syncedControls is properly formatted as a string array
-          local syncedControlsStr = syncedControls or '{}'
-          generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, labelFormat, syncedControlsStr, gridDefinitions[i][gridName][1])
-        else
-          if gridName then
-            print("Warning: No grid definition found for grid: " .. tostring(gridName))
-          end
-          generateAndAssignFaderScript(controlGroup, controlName, labelName, labelMapping, labelFormat, '{}', '')
-        end
-        generateAndAssignLabelScript(controlGroup, labelName, labelFormat)
-      end
-    end
-
-    -- Initialize grids for this specific FX page
-    local pageGrids = gridDefinitions[i]
-    if pageGrids then
-      for gridName, gridDefinition in pairs(pageGrids) do
-        -- Check if this is a sync grid by looking for additional view parameters
-        if #gridDefinition > 2 then  -- More than ranges and synced fader means it's a sync grid
-          generateAndAssignSyncGridScript(controlGroup, gridName, gridScriptTemplate, gridDefinition)
-        else
-          generateAndAssignGridScript(controlGroup, gridName, gridScriptTemplate, gridDefinition)
+        generateAndAssignFaderScript(controlGroup, controlInfo)
+        generateAndAssignLabelScript(controlGroup, controlInfo)
+        
+        if syncedGrid ~= '' then
+          generateAndAssignGridScript(controlGroup, controlInfo)
         end
       end
     end
