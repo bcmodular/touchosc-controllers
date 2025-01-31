@@ -1,13 +1,15 @@
 local BUTTON_STATE = {
   STORE = 1,
   RECALL = 2,
-  DELETE = 3
+  DELETE = 3,
+  DISABLED = 4
 }
 
 local BUTTON_STATE_COLORS = {
   STORE = "FFFFFFFF",
   RECALL = "00FF00FF",
-  DELETE = "FF0000FF"
+  DELETE = "FF0000FF",
+  DISABLED = "000000FF"
 }
 
 local fxPresetHandler = root.children.fx_preset_handler
@@ -22,7 +24,7 @@ end
 function onValueChanged(key, value)
   
   -- Interpret button presses as a child button
-  if (key == 'x' and self.values.x == 0 and self.name ~= 'fx_preset_grid') then
+  if (key == 'x' and self.values.x == 1 and self.name ~= 'fx_preset_grid') then
     
     local buttonState = tonumber(self.name) or 0
     --print('button state:', buttonState)
@@ -57,6 +59,52 @@ function onReceiveNotify(key, value)
     local newState = value
     changeState(self, newState)
   
+  elseif key == 'toggle_delete_buttons' then
+    
+    local newState = 'DISABLED'
+    
+    if value == 0 then
+      newState = 'DELETE'
+    end
+
+    local childCount = #self.children
+    local halfCount = childCount / 2
+
+    for index = halfCount + 1, childCount do
+      changeState(self.children[index], newState)
+    end
+
+    local numLabels = self.parent.children.fx_preset_num_labels
+    local delLabels = self.parent.children.fx_preset_delete_labels
+    local removeLabel = self.parent.children.remove_fx_preset_label
+    local removeAllButton = self.parent.children.remove_all_fx_presets_button
+    
+    if newState == 'DELETE' then
+        self.frame.h = 106
+        numLabels.frame.h = 58
+        delLabels.visible = true
+        removeLabel.visible = true
+        removeAllButton.visible = true
+
+        for index = 1, halfCount do
+          numLabels.children[index].frame.h = 58
+          self.children[index].frame.h = 54
+          self.children[index + 16].visible = true
+        end
+    else
+        self.frame.h = 212
+        numLabels.frame.h = 116
+        delLabels.visible = false
+        removeLabel.visible = false
+        removeAllButton.visible = false
+
+        for index = 1, halfCount do
+          numLabels.children[index].frame.h = 104
+          self.children[index].frame.h = 100
+          self.children[index + 16].visible = false
+        end
+    end
+
   elseif key == 'stored_presets_list' and self.name == 'fx_preset_grid' then
     
     -- Handle the response to our initialisation request
