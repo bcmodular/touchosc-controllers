@@ -178,6 +178,36 @@ local controlsInfoArray = {
   {18, 'eq_high_fader', false, 'eq_high_label', 'get24dB', 'EQ HIGH: %s dB', ''},
   {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
   },
+  {-- 18: 303 VinylSim
+  {16, 'comp_fader', false, 'comp_label', 'getZeroOneHundred', '%s', ''},
+  {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
+  {18, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''},
+  {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''}
+  },
+  {-- 19: 404 VinylSim
+  {16, 'freq_fader', false, 'freq_label', 'getZeroOneHundred', '%s', ''},
+  {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
+  {18, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''}
+  },
+  {-- 20: Cassette Sim
+  {16, 'tone_fader', false, 'tone_label', 'getZeroOneHundred', '%s', ''},
+  {17, 'hiss_fader', false, 'hiss_label', 'getZeroOneHundred', '%s', ''},
+  {18, 'age_fader', false, 'age_label', 'getZeroSixty', '%s', ''},
+  {80, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
+  {81, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''},
+  {82, 'catch_fader', false, 'catch_label', 'getZeroOneHundred', '%s', ''},
+  },
+  {-- 21: Lo-fi
+  {16, 'pre_filt_fader', false, 'pre_filt_label', 'getPreFilter', '%s', 'pre_filt_grid', 'pre_filt_label_grid',
+    '{0, 22, 43, 64, 85, 107}'},
+  {17, 'lofi_type_fader', false, 'lofi_type_label', 'getLofiType', '%s', 'lofi_type_grid', 'lofi_type_label_grid',
+    '{0, 15, 29, 43, 57, 71, 85, 100, 114}'},
+  {18, 'tone_fader', false, 'tone_label', 'getLofiTone', 'TONE: %s', ''},
+  {80, 'cutoff_fader', false, 'cutoff_label', 'getLofiCutoff', '%s', 'cutoff_grid', 'cutoff_label_grid',
+    '{0, 8, 15, 23, 30, 38, 45, 53, 60, 68, 75, 83, 90, 98, 105, 113, 120}'},
+  {81, 'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
+  {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
+  },
 }
 
 --************************************************************
@@ -215,6 +245,17 @@ local mappingScripts = {
         return 100
       else
         return math.floor((midiValue / 127.5) * 100)
+      end
+    end
+  ]],
+
+  getZeroSixty = [[
+    function getZeroSixty(value)
+      local midiValue = value - 1
+      if midiValue == 127 then
+        return 60
+      else
+        return math.floor((midiValue / 127.5) * 60)
       end
     end
   ]],
@@ -272,6 +313,22 @@ local mappingScripts = {
 
     function getBipolarHundred(value)
       return bipolarHundredRangeMap[value]
+    end
+  ]],
+
+  getLofiTone = [[
+    local lofiToneMap = {
+      -100, -98, -96, -95, -93, -92, -90, -89, -87, -85, -84, -82, -81, -79, -78, -76, -74,
+      -73, -71, -70, -68, -67, -65, -63, -62, -60, -59, -57, -56, -54, -52, -51, -49, -48,
+      -46, -45, -43, -41, -40, -38, -37, -35, -34, -32, -30, -29, -27, -26, -24, -23, -21,
+      -20, -18, -16, -15, -13, -12, -10, -9, -7, -5, -4, -2, -1, 0, 1, 3, 5, 6, 8, 9, 11,
+      12, 14, 16, 17, 19, 20, 22, 23, 25, 27, 28, 30, 31, 33, 34, 36, 38, 39, 41, 42, 44,
+      45, 47, 49, 50, 52, 53, 55, 56, 58, 60, 61, 63, 64, 66, 67, 69, 70, 72, 74, 75, 77,
+      78, 80, 81, 83, 85, 86, 88, 89, 91, 92, 94, 96, 97, 100
+    }
+
+    function getLofiTone(value)
+      return lofiToneMap[value]
     end
   ]],
 
@@ -614,6 +671,34 @@ local mappingScripts = {
       return rate
     end
   ]],
+
+  getPreFilter = [[
+    local filters = {'1', '2', '3', '4', '5', '6'}
+
+    function getPreFilter(value)
+      local filter = filters[value]
+      return filter
+    end
+  ]],
+
+  getLofiType = [[
+    local types = {'1', '2', '3', '4', '5', '6', '7', '8', '9'}
+
+    function getLofiType(value)
+      local type = types[value]
+      return type
+    end
+  ]],
+
+  getLofiCutoff = [[
+    local frequencies = {'200', '250', '315', '400', '500', '630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000'}
+
+    function getLofiCutoff(value)
+      local frequency = frequencies[value]
+      return frequency
+    end
+  ]],
+  
 }
 
 -- CONTROL SCRIPTS *******************************************
