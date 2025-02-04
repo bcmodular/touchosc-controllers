@@ -22,191 +22,202 @@ local controlsInfoArray = {
 -- 13) Show/hide grid name (optional, used for sync grids)
 -- 14) Show/hide grid label name (optional, used for sync grids)
 
-  {-- 1: filter + drive
-  {16, 'cutoff_fader', false, 'cutoff_label', 'getFreq', 'CUTOFF: %s Hz', ''},
-  {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
-  {18, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', 'DRIVE: %s', ''},
-  {80, 'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid',
-    '{0, 64}'},
-  {81, 'low_freq_fader', false, 'low_freq_label', 'getFreq', 'LOW FREQ: %s Hz', ''},
-  {82, 'low_gain_fader', false, 'low_gain_label', 'get24dB', 'LOW GAIN: %s dB', ''}
+  [1] = { -- filter + drive
+    {16, 'cutoff_fader', false, 'cutoff_label', 'getFreq', 'CUTOFF: %s Hz', ''},
+    {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+    {18, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', 'DRIVE: %s', ''},
+    {80, 'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid',
+      '{0, 64}'},
+    {81, 'low_freq_fader', false, 'low_freq_label', 'getFreq', 'LOW FREQ: %s Hz', ''},
+    {82, 'low_gain_fader', false, 'low_gain_label', 'get24dB', 'LOW GAIN: %s dB', ''}
   },
-  {-- 2: resonator
-  {16, 'root_fader', true, 'root_value_label', 'getRoot', '%s', ''},
-  {17, 'bright_fader', false, 'bright_value_label', 'getZeroOneHundred', '%s', ''},
-  {18, 'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s%%', ''},
-  {80, 'chord_fader', true, 'chord_label', 'getChord', '%s', 'chord_grid', 'chord_label_grid',
-    '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
-  {81, 'panning_fader', false, 'panning_value_label', 'getZeroOneHundred', '%s', ''},
-  {82, 'env_mod_fader', false, 'env_mod_value_label', 'getZeroOneHundred', '%s', ''}
+  [2] = { -- resonator
+    {16, 'root_fader', true, 'root_value_label', 'getRoot', '%s', ''},
+    {17, 'bright_fader', false, 'bright_value_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s%%', ''},
+    {80, 'chord_fader', true, 'chord_label', 'getChord', '%s', 'chord_grid', 'chord_label_grid',
+      '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
+    {81, 'panning_fader', false, 'panning_value_label', 'getZeroOneHundred', '%s', ''},
+    {82, 'env_mod_fader', false, 'env_mod_value_label', 'getZeroOneHundred', '%s', ''}
   },
-  {-- 3: sync delay
-  {16, 'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', 'delay_time_grid', 'delay_time_label_grid',
-    '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
-  {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
-  {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid',
-    '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
-  {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid',
-    '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
+  [3] = { -- sync delay
+    {16, 'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', 'delay_time_grid', 'delay_time_label_grid',
+      '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid',
+      '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
+    {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid',
+      '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'}
   },
-  {-- 4: isolator
-  {16, 'low_fader', false, 'low_label', 'getEQ', '%s', ''},
-  {17, 'mid_fader', false, 'mid_label', 'getEQ', '%s', ''},
-  {18, 'high_fader', false, 'high_label', 'getEQ', '%s', ''}
+  [4] = { -- isolator
+    {16, 'low_fader', false, 'low_label', 'getEQ', '%s', ''},
+    {17, 'mid_fader', false, 'mid_label', 'getEQ', '%s', ''},
+    {18, 'high_fader', false, 'high_label', 'getEQ', '%s', ''}
   },
-  {-- 5: djfx looper
-  {16, 'length_fader', false, 'length_label', 'getLooperLength', '%s s', ''},
-  {17, 'speed_fader', false, 'speed_label', 'getBipolarHundred', '%s', ''},
-  {18, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid',
-     '{0, 64}'}
+  [5] = { -- djfx looper
+    {16, 'length_fader', false, 'length_label', 'getLooperLength', '%s s', ''},
+    {17, 'speed_fader', false, 'speed_label', 'getBipolarHundred', '%s', ''},
+    {18, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid',
+       '{0, 64}'}
   },
-  {-- 6: scatter
-  {16, 'scatter_type_fader', false, 'scatter_type_label', 'getScatterType', '%s', 'scatter_type_grid', 'scatter_type_label_grid',
-    '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
-  {17, 'scatter_depth_fader', false, 'scatter_depth_label', 'getScatterDepth', '%s', 'scatter_depth_grid', 'scatter_depth_label_grid',
-    '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
-  {18, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid',
-    '{0, 64}'},
-  {80, 'scatter_speed_fader', false, 'scatter_speed_label', 'getScatterSpeed', '%s', 'scatter_speed_grid', 'scatter_speed_label_grid',
-    '{0, 64}'}
+  [6] = { -- scatter
+    {16, 'scatter_type_fader', false, 'scatter_type_label', 'getScatterType', '%s', 'scatter_type_grid', 'scatter_type_label_grid',
+      '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
+    {17, 'scatter_depth_fader', false, 'scatter_depth_label', 'getScatterDepth', '%s', 'scatter_depth_grid', 'scatter_depth_label_grid',
+      '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
+    {18, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid',
+      '{0, 64}'},
+    {80, 'scatter_speed_fader', false, 'scatter_speed_label', 'getScatterSpeed', '%s', 'scatter_speed_grid', 'scatter_speed_label_grid',
+      '{0, 64}'}
   },
-  {-- 7: downer
-  {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-  {17, 'downer_rate_fader', false, 'downer_rate_label', 'getDownerRate', '%s', 'downer_rate_grid', 'downer_rate_label_grid',
-    '{0, 19, 37, 55, 73, 91, 127}'},
-  {18, 'filter_fader', false, 'filter_label', 'getZeroOneHundred', 'FILTER: %s', ''},
-  {80, 'pitch_on_off_fader', false, 'pitch_on_off_label', 'getPitchOnOff', '%s', 'pitch_on_off_grid', 'pitch_on_off_label_grid',
-    '{0, 64}'},
-  {81, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+  [7] = { -- downer
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
+    {17, 'downer_rate_fader', false, 'downer_rate_label', 'getDownerRate', '%s', 'downer_rate_grid', 'downer_rate_label_grid',
+      '{0, 19, 37, 55, 73, 91, 127}'},
+    {18, 'filter_fader', false, 'filter_label', 'getZeroOneHundred', 'FILTER: %s', ''},
+    {80, 'pitch_on_off_fader', false, 'pitch_on_off_label', 'getPitchOnOff', '%s', 'pitch_on_off_grid', 'pitch_on_off_label_grid',
+      '{0, 64}'},
+    {81, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''}
   },
-  {-- 8: ha dou
-  {16, 'mod_depth_fader', false, 'mod_depth_label', 'getZeroOneHundred', 'MOD DEPTH: %s', ''},
-  {17, 'time_fader', false, 'time_label', 'getZeroOneHundred', 'TIME %s', ''},
-  {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {80, 'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid', 'low_cut_label_grid',
-    '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
-  {81, 'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid', 'high_cut_label_grid',
-    '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-  {82, 'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s ms', ''},
+  [8] = { -- ha dou
+    {16, 'mod_depth_fader', false, 'mod_depth_label', 'getZeroOneHundred', 'MOD DEPTH: %s', ''},
+    {17, 'time_fader', false, 'time_label', 'getZeroOneHundred', 'TIME %s', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {80, 'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid', 'low_cut_label_grid',
+      '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
+    {81, 'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid', 'high_cut_label_grid',
+      '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
+    {82, 'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s ms', ''}
   },
-  {-- 9: ko da ma
-  {16, 'ko_da_ma_time_fader', false, 'ko_da_ma_time_label', 'getDelayTimes', '%s', 'ko_da_ma_time_grid', 'ko_da_ma_time_label_grid',
-    '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
-  {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
-  {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid',
-    '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
-  {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid',
-    '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-  {82, 'ko_da_ma_mode_fader', false, 'ko_da_ma_mode_label', 'getKoDaMaMode', '%s', 'ko_da_ma_mode_grid', 'ko_da_ma_mode_label_grid',
-    '{0, 64}'}
+  [9] = { -- ko da ma
+    {16, 'ko_da_ma_time_fader', false, 'ko_da_ma_time_label', 'getDelayTimes', '%s', 'ko_da_ma_time_grid', 'ko_da_ma_time_label_grid',
+      '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid',
+      '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
+    {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid',
+      '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
+    {82, 'ko_da_ma_mode_fader', false, 'ko_da_ma_mode_label', 'getKoDaMaMode', '%s', 'ko_da_ma_mode_grid', 'ko_da_ma_mode_label_grid',
+      '{0, 64}'}
   },
-  {-- 10: zan zou
-  {16, 'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', 'zan_zou_time_grid', 'zan_zou_time_label_grid',
-    '{0, 9, 17, 28, 36, 44, 52, 60, 68, 77, 87, 95, 103, 114, 122, 127}', 'true'},
-  {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s', ''},
-  {18, 'hf_damp_fader', false, 'hf_damp_label', 'getHFDampValues', '%s', 'hf_damp_grid', 'hf_damp_label_grid',
-    '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
-  {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {81, 'zan_zou_mode_fader', false, 'zan_zou_mode_label', 'getZanZouMode', '%s', 'zan_zou_mode_grid', 'zan_zou_mode_label_grid',
-    '{0, 43, 86}'},
-  {82, 'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', 'zan_zou_sync_grid', 'zan_zou_sync_label_grid',
-    '{0, 64}', 'false', 'zan_zou_time_fader', 'zan_zou_time_label', 'zan_zou_time_grid', 'zan_zou_time_label_grid'}
+  [10] = { -- zan zou
+    {16, 'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', 'zan_zou_time_grid', 'zan_zou_time_label_grid',
+      '{0, 9, 17, 28, 36, 44, 52, 60, 68, 77, 87, 95, 103, 114, 122, 127}', 'true'},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s', ''},
+    {18, 'hf_damp_fader', false, 'hf_damp_label', 'getHFDampValues', '%s', 'hf_damp_grid', 'hf_damp_label_grid',
+      '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
+    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {81, 'zan_zou_mode_fader', false, 'zan_zou_mode_label', 'getZanZouMode', '%s', 'zan_zou_mode_grid', 'zan_zou_mode_label_grid',
+      '{0, 43, 86}'},
+    {82, 'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', 'zan_zou_sync_grid', 'zan_zou_sync_label_grid',
+      '{0, 64}', 'false', 'zan_zou_time_fader', 'zan_zou_time_label', 'zan_zou_time_grid', 'zan_zou_time_label_grid'}
   },
-  {-- 11: to gu ro
-  {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-  {17, 'to_gu_ro_rate_fader', false, 'to_gu_ro_rate_label', 'getZeroOneHundred', 'RATE: %s', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid',
-    '{0, 16, 32, 48, 64, 80, 96, 112, 127}', 'true'},
-  {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
-  {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
-  {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''},
-  {82, 'to_gu_ro_sync_fader', false, 'to_gu_ro_sync_label', 'getSync', '%s', 'to_gu_ro_sync_grid', 'to_gu_ro_sync_label_grid',
-    '{0, 64}', 'false', 'to_gu_ro_rate_fader', 'to_gu_ro_rate_label', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid'},
+  [11] = { -- to gu ro
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
+    {17, 'to_gu_ro_rate_fader', false, 'to_gu_ro_rate_label', 'getZeroOneHundred', 'RATE: %s', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid',
+      '{0, 16, 32, 48, 64, 80, 96, 112, 127}', 'true'},
+    {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+    {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
+    {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''},
+    {82, 'to_gu_ro_sync_fader', false, 'to_gu_ro_sync_label', 'getSync', '%s', 'to_gu_ro_sync_grid', 'to_gu_ro_sync_label_grid',
+      '{0, 64}', 'false', 'to_gu_ro_rate_fader', 'to_gu_ro_rate_label', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid'},
   },
-  {-- 12: sbf
-  {16, 'interval_fader', false, 'interval_label', 'getZeroOneHundred', 'INTERVAL: %s', ''},
-  {17, 'width_fader', false, 'width_label', 'getZeroOneHundred', 'WIDTH: %s', ''},
-  {18, 'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
-  {80, 'sbf_type_fader', false, 'sbf_type_label', 'getSBFType', '%s', 'sbf_type_grid', 'sbf_type_label_grid',
-    '{0, 25, 51, 76, 102, 127}'},
-  {81, 'gain_fader', false, 'gain_label', 'getSBFGain', 'GAIN: %s dB', ''}
+  [12] = { -- sbf
+    {16, 'interval_fader', false, 'interval_label', 'getZeroOneHundred', 'INTERVAL: %s', ''},
+    {17, 'width_fader', false, 'width_label', 'getZeroOneHundred', 'WIDTH: %s', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
+    {80, 'sbf_type_fader', false, 'sbf_type_label', 'getSBFType', '%s', 'sbf_type_grid', 'sbf_type_label_grid',
+      '{0, 25, 51, 76, 102, 127}'},
+    {81, 'gain_fader', false, 'gain_label', 'getSBFGain', 'GAIN: %s dB', ''}
   },
-  {-- 13: stopper
-  {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-  {17, 'stopper_rate_fader', false, 'stopper_rate_label', 'getStopperRate', '%s', 'stopper_rate_grid', 'stopper_rate_label_grid',
-    '{0, 16, 32, 48, 64, 80, 96, 112, 127}'},
-  {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
-  {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
-  {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''}
+  [13] = { -- stopper
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
+    {17, 'stopper_rate_fader', false, 'stopper_rate_label', 'getStopperRate', '%s', 'stopper_rate_grid', 'stopper_rate_label_grid',
+      '{0, 16, 32, 48, 64, 80, 96, 112, 127}'},
+    {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+    {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
+    {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''}
   },
-  {-- 14: tape echo
-  {16, 'time_fader', false, 'time_label', 'getTapeSpeed', 'TIME: %s ms', ''},
-  {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s %%', ''},
-  {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {80, 'tape_echo_mode_fader', false, 'tape_echo_mode_label', 'getTapeEchoMode', '%s', 'tape_echo_mode_grid', 'tape_echo_mode_label_grid',
-    '{0, 19, 37, 55, 73, 91, 110}'},
-  {81, 'wf_rate_fader', false, 'wf_rate_label', 'getZeroOneHundred', 'W/F RATE: %s', ''},
-  {82, 'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', 'W/F DEPTH: %s', ''}
+  [14] = { -- tape echo
+    {16, 'time_fader', false, 'time_label', 'getTapeSpeed', 'TIME: %s ms', ''},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s %%', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {80, 'tape_echo_mode_fader', false, 'tape_echo_mode_label', 'getTapeEchoMode', '%s', 'tape_echo_mode_grid', 'tape_echo_mode_label_grid',
+      '{0, 19, 37, 55, 73, 91, 110}'},
+    {81, 'wf_rate_fader', false, 'wf_rate_label', 'getZeroOneHundred', 'W/F RATE: %s', ''},
+    {82, 'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', 'W/F DEPTH: %s', ''}
   },
-  {-- 15: time ctrl delay
-  {16, 'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getTapeSpeed', 'TIME: %s ms', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid',
-    '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}', 'true'},
-  {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
-  {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-  {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid',
-    '{0, 11, 22, 32, 43, 54, 64, 75, 85, 96, 107, 117}'},
-  {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid',
-    '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}'},
-  {82, 'time_ctrl_dly_sync_fader', false, 'time_ctrl_dly_sync_label', 'getSync', '%s', 'time_ctrl_dly_sync_grid', 'time_ctrl_dly_sync_label_grid',
-    '{0, 64}', 'false', 'time_ctrl_dly_time_fader', 'time_ctrl_dly_time_label', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid'}
+  [15] = { -- time ctrl delay
+    {16, 'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getTapeSpeed', 'TIME: %s ms', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid',
+      '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}', 'true'},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid',
+      '{0, 11, 22, 32, 43, 54, 64, 75, 85, 96, 107, 117}'},
+    {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid',
+      '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}'},
+    {82, 'time_ctrl_dly_sync_fader', false, 'time_ctrl_dly_sync_label', 'getSync', '%s', 'time_ctrl_dly_sync_grid', 'time_ctrl_dly_sync_label_grid',
+      '{0, 64}', 'false', 'time_ctrl_dly_time_fader', 'time_ctrl_dly_time_label', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid'}
   },
-  {-- 16: super filter
-  {16, 'cutoff_fader', false, 'cutoff_label', 'getZeroOneHundred', 'CUTOFF: %s', ''},
-  {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
-  {18, 'filter_type_fader', false, 'filter_type_label', 'getSuperFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid',
-    '{0, 43, 85}'},
-  {80, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-  {81, 'rate_fader', false, 'rate_label', 'getZeroOneHundred', 'RATE: %s', 'rate_grid', 'rate_label_grid',
-    '{0, 7, 13, 19, 25, 31, 37, 43, 49, 55, 61, 67, 73, 79, 85, 92, 98, 104, 110, 116, 122, 127}', 'true'},
-  {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid',
-    '{0, 64}', 'false', 'rate_fader', 'rate_label', 'rate_grid', 'rate_label_grid'}
+  [16] = { -- super filter
+    {16, 'cutoff_fader', false, 'cutoff_label', 'getZeroOneHundred', 'CUTOFF: %s', ''},
+    {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+    {18, 'filter_type_fader', false, 'filter_type_label', 'getSuperFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid',
+      '{0, 43, 85}'},
+    {80, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
+    {81, 'rate_fader', false, 'rate_label', 'getZeroOneHundred', 'RATE: %s', 'rate_grid', 'rate_label_grid',
+      '{0, 7, 13, 19, 25, 31, 37, 43, 49, 55, 61, 67, 73, 79, 85, 92, 98, 104, 110, 116, 122, 127}', 'true'},
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid',
+      '{0, 64}', 'false', 'rate_fader', 'rate_label', 'rate_grid', 'rate_label_grid'}
   },
-  {-- 17: wrm saturator
-  {16, 'drive_fader', false, 'drive_label', 'get48dB', 'DRIVE: %s dB', ''},
-  {17, 'eq_low_fader', false, 'eq_low_label', 'get24dB', 'EQ LOW: %s dB', ''},
-  {18, 'eq_high_fader', false, 'eq_high_label', 'get24dB', 'EQ HIGH: %s dB', ''},
-  {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
+  [17] = { -- wrm saturator
+    {16, 'drive_fader', false, 'drive_label', 'get48dB', 'DRIVE: %s dB', ''},
+    {17, 'eq_low_fader', false, 'eq_low_label', 'get24dB', 'EQ LOW: %s dB', ''},
+    {18, 'eq_high_fader', false, 'eq_high_label', 'get24dB', 'EQ HIGH: %s dB', ''},
+    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
   },
-  {-- 18: 303 VinylSim
-  {16, 'comp_fader', false, 'comp_label', 'getZeroOneHundred', '%s', ''},
-  {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
-  {18, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''},
-  {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''}
+  [18] = { -- 303 VinylSim
+    {16, 'comp_fader', false, 'comp_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''}
   },
-  {-- 19: 404 VinylSim
-  {16, 'freq_fader', false, 'freq_label', 'getZeroOneHundred', '%s', ''},
-  {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
-  {18, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''}
+  [19] = { -- 404 VinylSim
+    {16, 'freq_fader', false, 'freq_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''}
   },
-  {-- 20: Cassette Sim
-  {16, 'tone_fader', false, 'tone_label', 'getZeroOneHundred', '%s', ''},
-  {17, 'hiss_fader', false, 'hiss_label', 'getZeroOneHundred', '%s', ''},
-  {18, 'age_fader', false, 'age_label', 'getZeroSixty', '%s', ''},
-  {80, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
-  {81, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''},
-  {82, 'catch_fader', false, 'catch_label', 'getZeroOneHundred', '%s', ''},
+  [20] = { -- Cassette Sim
+    {16, 'tone_fader', false, 'tone_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'hiss_fader', false, 'hiss_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'age_fader', false, 'age_label', 'getZeroSixty', '%s', ''},
+    {80, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''},
+    {82, 'catch_fader', false, 'catch_label', 'getZeroOneHundred', '%s', ''},
   },
-  {-- 21: Lo-fi
-  {16, 'pre_filt_fader', false, 'pre_filt_label', 'getPreFilter', '%s', 'pre_filt_grid', 'pre_filt_label_grid',
-    '{0, 22, 43, 64, 85, 107}'},
-  {17, 'lofi_type_fader', false, 'lofi_type_label', 'getLofiType', '%s', 'lofi_type_grid', 'lofi_type_label_grid',
-    '{0, 15, 29, 43, 57, 71, 85, 100, 114}'},
-  {18, 'tone_fader', false, 'tone_label', 'getLofiTone', 'TONE: %s', ''},
-  {80, 'cutoff_fader', false, 'cutoff_label', 'getLofiCutoff', '%s', 'cutoff_grid', 'cutoff_label_grid',
-    '{0, 8, 15, 23, 30, 38, 45, 53, 60, 68, 75, 83, 90, 98, 105, 113, 120}'},
-  {81, 'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
-  {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
+  [21] = { -- Lo-fi
+    {16, 'pre_filt_fader', false, 'pre_filt_label', 'getPreFilter', '%s', 'pre_filt_grid', 'pre_filt_label_grid',
+      '{0, 22, 43, 64, 85, 107}'},
+    {17, 'lofi_type_fader', false, 'lofi_type_label', 'getLofiType', '%s', 'lofi_type_grid', 'lofi_type_label_grid',
+      '{0, 15, 29, 43, 57, 71, 85, 100, 114}'},
+    {18, 'tone_fader', false, 'tone_label', 'getLofiTone', 'TONE: %s', ''},
+    {80, 'cutoff_fader', false, 'cutoff_label', 'getLofiCutoff', '%s', 'cutoff_grid', 'cutoff_label_grid',
+      '{0, 8, 15, 23, 30, 38, 45, 53, 60, 68, 75, 83, 90, 98, 105, 113, 120}'},
+    {81, 'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
+    {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
+  },
+  [44] = { -- vocoder
+    {16, 'note_fader', true, 'note_value_label', 'getNote', '%s', 'note_grid', 'note_label_grid',
+      '{0, 4, 8, 11, 15, 19, 22, 26, 30, 33, 37, 41, 44, 48, 51, 55, 59, 62, 66, 70, 73, 77, 81, 84, 88, 92, 95, 99, 102, 106, 110, 113, 117, 121, 124}'},
+    {17, 'formant_fader', false, 'formant_value_label', 'getLofiTone', '%s', ''},
+    {18, 'tone_fader', false, 'tone_value_label', 'getLofiTone', '%s', ''},
+    {80, 'scale_fader', true, 'scale_label', 'getScale', '%s', 'scale_grid', 'scale_label_grid',
+      '{0, 6, 11, 16, 22, 27, 32, 38, 43, 48, 54, 59, 64, 70, 75, 80, 85, 91, 96, 101, 107, 112, 117, 123}'},
+    {81, 'chord_fader', true, 'chord_label', 'getVocoderChord', '%s', 'chord_grid', 'chord_label_grid',
+      '{0, 13, 26, 39, 51, 64, 77, 90, 102, 115}'},
+    {82, 'balance_fader', false, 'balance_value_label', 'getBalance', '%s', ''}
   },
 }
 
@@ -699,6 +710,62 @@ local mappingScripts = {
     end
   ]],
   
+  getNote = [[
+    local notes = {
+        "-17", "-16", "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8",
+        "-7", "-6", "-5", "-4", "-3", "-2", "-1",
+        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+        "11", "12", "13", "14", "15", "16", "17", "18"
+    }
+
+    function getNote(value)
+      local note = notes[value]
+      return note
+    end
+  ]],
+
+  getScale = [[
+    local scales = {
+      "C Maj",
+      "C# Maj",
+      "D Maj",
+      "D# Maj",
+      "E Maj",
+      "F Maj",
+      "F# Maj",
+      "G Maj",
+      "G# Maj",
+      "A Maj",
+      "A# Maj",
+      "B Maj",
+      "C Min",
+      "C# Min",
+      "D Min",
+      "D# Min",
+      "E Min",
+      "F Min",
+      "F# Min",
+      "G Min",
+      "G# Min",
+      "A Min",
+      "A# Min",
+      "B Min"
+    }
+
+    function getScale(value)
+      local scale = scales[value]
+      return scale
+    end
+  ]],
+
+  getVocoderChord = [[
+    local vocoderChords = {'Root', 'P5', 'Oct', 'UpDn', 'UpDnP5', '3rd', '5thUp', '5thDn', '7thUp', '7thDn'}
+
+    function getVocoderChord(value)
+      local chord = vocoderChords[value]
+      return chord
+    end
+  ]],
 }
 
 -- CONTROL SCRIPTS *******************************************
@@ -1009,9 +1076,9 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
 end
 
 function init()
-  for i, category in ipairs(controlsInfoArray) do
-    --print('Initialising category with fxPage:', i)
-    local fxPage = root.children.control_pager.children[i]
+  for fxNum, category in pairs(controlsInfoArray) do
+    --print('Initialising category with fxPage:', fxNum)
+    local fxPage = root.children.control_pager.children[fxNum]
     --print('fxPage:', fxPage.name)
     local controlGroup = fxPage.children.control_group
     --print('controlGroup:', controlGroup.name)

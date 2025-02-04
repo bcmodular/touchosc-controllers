@@ -30,6 +30,7 @@ function onValueChanged(key, value)
       ccValue = midiValues[3]
     end
     
+    print('Channel:', channel, 'CC Value:', ccValue)
     -- Update the bus FX label to indicate which bus the effect is on
     local busFXLabelGrid = root:findByName('bus_fx_label_grid', true)
     local busFXLabel = busFXLabelGrid.children[channel + 1]
@@ -106,13 +107,11 @@ function setUpChannel(channel)
 
   for name, fxPage in pairs(fxPages) do
     
-    local controlGroup = fxPage.children.control_group
+    local controlGroup = fxPage:findByName('control_group')
     
     if controlGroup then
       print('Setting channel tag for:', fxPage.name, controlGroup.name, 'index:', i)
       setChannelTagsForChildren(controlGroup, channel)
-    else
-      break
     end
     
     i = i + 1
@@ -154,32 +153,29 @@ function init()
       print('Setting fx page label:', fxPage.name)
       fxPageLabel.values.text = string.upper(string.gsub(fxPage.name, "_", " "))
 
-    -- Assign On Button Script
-    local onButton = fxPage:findByName('fx_on_button', true)
-    if onButton then
-      print('Assigning onButtonScript to:', fxPage.name, onButton.name)
-      local onButtonScript = generateButtonScript(onButtonMidiValues[i], i, false, nil):gsub('%%s', 'ON')
-      onButton.script = onButtonScript
-    end
+      -- Assign On Button Script
+      local onButton = fxPage:findByName('fx_on_button', true)
+      if onButton then
+        print('Assigning onButtonScript to:', fxPage.name, onButton.name)
+        local onButtonScript = generateButtonScript(onButtonMidiValues[i], i, false, nil):gsub('%%s', 'ON')
+        onButton.script = onButtonScript
+      end
 
-    -- Assign Off Button Script
-    local offButton = fxPage:findByName('fx_off_button', true)
-    if offButton then
-      print('Assigning offButtonScript to:', fxPage.name, offButton.name)
-      local offButtonScript = generateButtonScript(onButtonMidiValues[i], i, false, "0"):gsub('%%s', 'OFF')
-      offButton.script = offButtonScript
-    end
+      -- Assign Off Button Script
+      local offButton = fxPage:findByName('fx_off_button', true)
+      if offButton then
+        print('Assigning offButtonScript to:', fxPage.name, offButton.name)
+        local offButtonScript = generateButtonScript(onButtonMidiValues[i], i, false, "0"):gsub('%%s', 'OFF')
+        offButton.script = offButtonScript
+      end
 
-    -- Assign Grab Button Script (if present)
-    local grabButton = fxPage:findByName('fx_grab_button', true)
-    if grabButton then
-      print('Assigning grabButtonScript to:', fxPage.name, grabButton.name)
-      local grabButtonScript = generateButtonScript(onButtonMidiValues[i], i, true)
-      grabButton.script = grabButtonScript
-    end
-
-    else
-      break
+      -- Assign Grab Button Script (if present)
+      local grabButton = fxPage:findByName('fx_grab_button', true)
+      if grabButton then
+        print('Assigning grabButtonScript to:', fxPage.name, grabButton.name)
+        local grabButtonScript = generateButtonScript(onButtonMidiValues[i], i, true)
+        grabButton.script = grabButtonScript
+      end
     end
 
     print('Adding fx page:', fxPage.name, 'index:', i)
