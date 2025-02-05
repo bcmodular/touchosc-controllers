@@ -208,6 +208,27 @@ local controlsInfoArray = {
     {81, 'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
     {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
   },
+  [22] = { -- reverb
+    {16, 'type_fader', false, 'type_label', 'getReverbType', '%s', 'type_grid', 'type_label_grid', 'getReverbType',
+      '{0, 32, 64, 96}'},
+    {17, 'time_fader', false, 'time_label', 'getZeroOneHundred', 'TIME %s', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {80, 'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid', 'low_cut_label_grid', 'getLowCut',
+      '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
+    {81, 'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid', 'high_cut_label_grid', 'getHighCut',
+      '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
+    {82, 'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s ms', ''}
+  },
+  [23] = { -- chorus
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'rate_fader', false, 'rate_label', 'getChorusRate', '%s sec', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+    {80, 'eq_low_fader', false, 'eq_low_label', 'getChorusEQ', '%s dB', 'eq_low_grid', 'eq_low_label_grid', 'getChorusEQ',
+      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
+    {81, 'eq_high_fader', false, 'eq_high_label', 'getChorusEQ', '%s dB', 'eq_high_grid', 'eq_high_label_grid', 'getChorusEQ',
+    '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
+    {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
+  },
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -215,7 +236,7 @@ local controlsInfoArray = {
     {80, 'at_pitch_fader', false, 'at_pitch_value_label', 'getZeroOneHundred', '%s', ''},
     {81, 'key_fader', true, 'key_label', 'getPitchKey', '%s', 'key_grid', 'key_label_grid', 'getPitchKey',
       '{0, 10, 20, 30, 40, 49, 59, 69, 79, 89, 99, 108, 118}'},
-    {82, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid',
+    {82, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid', 'getOnOff',
       '{0, 64}'}
    },
   [44] = { -- vocoder
@@ -795,6 +816,49 @@ local mappingScripts = {
       return key
     end
   ]],
+
+  getReverbType = [[
+    local types = {'AMBI', 'ROOM', 'HALL1', 'HALL2'}
+
+    function getReverbType(value)
+      local type = types[value]
+      return type
+    end
+  ]],
+
+  getChorusRate = [[
+    local rates = {
+      "0.33", "0.35", "0.36", "0.38", "0.39", "0.41", "0.42", "0.44", "0.45", "0.47",
+      "0.48", "0.50", "0.52", "0.53", "0.55", "0.56", "0.58", "0.59", "0.61", "0.62",
+      "0.64", "0.65", "0.67", "0.69", "0.70", "0.72", "0.73", "0.75", "0.76", "0.78",
+      "0.79", "0.81", "0.82", "0.84", "0.86", "0.87", "0.89", "0.90", "0.92", "0.93",
+      "0.95", "0.96", "0.98", "0.99", "1.01", "1.03", "1.04", "1.06", "1.07", "1.09",
+      "1.10", "1.12", "1.13", "1.15", "1.16", "1.18", "1.20", "1.21", "1.23", "1.24",
+      "1.26", "1.27", "1.29", "1.30", "1.32", "1.33", "1.35", "1.37", "1.38", "1.40",
+      "1.41", "1.43", "1.44", "1.46", "1.47", "1.49", "1.50", "1.52", "1.54", "1.55",
+      "1.57", "1.58", "1.60", "1.61", "1.63", "1.64", "1.66", "1.67", "1.69", "1.71",
+      "1.72", "1.74", "1.75", "1.77", "1.78", "1.80", "1.81", "1.83", "1.84", "1.86",
+      "1.88", "1.89", "1.91", "1.92", "1.94", "1.95", "1.97", "1.98", "2.00", "2.01",
+      "2.03", "2.05", "2.06", "2.08", "2.09", "2.11", "2.12", "2.14", "2.15", "2.17",
+      "2.18", "2.20", "2.22", "2.23", "2.25", "2.26", "2.28", "2.30"
+    }
+
+    function getChorusRate(value)
+      local rate = rates[value]
+      return rate
+    end
+  ]],
+
+  getChorusEQ = [[  
+    local eqValues = {
+      "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"
+    }
+
+    function getChorusEQ(value)
+      local eqValue = eqValues[value]
+      return eqValue
+    end
+  ]],
 }
 
 -- CONTROL SCRIPTS *******************************************
@@ -1071,7 +1135,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
     showHideGridLabel = ''
   end
 
-  --print('Generating grid script for:', faderName, gridName, startValues, amSyncGrid, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel)
+  print('Generating grid script for:', faderName, gridName, startValues, amSyncGrid, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel)
 
   local gridScript = string.format(gridScriptTemplate, 
     startValues,
@@ -1090,7 +1154,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
     gridObject.script = gridScript
   end
 
-  -- print('Generating grid label script for:', gridLabelName, gridLabelMapping)
+  print('Generating grid label script for:', gridLabelName, gridLabelMapping)
 
   local gridLabelObject = controlGroup:findByName(gridLabelName, true)
 
