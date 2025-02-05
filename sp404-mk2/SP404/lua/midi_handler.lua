@@ -23,13 +23,13 @@ local controlsInfoArray = {
 -- 14) Show/hide grid label name (optional, used for sync grids)
 
   [1] = { -- filter + drive
-    {16, 'cutoff_fader', false, 'cutoff_label', 'getFreq', 'CUTOFF: %s Hz', ''},
-    {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
-    {18, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', 'DRIVE: %s', ''},
+    {16, 'cutoff_fader', false, 'cutoff_label', 'getFreq', '%s Hz', ''},
+    {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
     {80, 'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid',
       '{0, 64}'},
-    {81, 'low_freq_fader', false, 'low_freq_label', 'getFreq', 'LOW FREQ: %s Hz', ''},
-    {82, 'low_gain_fader', false, 'low_gain_label', 'get24dB', 'LOW GAIN: %s dB', ''}
+    {81, 'low_freq_fader', false, 'low_freq_label', 'getFreq', '%s Hz', ''},
+    {82, 'low_gain_fader', false, 'low_gain_label', 'get24dB', '%s dB', ''}
   },
   [2] = { -- resonator
     {16, 'root_fader', true, 'root_value_label', 'getRoot', '%s', ''},
@@ -202,23 +202,43 @@ local controlsInfoArray = {
       '{0, 22, 43, 64, 85, 107}'},
     {17, 'lofi_type_fader', false, 'lofi_type_label', 'getLofiType', '%s', 'lofi_type_grid', 'lofi_type_label_grid',
       '{0, 15, 29, 43, 57, 71, 85, 100, 114}'},
-    {18, 'tone_fader', false, 'tone_label', 'getLofiTone', 'TONE: %s', ''},
+    {18, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', 'TONE: %s', ''},
     {80, 'cutoff_fader', false, 'cutoff_label', 'getLofiCutoff', '%s', 'cutoff_grid', 'cutoff_label_grid',
       '{0, 8, 15, 23, 30, 38, 45, 53, 60, 68, 75, 83, 90, 98, 105, 113, 120}'},
     {81, 'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
     {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
   },
+  [43] = { -- auto-pitch
+    {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
+    {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
+    {18, 'balance_fader', false, 'balance_value_label', 'getBalance', '%s %%', ''},
+    {80, 'at_pitch_fader', false, 'at_pitch_value_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'key_fader', true, 'key_label', 'getPitchKey', '%s', 'key_grid', 'key_label_grid',
+      '{0, 10, 20, 30, 40, 49, 59, 69, 79, 89, 99, 108, 118}'},
+    {82, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid',
+      '{0, 64}'}
+   },
   [44] = { -- vocoder
     {16, 'note_fader', true, 'note_value_label', 'getNote', '%s', 'note_grid', 'note_label_grid',
       '{0, 4, 8, 11, 15, 19, 22, 26, 30, 33, 37, 41, 44, 48, 51, 55, 59, 62, 66, 70, 73, 77, 81, 84, 88, 92, 95, 99, 102, 106, 110, 113, 117, 121, 124}'},
-    {17, 'formant_fader', false, 'formant_value_label', 'getLofiTone', '%s', ''},
-    {18, 'tone_fader', false, 'tone_value_label', 'getLofiTone', '%s', ''},
+    {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
+    {18, 'tone_fader', false, 'tone_value_label', 'getBipolarHundredv2', '%s', ''},
     {80, 'scale_fader', true, 'scale_label', 'getScale', '%s', 'scale_grid', 'scale_label_grid',
       '{0, 6, 11, 16, 22, 27, 32, 38, 43, 48, 54, 59, 64, 70, 75, 80, 85, 91, 96, 101, 107, 112, 117, 123}'},
     {81, 'chord_fader', true, 'chord_label', 'getVocoderChord', '%s', 'chord_grid', 'chord_label_grid',
       '{0, 13, 26, 39, 51, 64, 77, 90, 102, 115}'},
-    {82, 'balance_fader', false, 'balance_value_label', 'getBalance', '%s', ''}
+    {82, 'balance_fader', false, 'balance_value_label', 'getBalance', '%s %%', ''}
   },
+  [45] = { -- harmony
+    {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
+    {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
+    {18, 'balance_fader', false, 'balance_value_label', 'getBalance', '%s %%', ''},
+    {80, 'at_pitch_fader', false, 'at_pitch_value_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'key_fader', true, 'key_label', 'getPitchKey', '%s', 'key_grid', 'key_label_grid',
+      '{0, 10, 20, 30, 40, 49, 59, 69, 79, 89, 99, 108, 118}'},
+    {82, 'harmony_fader', false, 'harmony_label', 'getVocoderChord', '%s', 'harmony_grid', 'harmony_label_grid',
+      '{0, 13, 26, 39, 51, 64, 77, 90, 102, 115}'}
+   },
 }
 
 --************************************************************
@@ -327,8 +347,8 @@ local mappingScripts = {
     end
   ]],
 
-  getLofiTone = [[
-    local lofiToneMap = {
+  getBipolarHundredv2 = [[
+    local bipolarHundredRangeMapv2 = {
       -100, -98, -96, -95, -93, -92, -90, -89, -87, -85, -84, -82, -81, -79, -78, -76, -74,
       -73, -71, -70, -68, -67, -65, -63, -62, -60, -59, -57, -56, -54, -52, -51, -49, -48,
       -46, -45, -43, -41, -40, -38, -37, -35, -34, -32, -30, -29, -27, -26, -24, -23, -21,
@@ -338,8 +358,8 @@ local mappingScripts = {
       78, 80, 81, 83, 85, 86, 88, 89, 91, 92, 94, 96, 97, 100
     }
 
-    function getLofiTone(value)
-      return lofiToneMap[value]
+    function getBipolarHundredv2(value)
+      return bipolarHundredRangeMapv2[value]
     end
   ]],
 
@@ -461,14 +481,14 @@ local mappingScripts = {
 
   getFilterType = [[
     function getFilterType(value)
-      local filterTypes = {'High-pass', 'Low-pass'}
+      local filterTypes = {'HIGH-PASS', 'LOW-PASS'}
       return filterTypes[value]
     end
   ]],
 
   getSuperFilterType = [[
     function getSuperFilterType(value)
-      local filterTypes = {'Low-pass', 'Band-pass', 'High-pass'}
+      local filterTypes = {'LOW-PASS', 'BAND-PASS', 'HIGH-PASS'}
       return filterTypes[value]
     end
   ]],  
@@ -532,7 +552,7 @@ local mappingScripts = {
   ]],
 
   getOnOff = [[
-    local onOff = {'Off', 'On'}
+    local onOff = {'OFF', 'ON'}
         
     function getOnOff(value)
       return onOff[value]
@@ -764,6 +784,15 @@ local mappingScripts = {
     function getVocoderChord(value)
       local chord = vocoderChords[value]
       return chord
+    end
+  ]],
+
+  getPitchKey = [[
+    local keys = {'CHROMA', 'A', 'B♭', 'B', 'C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭'}
+
+    function getPitchKey(value)
+      local key = keys[value]
+      return key
     end
   ]],
 }
