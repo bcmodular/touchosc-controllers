@@ -266,6 +266,15 @@ local controlsInfoArray = {
     {82, 'harmony_fader', false, 'harmony_label', 'getVocoderChord', '%s', 'harmony_grid', 'harmony_label_grid', 'getVocoderChord',
       '{0, 13, 26, 39, 51, 64, 77, 90, 102, 115}'}
    },
+   [46] = { -- gt amp sim
+   {16, 'amp_type_fader', false, 'amp_type_label', 'getAmpType', '%s', 'amp_type_grid', 'amp_type_label_grid', 'getAmpType',
+     '{0, 22, 43, 64, 85, 107}'},
+   {17, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
+   {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
+   {80, 'bass_fader', false, 'bass_label', 'getBipolarHundredv3', '%s', ''},
+   {81, 'middle_fader', false, 'middle_label', 'getBipolarHundredv3', '%s', ''},
+   {82, 'treble_fader', false, 'treble_label', 'getBipolarHundredv3', '%s', ''},
+ },
 }
 
 --************************************************************
@@ -387,6 +396,23 @@ local mappingScripts = {
 
     function getBipolarHundredv2(value)
       return bipolarHundredRangeMapv2[value]
+    end
+  ]],
+
+  getBipolarHundredv3 = [[
+    local bipolarHundredRangeMapv3 = {
+      -100, -98, -96, -95, -93, -92, -90, -88, -87, -85, -84, -82, -81, -79, -77, -76,
+      -74, -73, -71, -70, -68, -66, -65, -63, -62, -60, -59, -57, -55, -54, -52, -51,
+      -49, -48, -46, -44, -43, -41, -40, -38, -37, -35, -33, -32, -30, -29, -27, -25,
+      -24, -22, -21, -19, -18, -16, -14, -13, -11, -10, -8, -7, -5, -3, -2, 0,
+      0, 2, 3, 5, 7, 8, 10, 11, 13, 14, 16, 18, 19, 21, 22, 24,
+      25, 27, 29, 30, 32, 33, 35, 37, 38, 40, 41, 43, 44, 46, 48, 49,
+      51, 52, 54, 55, 57, 59, 60, 62, 63, 65, 66, 68, 70, 71, 73, 74,
+      76, 77, 79, 81, 82, 84, 85, 87, 88, 90, 92, 93, 95, 96, 98, 100
+    }
+
+    function getBipolarHundredv3(value)
+      return bipolarHundredRangeMapv3[value]
     end
   ]],
 
@@ -873,6 +899,14 @@ local mappingScripts = {
       return modes[value]
     end
   ]],
+
+  getAmpType = [[
+    local types = {'JC', 'TWIN', 'BG', 'MATCH', 'MS', 'SLDN'}
+
+    function getAmpType(value)
+      return types[value]
+    end
+  ]], 
 }
 
 -- CONTROL SCRIPTS *******************************************
