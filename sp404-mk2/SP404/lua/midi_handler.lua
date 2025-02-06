@@ -229,6 +229,12 @@ local controlsInfoArray = {
     '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
     {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
   },
+  [24] = { -- juno chorus
+    {16, 'mode_fader', false, 'mode_label', 'getJunoChorusMode', '%s', 'mode_grid', 'mode_label_grid', 'getJunoChorusMode',
+      '{0, 26, 51, 77, 102}'},
+    {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+  },
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -857,6 +863,14 @@ local mappingScripts = {
     function getChorusEQ(value)
       local eqValue = eqValues[value]
       return eqValue
+    end
+  ]],
+
+  getJunoChorusMode = [[
+    local modes = {'JUNO 1', 'JUNO 2', 'JUNO 12', 'JX-1 1', 'JX-1 2'}
+
+    function getJunoChorusMode(value)
+      return modes[value]
     end
   ]],
 }
