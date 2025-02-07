@@ -235,6 +235,15 @@ local controlsInfoArray = {
     {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
     {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
   },
+  [25] = { -- flanger
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'rate_fader', false, 'rate_label', 'getFlangerRate', '%s', '', nil, nil, nil, nil, 'true'},
+    {18, 'manual_fader', false, 'manual_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'balance_fader', false, 'balance_label', 'getBalance', '%s', ''},
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'to_gu_ro_sync_label_grid', 'getSync',
+      '{0, 64}'},
+  },
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
