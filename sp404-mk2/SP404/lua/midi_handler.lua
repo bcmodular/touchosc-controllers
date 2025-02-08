@@ -237,13 +237,32 @@ local controlsInfoArray = {
   },
   [25] = { -- flanger
     {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getFlangerRate', '%s', '', nil, nil, nil, nil, 'true'},
+    {17, 'rate_fader', false, 'rate_label', 'getFlangerRate', '%s', '', nil, nil, nil, 'true'},
     {18, 'manual_fader', false, 'manual_label', 'getZeroOneHundred', '%s', ''},
     {80, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'balance_fader', false, 'balance_label', 'getBalance', '%s', ''},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'to_gu_ro_sync_label_grid', 'getSync',
+    {81, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
+      '{0, 64}', 'false', 'rate_fader', '', '', ''},
+    },
+  [26] = { -- phaser
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'rate_fader', false, 'rate_label', 'getFlangerRate', '%s', '', nil, nil, nil, 'true'},
+    {18, 'manual_fader', false, 'manual_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
+      '{0, 64}', 'false', 'rate_fader', '', '', ''},
+    },
+  [27] = { -- wah
+    {16, 'peak_fader', false, 'peak_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'rate_fader', false, 'rate_label', 'getWahRate', '%s', '', nil, nil, nil, 'true'},
+    {18, 'manual_fader', false, 'manual_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid', 'getFilterType',
       '{0, 64}'},
-  },
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
+      '{0, 64}', 'false', 'rate_fader', '', '', ''},
+    },
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -915,7 +934,83 @@ local mappingScripts = {
     function getAmpType(value)
       return types[value]
     end
-  ]], 
+  ]],
+
+  getFlangerRate = [[
+    local rates = {
+      "4.000", "3.969", "3.938", "3.906", "3.875", "3.844", "3.813", "3.781",
+      "3.750", "3.719", "3.688", "3.656", "3.625", "3.594", "3.563", "3.531",
+      "3.500", "3.469", "3.438", "3.406", "3.375", "3.344", "3.313", "3.281",
+      "3.250", "3.219", "3.188", "3.156", "3.125", "3.094", "3.063", "3.031",
+      "3.000", "2.969", "2.938", "2.906", "2.875", "2.844", "2.813", "2.781",
+      "2.750", "2.719", "2.688", "2.656", "2.625", "2.594", "2.563", "2.531",
+      "2.500", "2.469", "2.438", "2.406", "2.375", "2.344", "2.313", "2.281",
+      "2.250", "2.219", "2.188", "2.156", "2.125", "2.094", "2.063", "2.031",
+      "2.000", "1.969", "1.938", "1.906", "1.875", "1.844", "1.813", "1.781",
+      "1.750", "1.719", "1.688", "1.656", "1.625", "1.594", "1.563", "1.531",
+      "1.500", "1.469", "1.438", "1.406", "1.375", "1.344", "1.313", "1.281",
+      "1.250", "1.219", "1.188", "1.156", "1.125", "1.094", "1.063", "1.031",
+      "1.000", "0.969", "0.938", "0.906", "0.875", "0.844", "0.813", "0.781",
+      "0.750", "0.719", "0.688", "0.656", "0.625", "0.594", "0.563", "0.531",
+      "0.500", "0.469", "0.438", "0.406", "0.375", "0.344", "0.313", "0.281",
+      "0.250", "0.219", "0.188", "0.156", "0.125", "0.094", "0.063", "0.016"
+    }
+    
+    function getZeroOneHundred(value)
+      local midiValue = value - 1
+      if midiValue == 127 then
+        return 100
+      else
+        return math.floor((midiValue / 127.5) * 100)
+      end
+    end
+
+    function getFlangerRate(value, syncOn)
+      if syncOn then
+        return rates[value]
+      else
+        return getZeroOneHundred(value)
+      end
+    end
+  ]],
+
+  getWahRate = [[
+    local rates = {
+      "1.000", "0.971", "0.943", "0.917", "0.893", "0.870", "0.848", "0.827",
+      "0.808", "0.788", "0.770", "0.753", "0.736", "0.720", "0.704", "0.689",
+      "0.675", "0.661", "0.648", "0.634", "0.621", "0.609", "0.597", "0.585",
+      "0.574", "0.563", "0.552", "0.541", "0.531", "0.521", "0.511", "0.501",
+      "0.492", "0.483", "0.474", "0.465", "0.456", "0.448", "0.439", "0.431",
+      "0.423", "0.416", "0.408", "0.400", "0.393", "0.386", "0.378", "0.371",
+      "0.364", "0.358", "0.351", "0.344", "0.338", "0.331", "0.324", "0.318",
+      "0.312", "0.306", "0.300", "0.294", "0.288", "0.283", "0.277", "0.271",
+      "0.266", "0.260", "0.255", "0.249", "0.244", "0.239", "0.234", "0.229",
+      "0.224", "0.219", "0.214", "0.209", "0.204", "0.199", "0.195", "0.190",
+      "0.186", "0.181", "0.177", "0.172", "0.168", "0.163", "0.159", "0.155",
+      "0.151", "0.146", "0.143", "0.138", "0.134", "0.130", "0.126", "0.122",
+      "0.118", "0.114", "0.111", "0.107", "0.103", "0.099", "0.096", "0.092",
+      "0.088", "0.084", "0.081", "0.078", "0.074", "0.070", "0.067", "0.063",
+      "0.060", "0.056", "0.053", "0.050", "0.046", "0.043", "0.040", "0.037",
+      "0.034", "0.030", "0.027", "0.024", "0.021", "0.018", "0.014", "0.010"
+    }
+    
+    function getZeroOneHundred(value)
+      local midiValue = value - 1
+      if midiValue == 127 then
+        return 100
+      else
+        return math.floor((midiValue / 127.5) * 100)
+      end
+    end
+
+    function getWahRate(value, syncOn)
+      if syncOn then
+        return rates[value]
+      else
+        return getZeroOneHundred(value)
+      end
+    end
+  ]]
 }
 
 -- CONTROL SCRIPTS *******************************************
@@ -924,6 +1019,7 @@ local faderScriptTemplate = [[
   local labelName = '%s'
   %s  -- Include the mapping function definition here
   local startValues = %s
+  local syncOn = false
 
   function midiToFloat(midiValue)
     local floatValue = midiValue / 127
@@ -982,7 +1078,18 @@ local faderScriptTemplate = [[
 
   function updateLabel(value)
     local label = self.parent:findByName(labelName)
-    local newText = %s(value)  -- Just use the function name directly
+    local newText = ''
+    local index = floatToRange(value)
+    
+    if amSyncFader then
+      -- Override the index, as it's being used for the grid
+      -- not our label
+      index = floatToMIDI(value) + 1
+      newText = %s(index, syncOn)
+    else
+      newText = %s(index)
+    end
+    
     --print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
     label:notify('update_text', newText)
   end
@@ -1003,48 +1110,23 @@ local faderScriptTemplate = [[
   function onReceiveNotify(key, value)
     if key == 'new_value' then
       self.values.x = value
-      local index = 0
-
-      if amSyncFader then
-        -- Override the index, as it's being used for the grid
-        -- not our label
-        index = floatToMIDI(value) + 1
-      else
-        index = floatToRange(value)
-      end
-
-      updateLabel(index)
+      updateLabel(value)
     elseif key == 'new_cc_value' then
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
-
-      local index = 0
-      if amSyncFader then
-        -- Override the index, as it's being used for the grid
-        -- not our label
-        index = value + 1
-      else
-        index = floatToRange(floatValue)
-      end
-
-      updateLabel(index)
+      updateLabel(floatValue)
+    elseif key == 'sync_toggle' then
+      --print('Toggling fader sync:', value)
+      syncOn = value
+      updateLabel(self.values.x)
     end
   end
 
   function onValueChanged(value)
     if value == 'x' then
-      local index = 0
       local gridIndex = floatToRange(self.values.x)
 
-      if amSyncFader then
-        -- Override the index, as it's being used for the grid
-        -- not our label
-        index = floatToMIDI(self.values.x) + 1
-      else
-        index = gridIndex
-      end
-
-      updateLabel(index)
+      updateLabel(self.values.x)
       if gridToNotify ~= '' then
         notifyGrid(gridIndex)
       end
@@ -1080,16 +1162,25 @@ local gridScriptTemplate = [[
     end
   end
 
+  local showHideFader = self.parent.parent:findByName('%s', true)
+  local showHideFaderLabel = self.parent.parent:findByName('%s', true)
+  local showHideGrid = self.parent.parent:findByName('%s', true)
+  local showHideGridLabel = self.parent.parent:findByName('%s', true)
+
   function toggleTimeViews(showFader)
-    local fader = self.parent.parent:findByName('%s', true)
-    local faderLabel = self.parent.parent:findByName('%s', true)
-    local grid = self.parent.parent:findByName('%s', true)
-    local gridLabel = self.parent.parent:findByName('%s', true)
-    
-    fader.visible = showFader
-    faderLabel.visible = showFader
-    grid.visible = not showFader
-    gridLabel.visible = not showFader
+    if showHideFader and showHideFaderLabel and showHideGrid and showHideGridLabel then
+      showHideFader.visible = not showFader
+      showHideFaderLabel.visible = not showFader
+      showHideGrid.visible = showFader
+      showHideGridLabel.visible = showFader
+    end
+  end
+
+  function toggleFaderSync(value)
+    if showHideFader then
+      --print('Toggling fader sync:', value)
+      showHideFader:notify('sync_toggle', value)
+    end
   end
 
   function onValueChanged(key, value)
@@ -1099,7 +1190,10 @@ local gridScriptTemplate = [[
       syncedFader:notify('new_cc_value', myCCValue)
       
       if amSyncGrid then
-        toggleTimeViews(self.index == 1)
+        local syncOn = (self.index == 2)
+        --print('Toggling:', syncOn)
+        toggleTimeViews(syncOn)
+        toggleFaderSync(syncOn)
       end
 
     elseif self.name == targetGridName and key == 'touch' then
@@ -1120,7 +1214,10 @@ local gridScriptTemplate = [[
       self.tag = 0
       self.children[childToSelect]:notify('new_child_value')
       if amSyncGrid then
-        toggleTimeViews(value == 1)
+        local syncOn = (value == 2)
+        --print('Toggling:', syncOn)
+        toggleTimeViews(syncOn)
+        toggleFaderSync(syncOn)
       end
     end
   end
@@ -1157,6 +1254,7 @@ function generateAndAssignFaderScript(controlGroup, controlInfo)
     mappingScripts[labelMapping],
     startValues,
     labelMapping,
+    labelMapping,
     gridName,
     ccNumber)
 
@@ -1192,7 +1290,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
     showHideGridLabel = ''
   end
 
-  print('Generating grid script for:', faderName, gridName, startValues, amSyncGrid, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel)
+  --print('Generating grid script for:', faderName, gridName, startValues, amSyncGrid, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel)
 
   local gridScript = string.format(gridScriptTemplate, 
     startValues,
@@ -1211,7 +1309,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
     gridObject.script = gridScript
   end
 
-  print('Generating grid label script for:', gridLabelName, gridLabelMapping)
+  --print('Generating grid label script for:', gridLabelName, gridLabelMapping)
 
   local gridLabelObject = controlGroup:findByName(gridLabelName, true)
 
@@ -1219,6 +1317,8 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
     mappingScripts[gridLabelMapping],
     gridLabelName,
     gridLabelMapping)
+
+  --print('Grid label script:', gridLabelScript)
 
   if gridLabelObject then
     gridLabelObject.script = gridLabelScript
