@@ -275,6 +275,16 @@ local controlsInfoArray = {
     {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
       '{0, 64}', 'false', 'speed_fader', 'speed_label', 'speed_grid', 'speed_label_grid'}
   },
+  [29] = { -- tremolo/pan
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'rate_fader', false, 'rate_label', 'getWahRate', '%s', '', nil, nil, nil, 'true'},
+    {18, 'type_fader', false, 'type_label', 'getTremoloPanType', '%s', 'type_grid', 'type_label_grid', 'getTremoloPanType',
+      '{0, 64}'},
+    {80, 'wave_fader', false, 'wave_label', 'getTremoloPanWave', '%s', 'wave_grid', 'wave_label_grid', 'getTremoloPanWave',
+      '{0, 22, 43, 64, 85, 107}'},
+    {81, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
+      '{0, 64}', 'false', 'rate_fader', '', '', ''},
+    },
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -979,7 +989,7 @@ local mappingScripts = {
 
     function getFlangerRate(value, syncOn)
       if syncOn then
-        return rates[value]
+        return rates[value]..' bar'
       else
         return getZeroOneHundred(value)
       end
@@ -1017,7 +1027,7 @@ local mappingScripts = {
 
     function getWahRate(value, syncOn)
       if syncOn then
-        return rates[value]
+        return rates[value]..' bar'
       else
         return getZeroOneHundred(value)
       end
@@ -1040,6 +1050,21 @@ local mappingScripts = {
     end
   ]],
   
+  getTremoloPanType = [[
+    local types = {'TREMOLO', 'PAN'}
+
+    function getTremoloPanType(value)
+      return types[value]
+    end
+  ]],
+
+  getTremoloPanWave = [[
+    local waves = {'TRI', 'SQR', 'SIN', 'SAW1', 'SAW2', 'TRP'}
+
+    function getTremoloPanWave(value)
+      return waves[value] 
+    end
+  ]],
 }
 
 -- CONTROL SCRIPTS *******************************************
