@@ -263,6 +263,18 @@ local controlsInfoArray = {
     {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
       '{0, 64}', 'false', 'rate_fader', '', '', ''},
     },
+  [28] = { -- slicer
+    {16, 'pattern_fader', false, 'pattern_label', 'getSlicerPattern', '%s', 'pattern_grid', 'pattern_label_grid', 'getSlicerPattern',
+      '{0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124}'},
+    {17, 'speed_fader', false, 'speed_label', 'getZeroOneHundred', '%s', 'speed_grid', 'speed_label_grid', 'getRate',
+      '{0, 7, 13, 19, 25, 31, 37, 43, 49, 55, 61, 67, 73, 79, 85, 92, 98, 104, 110, 116, 122, 127}', 'true'},
+    {18, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'shuffle_fader', false, 'shuffle_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'mode_fader', false, 'mode_label', 'getSlicerMode', '%s', 'mode_grid', 'mode_label_grid', 'getSlicerMode',
+      '{0, 64}'},
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
+      '{0, 64}', 'false', 'speed_fader', 'speed_label', 'speed_grid', 'speed_label_grid'}
+  },
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -1010,7 +1022,24 @@ local mappingScripts = {
         return getZeroOneHundred(value)
       end
     end
-  ]]
+  ]],
+
+  getSlicerMode = [[
+    local modes = {'LEGATO', 'SLASH'}
+
+    function getSlicerMode(value)
+      return modes[value]
+    end
+  ]],
+
+  getSlicerPattern = [[
+    local patterns = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32'}
+
+    function getSlicerPattern(value)
+      return patterns[value]
+    end
+  ]],
+  
 }
 
 -- CONTROL SCRIPTS *******************************************
