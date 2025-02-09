@@ -43,11 +43,11 @@ local controlsInfoArray = {
   [3] = { -- sync delay
     {16, 'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', 'delay_time_grid', 'delay_time_label_grid', 'getDelayTimes',
       '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-    {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid', 'getLDampFValues',
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s%%', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s Hz', 'l_damp_f_grid', 'l_damp_f_label_grid', 'getLDampFValues',
       '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
-    {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid', 'getHDampFValues',
+    {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s Hz', 'h_damp_f_grid', 'h_damp_f_label_grid', 'getHDampFValues',
       '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'}
   },
   [4] = { -- isolator
@@ -72,82 +72,82 @@ local controlsInfoArray = {
       '{0, 64}'}
   },
   [7] = { -- downer
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-    {17, 'downer_rate_fader', false, 'downer_rate_label', 'getDownerRate', '%s', 'downer_rate_grid', 'downer_rate_label_grid', 'getDownerRate',
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'rate_fader', false, 'rate_label', 'getDownerRate', '%s', 'rate_grid', 'rate_label_grid', 'getDownerRate',
       '{0, 19, 37, 55, 73, 91, 127}'},
-    {18, 'filter_fader', false, 'filter_label', 'getZeroOneHundred', 'FILTER: %s', ''},
+    {18, 'filter_fader', false, 'filter_label', 'getZeroOneHundred', '%s', ''},
     {80, 'pitch_on_off_fader', false, 'pitch_on_off_label', 'getPitchOnOff', '%s', 'pitch_on_off_grid', 'pitch_on_off_label_grid', 'getPitchOnOff',
       '{0, 64}'},
-    {81, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''}
+    {81, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''}
   },
   [8] = { -- ha dou
-    {16, 'mod_depth_fader', false, 'mod_depth_label', 'getZeroOneHundred', 'MOD DEPTH: %s', ''},
-    {17, 'time_fader', false, 'time_label', 'getZeroOneHundred', 'TIME %s', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {16, 'mod_depth_fader', false, 'mod_depth_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'time_fader', false, 'time_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
     {80, 'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid', 'low_cut_label_grid', 'getLowCut',
       '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
     {81, 'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid', 'high_cut_label_grid', 'getHighCut',
       '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-    {82, 'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s ms', ''}
+    {82, 'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', '%s ms', ''}
   },
   [9] = { -- ko da ma
-    {16, 'ko_da_ma_time_fader', false, 'ko_da_ma_time_label', 'getDelayTimes', '%s', 'ko_da_ma_time_grid', 'ko_da_ma_time_label_grid', 'getDelayTimes',
+    {16, 'time_fader', false, 'time_label', 'getDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getDelayTimes',
       '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s%%', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
     {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid', 'getLDampFValues',
       '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
     {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid', 'getHDampFValues',
       '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-    {82, 'ko_da_ma_mode_fader', false, 'ko_da_ma_mode_label', 'getKoDaMaMode', '%s', 'ko_da_ma_mode_grid', 'ko_da_ma_mode_label_grid', 'getKoDaMaMode',
+    {82, 'mode_fader', false, 'mode_label', 'getKoDaMaMode', '%s', 'mode_grid', 'mode_label_grid', 'getKoDaMaMode',
       '{0, 64}'}
   },
   [10] = { -- zan zou
-    {16, 'zan_zou_time_fader', false, 'zan_zou_time_label', 'getZeroOneHundred', 'TIME: %s', 'zan_zou_time_grid', 'zan_zou_time_label_grid', 'getDelayTimes',
+    {16, 'time_fader', false, 'time_label', 'getSyncDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getSyncDelayTimes',
       '{0, 9, 17, 28, 36, 44, 52, 60, 68, 77, 87, 95, 103, 114, 122, 127}', 'true'},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s', ''},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s', ''},
     {18, 'hf_damp_fader', false, 'hf_damp_label', 'getHFDampValues', '%s', 'hf_damp_grid', 'hf_damp_label_grid', 'getHFDampValues',
       '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
-    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-    {81, 'zan_zou_mode_fader', false, 'zan_zou_mode_label', 'getZanZouMode', '%s', 'zan_zou_mode_grid', 'zan_zou_mode_label_grid', 'getZanZouMode',
+    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'mode_fader', false, 'mode_label', 'getZanZouMode', '%s', 'mode_grid', 'mode_label_grid', 'getZanZouMode',
       '{0, 43, 86}'},
-    {82, 'zan_zou_sync_fader', false, 'zan_zou_sync_label', 'getSync', '%s', 'zan_zou_sync_grid', 'zan_zou_sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'zan_zou_time_fader', 'zan_zou_time_label', 'zan_zou_time_grid', 'zan_zou_time_label_grid'}
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
+      '{0, 64}', 'false', 'time_fader', 'time_label', 'time_grid', 'time_label_grid'}
   },
   [11] = { -- to gu ro
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-    {17, 'to_gu_ro_rate_fader', false, 'to_gu_ro_rate_label', 'getZeroOneHundred', 'RATE: %s', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid', 'getToGuRoRate',
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'rate_fader', false, 'rate_label', 'getToGuRoRate', '%s', 'rate_grid', 'rate_label_grid', 'getToGuRoRate',
       '{0, 16, 32, 48, 64, 80, 96, 112, 127}', 'true'},
-    {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
-    {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
-    {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''},
-    {82, 'to_gu_ro_sync_fader', false, 'to_gu_ro_sync_label', 'getSync', '%s', 'to_gu_ro_sync_grid', 'to_gu_ro_sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'to_gu_ro_rate_fader', 'to_gu_ro_rate_label', 'to_gu_ro_rate_grid', 'to_gu_ro_rate_label_grid'},
+    {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', '%s', ''},
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
+      '{0, 64}', 'false', 'rate_fader', 'rate_label', 'rate_grid', 'rate_label_grid'},
   },
   [12] = { -- sbf
-    {16, 'interval_fader', false, 'interval_label', 'getZeroOneHundred', 'INTERVAL: %s', ''},
-    {17, 'width_fader', false, 'width_label', 'getZeroOneHundred', 'WIDTH: %s', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
+    {16, 'interval_fader', false, 'interval_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'width_fader', false, 'width_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
     {80, 'sbf_type_fader', false, 'sbf_type_label', 'getSBFType', '%s', 'sbf_type_grid', 'sbf_type_label_grid', 'getSBFType',
       '{0, 25, 51, 76, 102, 127}'},
-    {81, 'gain_fader', false, 'gain_label', 'getSBFGain', 'GAIN: %s dB', ''}
+    {81, 'gain_fader', false, 'gain_label', 'getSBFGain', '%s dB', ''}
   },
   [13] = { -- stopper
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-    {17, 'stopper_rate_fader', false, 'stopper_rate_label', 'getStopperRate', '%s', 'stopper_rate_grid', 'stopper_rate_label_grid', 'getStopperRate',
+    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'rate_fader', false, 'rate_label', 'getStopperRate', '%s', 'rate_grid', 'rate_label_grid', 'getStopperRate',
       '{0, 16, 32, 48, 64, 80, 96, 112, 127}'},
-    {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
-    {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', 'FLT MOD: %s', ''},
-    {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', 'AMP MOD: %s', ''}
+    {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', '%s', ''}
   },
   [14] = { -- tape echo
-    {16, 'time_fader', false, 'time_label', 'getTapeSpeed', 'TIME: %s ms', ''},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s %%', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
-    {80, 'tape_echo_mode_fader', false, 'tape_echo_mode_label', 'getTapeEchoMode', '%s', 'tape_echo_mode_grid', 'tape_echo_mode_label_grid', 'getTapeEchoMode',
+    {16, 'time_fader', false, 'time_label', 'getTapeSpeed', '%s ms', ''},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s %%', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'mode_fader', false, 'mode_label', 'getTapeEchoMode', '%s', 'mode_grid', 'mode_label_grid', 'getTapeEchoMode',
       '{0, 19, 37, 55, 73, 91, 110}'},
-    {81, 'wf_rate_fader', false, 'wf_rate_label', 'getZeroOneHundred', 'W/F RATE: %s', ''},
-    {82, 'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', 'W/F DEPTH: %s', ''}
+    {81, 'wf_rate_fader', false, 'wf_rate_label', 'getZeroOneHundred', '%s', ''},
+    {82, 'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', '%s', ''}
   },
   [15] = { -- time ctrl delay
     {16, 'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getTapeSpeed', 'TIME: %s ms', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid', 'getTapeSpeed', -- THINK THIS ONE IS WRONG
@@ -339,6 +339,18 @@ local controlsInfoArray = {
 --************************************************************
 
 -- MAPPING SCRIPTS *******************************************
+
+local getZeroOneHundredSnippet = [[
+  function getZeroOneHundred(value)
+    local midiValue = value - 1
+    if midiValue == 127 then
+      return 100
+    else
+      return math.floor((midiValue / 127.5) * 100)
+    end
+  end
+]]
+
 local mappingScripts = {
   getFreq = [[
     local midiToFrequencyMap = {
@@ -362,16 +374,7 @@ local mappingScripts = {
     end
   ]],
 
-  getZeroOneHundred = [[
-    function getZeroOneHundred(value)
-      local midiValue = value - 1
-      if midiValue == 127 then
-        return 100
-      else
-        return math.floor((midiValue / 127.5) * 100)
-      end
-    end
-  ]],
+  getZeroOneHundred = getZeroOneHundredSnippet,
 
   getZeroSixty = [[
     function getZeroSixty(value)
@@ -643,6 +646,23 @@ local mappingScripts = {
     end
   ]],
 
+  getSyncDelayTimes = getZeroOneHundredSnippet..[[
+    local delayTimes = {
+        '1/32', '1/16T', '1/32D', '1/16', 
+        '1/8T', '1/16D', '1/8', '1/4T', 
+        '1/8D', '1/4', '1/2T', '1/4D', 
+        '1/2', '1/1T', '1/2D', '1/1'
+    }
+
+    function getSyncDelayTimes(value, syncOn)
+      if syncOn then
+        return delayTimes[value]
+      else
+        return getZeroOneHundred(value)
+      end
+    end
+  ]],
+
   getLDampFValues = [[
     local lDampFValues = {'FLAT', '80', '100', '125', '160', '200', '250', '315', '400', '500', '630', '800'}
 
@@ -662,7 +682,7 @@ local mappingScripts = {
   ]],
 
   getOnOff = [[
-    local onOff = {'Off', 'On'}
+    local onOff = {'OFF', 'ON'}
         
     function getOnOff(value)
       return onOff[value]
@@ -731,7 +751,7 @@ local mappingScripts = {
   ]],
 
   getKoDaMaMode = [[
-    local koDaMaModes = {'SINGLE MODE', 'PAN MODE'}
+    local koDaMaModes = {'SINGLE', 'PAN'}
 
     function getKoDaMaMode(value)
       return koDaMaModes[value]
@@ -764,16 +784,19 @@ local mappingScripts = {
     end
   ]],
 
-  getToGuRoRate = [[
+  getToGuRoRate = getZeroOneHundredSnippet..[[
     local rates = {
       '2/1', '1/1', '1/2', '1/4', 
       '1/8', '1/16', '1/32', '1/64', 
       '1/128'
     }
 
-    function getToGuRoRate(value)
-      local rate = rates[value]
-      return rate
+    function getToGuRoRate(value, syncOn)
+      if syncOn then
+        return rates[value]
+      else
+        return getZeroOneHundred(value)
+      end
     end
   ]],
 
@@ -1003,7 +1026,7 @@ local mappingScripts = {
     end
   ]],
 
-  getWahRate = [[
+  getWahRate = getZeroOneHundredSnippet..[[
     local rates = {
       "1.000", "0.971", "0.943", "0.917", "0.893", "0.870", "0.848", "0.827",
       "0.808", "0.788", "0.770", "0.753", "0.736", "0.720", "0.704", "0.689",
@@ -1022,15 +1045,6 @@ local mappingScripts = {
       "0.060", "0.056", "0.053", "0.050", "0.046", "0.043", "0.040", "0.037",
       "0.034", "0.030", "0.027", "0.024", "0.021", "0.018", "0.014", "0.010"
     }
-    
-    function getZeroOneHundred(value)
-      local midiValue = value - 1
-      if midiValue == 127 then
-        return 100
-      else
-        return math.floor((midiValue / 127.5) * 100)
-      end
-    end
 
     function getWahRate(value, syncOn)
       if syncOn then
@@ -1118,7 +1132,7 @@ local mappingScripts = {
       "8", "8", "9", "9", "9", "9", "10", "10",
       "10", "11", "11", "11", "11", "12", "12", "12"
     }
-      
+
     function getPitch(value)
       return pitches[value]
     end
@@ -1144,7 +1158,7 @@ local faderScriptTemplate = [[
   end
 
   local function findRange(ranges, target)
-    --print("Finding range for target: " .. tostring(target))
+    print("Finding range for target: " .. tostring(target))
     
     for i, rangeStart in ipairs(ranges) do
       -- Special handling for the last range when it starts at 127
@@ -1157,9 +1171,9 @@ local faderScriptTemplate = [[
       end
 
       local rangeEnd = ranges[i + 1] or 128
-      --print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
+      print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
       if target >= rangeStart and target < rangeEnd then
-        --print("Found range " .. tostring(i))
+        print("Found range " .. tostring(i))
         return i
       end
     end
@@ -1175,15 +1189,15 @@ local faderScriptTemplate = [[
     if next(startValues) == nil then
       -- Return full midi range as the range
       local index = midiValue + 1
-      --print("Returning index in full midi range:", index)
+      print("Returning index in full midi range:", index)
       return index
     end
 
-    --print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
+    print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
     
     local index = findRange(startValues, midiValue)
 
-    --print("Index in grid range:", index)
+    print("Index in grid range:", index)
     
     return index
   end
@@ -1194,15 +1208,15 @@ local faderScriptTemplate = [[
     local index = floatToRange(value)
     
     if amSyncFader then
-      -- Override the index, as it's being used for the grid
-      -- not our label
-      index = floatToMIDI(value) + 1
+      if not syncOn then 
+        index = floatToMIDI(value) + 1
+      end
       newText = %s(index, syncOn)
     else
       newText = %s(index)
     end
     
-    --print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
+    print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
     label:notify('update_text', newText)
   end
 
@@ -1210,7 +1224,7 @@ local faderScriptTemplate = [[
 
   function notifyGrid(value)
     local rangeIndex = value
-    --print("Fader float: " .. tostring(value) .. " to Range: " .. tostring(rangeIndex))
+    print("Fader float: " .. tostring(value) .. " to Range: " .. tostring(rangeIndex))
     local gridControl = self.parent:findByName(gridToNotify, true)
     gridControl:notify('new_index', rangeIndex)
   end
@@ -1221,14 +1235,16 @@ local faderScriptTemplate = [[
 
   function onReceiveNotify(key, value)
     if key == 'new_value' then
+      print('New value:', value)
       self.values.x = value
       updateLabel(value)
     elseif key == 'new_cc_value' then
+      print('New cc value:', value)
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
     elseif key == 'sync_toggle' then
-      --print('Toggling fader sync:', value)
+      print('Toggling fader sync:', value)
       syncOn = value
       updateLabel(self.values.x)
     end
@@ -1341,7 +1357,7 @@ local gridLabelScriptTemplate = [[
 
   function init()
     if self.name ~= gridLabelName then
-      self.values.text = %s(self.index) -- Just use the function name directly
+      self.values.text = %s(self.index, true) -- Just use the function name directly
     end
   end
 ]]
