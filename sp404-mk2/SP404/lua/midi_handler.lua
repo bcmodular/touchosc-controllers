@@ -150,24 +150,24 @@ local controlsInfoArray = {
     {82, 'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', '%s', ''}
   },
   [15] = { -- time ctrl delay
-    {16, 'time_ctrl_dly_time_fader', false, 'time_ctrl_dly_time_label', 'getTapeSpeed', 'TIME: %s ms', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid', 'getTapeSpeed', -- THINK THIS ONE IS WRONG
+    {16, 'time_fader', false, 'time_label', 'getSyncDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getSyncDelayTimes',
       '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}', 'true'},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', 'FEEDBACK: %s%%', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s%%', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
     {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid', 'getLDampFValues',
       '{0, 11, 22, 32, 43, 54, 64, 75, 85, 96, 107, 117}'},
     {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid', 'getHDampFValues',
       '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}'},
-    {82, 'time_ctrl_dly_sync_fader', false, 'time_ctrl_dly_sync_label', 'getSync', '%s', 'time_ctrl_dly_sync_grid', 'time_ctrl_dly_sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'time_ctrl_dly_time_fader', 'time_ctrl_dly_time_label', 'time_ctrl_dly_time_grid', 'time_ctrl_dly_time_label_grid'}
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
+      '{0, 64}', 'false', 'time_fader', 'time_label', 'time_grid', 'time_label_grid'}
   },
   [16] = { -- super filter
-    {16, 'cutoff_fader', false, 'cutoff_label', 'getZeroOneHundred', 'CUTOFF: %s', ''},
-    {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', 'RESONANCE: %s', ''},
+    {16, 'cutoff_fader', false, 'cutoff_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
     {18, 'filter_type_fader', false, 'filter_type_label', 'getSuperFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid', 'getSuperFilterType',
       '{0, 43, 85}'},
-    {80, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', 'DEPTH: %s', ''},
-    {81, 'rate_fader', false, 'rate_label', 'getZeroOneHundred', 'RATE: %s', 'rate_grid', 'rate_label_grid', 'getRate',
+    {80, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
+    {81, 'rate_fader', false, 'rate_label', 'getFilterRate', '%s', 'rate_grid', 'rate_label_grid', 'getFilterRate',
       '{0, 7, 13, 19, 25, 31, 37, 43, 49, 55, 61, 67, 73, 79, 85, 92, 98, 104, 110, 116, 122, 127}', 'true'},
     {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
       '{0, 64}', 'false', 'rate_fader', 'rate_label', 'rate_grid', 'rate_label_grid'}
@@ -202,22 +202,22 @@ local controlsInfoArray = {
       '{0, 22, 43, 64, 85, 107}'},
     {17, 'lofi_type_fader', false, 'lofi_type_label', 'getLofiType', '%s', 'lofi_type_grid', 'lofi_type_label_grid', 'getLofiType',
       '{0, 15, 29, 43, 57, 71, 85, 100, 114}'},
-    {18, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', 'TONE: %s', ''},
+    {18, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', '%s', ''},
     {80, 'cutoff_fader', false, 'cutoff_label', 'getLofiCutoff', '%s', 'cutoff_grid', 'cutoff_label_grid', 'getLofiCutoff',
       '{0, 8, 15, 23, 30, 38, 45, 53, 60, 68, 75, 83, 90, 98, 105, 113, 120}'},
-    {81, 'balance_fader', false, 'balance_label', 'getBalance', 'BALANCE: %s %%', ''},
-    {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''}
+    {81, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+    {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''}
   },
   [22] = { -- reverb
     {16, 'type_fader', false, 'type_label', 'getReverbType', '%s', 'type_grid', 'type_label_grid', 'getReverbType',
       '{0, 32, 64, 96}'},
-    {17, 'time_fader', false, 'time_label', 'getZeroOneHundred', 'TIME %s', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', 'LEVEL: %s', ''},
+    {17, 'time_fader', false, 'time_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
     {80, 'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid', 'low_cut_label_grid', 'getLowCut',
       '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
     {81, 'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid', 'high_cut_label_grid', 'getHighCut',
       '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-    {82, 'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', 'PRE DELAY: %s ms', ''}
+    {82, 'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', '%s ms', ''}
   },
   [23] = { -- chorus
     {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
@@ -601,7 +601,7 @@ local mappingScripts = {
 
   getSuperFilterType = [[
     function getSuperFilterType(value)
-      local filterTypes = {'Low-pass', 'Band-pass', 'High-pass'}
+      local filterTypes = {'LOW-PASS', 'BAND-PASS', 'HIGH-PASS'}
       return filterTypes[value]
     end
   ]],  
@@ -658,7 +658,7 @@ local mappingScripts = {
       if syncOn then
         return delayTimes[value]
       else
-        return getZeroOneHundred(value)
+        return getZeroOneHundred(value)..' ms'
       end
     end
   ]],
@@ -833,6 +833,18 @@ local mappingScripts = {
     function getRate(value)
       local rate = rates[value]
       return rate
+    end
+  ]],
+
+  getFilterRate = getZeroOneHundredSnippet..[[
+    local rates = {'2/1', '1/1D', '2/1T', '1/1', '1/2D', '1/1T', '1/2', '1/4D', '1/2T', '1/4', '1/8D', '1/4T', '1/8', '1/16D', '1/8T', '1/16', '1/32D', '1/16T', '1/32', '1/32T', '1/64', '1/64T'}
+
+    function getFilterRate(value, syncOn)
+      if syncOn then
+        return rates[value]
+      else
+        return getZeroOneHundred(value)
+      end
     end
   ]],
 
