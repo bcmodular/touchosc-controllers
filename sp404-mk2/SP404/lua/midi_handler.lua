@@ -258,7 +258,7 @@ local controlsInfoArray = {
     {17, 'rate_fader', false, 'rate_label', 'getWahRate', '%s', '', nil, nil, nil, 'true'},
     {18, 'manual_fader', false, 'manual_label', 'getZeroOneHundred', '%s', ''},
     {80, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid', 'getFilterType',
+    {81, 'filter_type_fader', false, 'filter_type_label', 'getWahFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid', 'getWahFilterType',
       '{0, 64}'},
     {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
       '{0, 64}', 'false', 'rate_fader', '', '', ''},
@@ -598,6 +598,13 @@ local mappingScripts = {
       return filterTypes[value]
     end
   ]],
+
+  getWahFilterType = [[
+    function getWahFilterType(value)
+      local filterTypes = {'LOW-PASS', 'BAND-PASS'}
+      return filterTypes[value]
+    end
+  ]],  
 
   getSuperFilterType = [[
     function getSuperFilterType(value)
