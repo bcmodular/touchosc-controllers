@@ -292,6 +292,45 @@ local controlsInfoArray = {
     {80, 'pan1_fader', false, 'pan1_label', 'getPan', '%s', ''},
     {81, 'pan2_fader', false, 'pan2_label', 'getPan', '%s', ''},
   },
+  [31] = { -- hyper-reso
+    {16, 'note_fader', true, 'note_value_label', 'getNote', '%s', 'note_grid', 'note_label_grid', 'getNote',
+      '{0, 4, 8, 11, 15, 19, 22, 26, 30, 33, 37, 41, 44, 48, 51, 55, 59, 62, 66, 70, 73, 77, 81, 84, 88, 92, 95, 99, 102, 106, 110, 113, 117, 121, 124}'},
+    {17, 'spread_fader', false, 'spread_label', 'getSpread', '%s', 'spread_grid', 'spread_label_grid', 'getSpread',
+      '{0, 26, 51, 77, 102}'},
+    {18, 'character_fader', false, 'character_value_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'scale_fader', true, 'scale_label', 'getScale', '%s', 'scale_grid', 'scale_label_grid', 'getScale',
+      '{0, 6, 11, 16, 22, 27, 32, 38, 43, 48, 54, 59, 64, 70, 75, 80, 85, 91, 96, 101, 107, 112, 117, 123}'},
+    {81, 'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s %%', ''},
+    {82, 'env_mod_fader', false, 'env_mod_value_label', 'getZeroOneHundred', '%s', ''}
+  },
+  [32] = { -- ring-mod
+    {16, 'frequency_fader', false, 'frequency_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'sensitivity_fader', false, 'sensitivity_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+    {80, 'polarity_fader', false, 'polarity_label', 'getOnOff', '%s', 'polarity_grid', 'polarity_label_grid', 'getOnOff',
+      '{0, 64}'},
+    {81, 'eq_low_fader', false, 'eq_low_label', 'getChorusEQ', '%s dB', 'eq_low_grid', 'eq_low_label_grid', 'getChorusEQ',
+      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
+    {82, 'eq_high_fader', false, 'eq_high_label', 'getChorusEQ', '%s dB', 'eq_high_grid', 'eq_high_label_grid', 'getChorusEQ',
+      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'}
+  },
+  [33] = { -- crusher
+    {16, 'filter_fader', false, 'filter_label', 'getCrusherFilter', '%s Hz', ''},
+    {17, 'rate_fader', false, 'rate_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''}
+  },
+  [34] = { -- overdrive
+    {16, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', '%s', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
+  },
+  [35] = { -- distortion
+    {16, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', '%s', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
+  },
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -322,7 +361,7 @@ local controlsInfoArray = {
       '{0, 10, 20, 30, 40, 49, 59, 69, 79, 89, 99, 108, 118}'},
     {82, 'harmony_fader', false, 'harmony_label', 'getVocoderChord', '%s', 'harmony_grid', 'harmony_label_grid', 'getVocoderChord',
       '{0, 13, 26, 39, 51, 64, 77, 90, 102, 115}'}
-   },
+  },
    [46] = { -- gt amp sim
    {16, 'amp_type_fader', false, 'amp_type_label', 'getAmpType', '%s', 'amp_type_grid', 'amp_type_label_grid', 'getAmpType',
      '{0, 22, 43, 64, 85, 107}'},
@@ -1156,6 +1195,33 @@ local mappingScripts = {
       return pitches[value]
     end
   ]],
+
+  getSpread = [[
+    local spreads = {
+      'UNISON', 'TINY', 'SMALL', 'MEDIUM', 'HUGE'
+    }
+
+    function getSpread(value)
+      return spreads[value]
+    end
+  ]],
+
+  getCrusherFilter = [[
+    local filters = {
+      331, 345, 358, 373, 388, 403, 420, 437, 454, 473, 492, 512, 533, 554, 577, 600, 625, 650, 677, 704,
+      733, 763, 795, 827, 861, 897, 934, 972, 1012, 1054, 1098, 1143, 1190, 1240, 1291, 1345, 1400, 1458, 
+      1519, 1582, 1647, 1716, 1787, 1861, 1938, 2018, 2101, 2188, 2278, 2372, 2470, 2571, 2676, 2786, 2899, 
+      3017, 3139, 3266, 3397, 3533, 3674, 3820, 3971, 4127, 4288, 4455, 4626, 4803, 4986, 5173, 5366, 5564, 
+      5767, 5975, 6189, 6407, 6630, 6857, 7089, 7325, 7564, 7807, 8053, 8302, 8553, 8806, 9061, 9317, 9573, 
+      9829, 10085, 10339, 10592, 10843, 11092, 11336, 11577, 11814, 12046, 12272, 12492, 12706, 12913, 13113, 
+      13305, 13490, 13666, 13834, 13993, 14143, 14285, 14417, 14541, 14655, 14761, 14857, 14945, 15025, 15095, 
+      15158, 15213, 15259, 15299, 15330, 15355, 15374, 15386, 15392
+    }
+
+    function getCrusherFilter(value)
+      return filters[value]
+    end
+  ]]
 }
 
 -- CONTROL SCRIPTS *******************************************
