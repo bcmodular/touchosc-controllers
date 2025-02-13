@@ -378,6 +378,17 @@ local controlsInfoArray = {
     {18, 'back_sw_fader', false, 'back_sw_label', 'getOnOff', '%s', 'back_sw_grid', 'back_sw_label_grid', 'getOnOff',
       '{0, 64}'},
   },
+  [42] = { -- djfx delay
+    {16, 'length_fader', false, 'length_label', 'getLooperLength', '%s s', ''},    
+    {17, 'time_fader', false, 'time_label', 'getSyncDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getSyncDelayTimes',
+      '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}', 'true'},
+    {18, 'on_off_fader', false, 'on_off_label', 'getLoopOnOff', '%s', 'on_off_grid', 'on_off_label_grid', 'getLoopOnOff',
+      '{0, 64}'},
+    {80, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s %%', ''},
+    {81, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
+    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
+      '{0, 64}', 'false', 'time_fader', 'time_label', 'time_grid', 'time_label_grid'}
+  },  
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -435,6 +446,29 @@ local getZeroOneHundredSnippet = [[
       return math.floor((midiValue / 127.5) * 100)
     end
   end
+]]
+
+local getTapeSpeedSnippet = [[
+  local tapeSpeedMap = {
+    10, 12, 13, 15, 17, 18, 20, 22, 24, 25, 
+    27, 29, 31, 33, 35, 37, 39, 42, 44, 46, 
+    48, 50, 53, 55, 58, 60, 63, 65, 68, 70, 
+    73, 76, 79, 82, 84, 87, 90, 93, 97, 100, 
+    103, 106, 110, 113, 117, 120, 124, 127, 131, 
+    135, 139, 143, 147, 151, 155, 159, 164, 168, 
+    172, 177, 182, 186, 191, 196, 201, 206, 211, 
+    217, 222, 227, 233, 239, 244, 250, 256, 262, 
+    269, 275, 281, 288, 294, 301, 308, 315, 322, 
+    330, 337, 345, 352, 360, 368, 376, 385, 393, 
+    402, 410, 419, 428, 437, 447, 456, 466, 476, 
+    486, 496, 507, 518, 528, 539, 551, 562, 574, 
+    586, 598, 610, 623, 635, 648, 662, 675, 689, 
+    703, 717, 731, 746, 761, 777, 800
+  }
+
+  function getTapeSpeed(value)
+    return tapeSpeedMap[value]
+  end  
 ]]
 
 local mappingScripts = {
@@ -622,28 +656,7 @@ local mappingScripts = {
     end
   ]],
 
-  getTapeSpeed = [[
-    local tapeSpeedMap = {
-      10, 12, 13, 15, 17, 18, 20, 22, 24, 25, 
-      27, 29, 31, 33, 35, 37, 39, 42, 44, 46, 
-      48, 50, 53, 55, 58, 60, 63, 65, 68, 70, 
-      73, 76, 79, 82, 84, 87, 90, 93, 97, 100, 
-      103, 106, 110, 113, 117, 120, 124, 127, 131, 
-      135, 139, 143, 147, 151, 155, 159, 164, 168, 
-      172, 177, 182, 186, 191, 196, 201, 206, 211, 
-      217, 222, 227, 233, 239, 244, 250, 256, 262, 
-      269, 275, 281, 288, 294, 301, 308, 315, 322, 
-      330, 337, 345, 352, 360, 368, 376, 385, 393, 
-      402, 410, 419, 428, 437, 447, 456, 466, 476, 
-      486, 496, 507, 518, 528, 539, 551, 562, 574, 
-      586, 598, 610, 623, 635, 648, 662, 675, 689, 
-      703, 717, 731, 746, 761, 777, 800
-    }
-
-    function getTapeSpeed(value)
-      return tapeSpeedMap[value]
-    end  
-  ]],
+  getTapeSpeed = getTapeSpeedSnippet,
 
   getZeroNinetyNine = [[
     function getZeroNinetyNine(value)
@@ -739,7 +752,7 @@ local mappingScripts = {
     end
   ]],
 
-  getSyncDelayTimes = getZeroOneHundredSnippet..[[
+  getSyncDelayTimes = getTapeSpeedSnippet..[[
     local delayTimes = {
         '1/32', '1/16T', '1/32D', '1/16', 
         '1/8T', '1/16D', '1/8', '1/4T', 
@@ -751,7 +764,7 @@ local mappingScripts = {
       if syncOn then
         return delayTimes[value]
       else
-        return getZeroOneHundred(value)..' ms'
+        return getTapeSpeed(value)..' ms'
       end
     end
   ]],
@@ -1319,7 +1332,15 @@ local mappingScripts = {
     function getBackSpin(value)
       return backSpins[value]
     end
-  ]]
+  ]],
+
+  getLoopOnOff = [[
+    local loopOnOffs = {"LOOP OFF", "LOOP ON"}
+
+    function getLoopOnOff(value)
+      return loopOnOffs[value]
+    end
+  ]],
 }
 
 -- CONTROL SCRIPTS *******************************************
