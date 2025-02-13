@@ -355,7 +355,22 @@ local controlsInfoArray = {
     {16, 'time_fader', false, 'time_label', 'getZeroOneHundred', '%s', ''},
     {17, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', '%s', ''},
     {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-  },   
+  },
+  [39] = { -- sx delay
+    {16, 'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', 'delay_time_grid', 'delay_time_label_grid', 'getDelayTimes',
+      '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}'},
+    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s%%', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''}
+  },
+  [40] = { -- cloud delay
+    {16, 'window_fader', false, 'window_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'pitch_fader', false, 'pitch_label', 'getCloudPitch', '%s', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+    {80, 'feedback_fader', false, 'feedback_label', 'getBipolarHundredv2', '%s', ''},
+    {81, 'cloudy_fader', false, 'cloudy_label', 'getZeroOneHundred', '%s', ''},
+    {82, 'lofi_fader', false, 'lofi_label', 'getOnOff', '%s', 'lofi_grid', 'lofi_label_grid', 'getOnOff',
+      '{0, 64}'},
+  },
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -365,7 +380,7 @@ local controlsInfoArray = {
       '{0, 10, 20, 30, 40, 49, 59, 69, 79, 89, 99, 108, 118}'},
     {82, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid', 'getOnOff',
       '{0, 64}'}
-   },
+  },
   [44] = { -- vocoder
     {16, 'note_fader', true, 'note_value_label', 'getNote', '%s', 'note_grid', 'note_label_grid', 'getNote',
       '{0, 4, 8, 11, 15, 19, 22, 26, 30, 33, 37, 41, 44, 48, 51, 55, 59, 62, 66, 70, 73, 77, 81, 84, 88, 92, 95, 99, 102, 106, 110, 113, 117, 121, 124}'},
@@ -1270,7 +1285,26 @@ local mappingScripts = {
     function getEQHighFreq(value)
       return highFreqs[value]
     end
-  ]]
+  ]],
+
+  getCloudPitch = [[
+    local pitches = {
+      "-12.0", "-12.0", "-11.8", "-11.6", "-11.4", "-11.2", "-11.0", "-10.8", "-10.6", "-10.4", "-10.2", "-10.0",
+      "-9.8", "-9.6", "-9.4", "-9.2", "-9.0", "-8.8", "-8.6", "-8.4", "-8.4", "-8.2", "-8.0", "-7.8", "-7.6", "-7.4",
+      "-7.2", "-7.0", "-6.8", "-6.6", "-6.4", "-6.2", "-6.0", "-5.8", "-5.6", "-5.4", "-5.2", "-5.0", "-4.8", "-4.6",
+      "-4.6", "-4.4", "-4.2", "-4.0", "-3.8", "-3.6", "-3.4", "-3.2", "-3.0", "-2.8", "-2.6", "-2.4", "-2.2", "-2.0",
+      "-1.8", "-1.6", "-1.4", "-1.2", "-1.0", "-1.0", "-0.8", "-0.6", "-0.4", "-0.2", "0.0", "+0.2", "+0.4", "+0.6",
+      "+0.8", "+1.0", "+1.2", "+1.4", "+1.6", "+1.8", "+2.0", "+2.2", "+2.4", "+2.6", "+2.8", "+2.8", "+3.0", "+3.2",
+      "+3.4", "+3.6", "+3.8", "+4.0", "+4.2", "+4.4", "+4.6", "+4.8", "+5.0", "+5.2", "+5.4", "+5.6", "+5.8", "+6.0",
+      "+6.2", "+6.4", "+6.6", "+6.6", "+6.8", "+7.0", "+7.2", "+7.4", "+7.6", "+7.8", "+8.0", "+8.2", "+8.4", "+8.6",
+      "+8.8", "+9.0", "+9.2", "+9.4", "+9.6", "+9.8", "+10.0", "+10.2", "+10.2", "+10.4", "+10.6", "+10.8", "+11.0",
+      "+11.2", "+11.4", "+11.6", "+11.8", "+12.0"
+    }
+
+    function getCloudPitch(value)
+      return pitches[value]
+    end
+  ]],
 }
 
 -- CONTROL SCRIPTS *******************************************
