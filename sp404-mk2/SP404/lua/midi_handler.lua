@@ -331,6 +331,31 @@ local controlsInfoArray = {
     {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
     {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
   },
+  [36] = { -- equalizer
+    {16, 'low_gain_fader', false, 'low_gain_label', 'getChorusEQ', '%s dB', 'low_gain_grid', 'low_gain_label_grid', 'getChorusEQ',
+      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
+    {17, 'mid_gain_fader', false, 'mid_gain_label', 'getChorusEQ', '%s dB', 'mid_gain_grid', 'mid_gain_label_grid', 'getChorusEQ',
+      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
+    {18, 'high_gain_fader', false, 'high_gain_label', 'getChorusEQ', '%s dB', 'high_gain_grid', 'high_gain_label_grid', 'getChorusEQ',
+      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
+    {80, 'low_freq_fader', false, 'low_freq_label', 'getEQLowFreq', '%s Hz', 'low_freq_grid', 'low_freq_label_grid', 'getEQLowFreq',
+      '{0, 10, 19, 28, 37, 46, 55, 64, 73, 82, 92, 101, 110, 119}'},
+    {81, 'mid_freq_fader', false, 'mid_freq_label', 'getEQMidFreq', '%s Hz', 'mid_freq_grid', 'mid_freq_label_grid', 'getEQMidFreq',
+      '{0, 8, 15, 23, 30, 38, 45, 53, 60, 68, 75, 83, 90, 98, 105, 113, 120}'},
+    {82, 'high_freq_fader', false, 'high_freq_label', 'getEQHighFreq', '%s Hz', 'high_freq_grid', 'high_freq_label_grid', 'getEQHighFreq',
+      '{0, 13, 26, 39, 52, 64, 77, 90, 102, 115}'}
+  },
+  [37] = { -- compressor
+    {16, 'sustain_fader', false, 'sustain_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'attack_fader', false, 'attack_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'ratio_fader', false, 'ratio_label', 'getZeroOneHundred', '%s', ''},
+    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''}
+  },  
+  [38] = { -- sx reverb
+    {16, 'time_fader', false, 'time_label', 'getZeroOneHundred', '%s', ''},
+    {17, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', '%s', ''},
+    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
+  },   
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -1220,6 +1245,30 @@ local mappingScripts = {
 
     function getCrusherFilter(value)
       return filters[value]
+    end
+  ]],
+
+  getEQLowFreq = [[
+    local lowFreqs = {"20", "25", "31", "40", "50", "63", "80", "100", "125", "160", "200", "250", "315", "400"}
+    
+    function getEQLowFreq(value)
+      return lowFreqs[value]
+    end
+  ]],
+
+  getEQMidFreq = [[
+    local midFreqs = {"200", "250", "315", "400", "500", "630", "800", "1000", "1250", "1600", "2000", "2500", "3150", "4000", "5000", "6300", "8000"}
+
+    function getEQMidFreq(value)
+      return midFreqs[value]
+    end
+  ]],
+
+  getEQHighFreq = [[
+    local highFreqs = {"2000", "2500", "3150", "4000", "5000", "6300", "8000", "10000", "12500", "16000"}
+
+    function getEQHighFreq(value)
+      return highFreqs[value]
     end
   ]]
 }
