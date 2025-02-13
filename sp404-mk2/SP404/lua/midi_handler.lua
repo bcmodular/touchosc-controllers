@@ -371,6 +371,13 @@ local controlsInfoArray = {
     {82, 'lofi_fader', false, 'lofi_label', 'getOnOff', '%s', 'lofi_grid', 'lofi_label_grid', 'getOnOff',
       '{0, 64}'},
   },
+  [41] = { -- back spin
+    {16, 'length_fader', false, 'length_label', 'getBackSpin', '%s', 'length_grid', 'length_label_grid', 'getBackSpin',
+      '{0, 32, 64, 96, 127}'},
+    {17, 'speed_fader', false, 'speed_label', 'getZeroOneHundred', '%s', ''},
+    {18, 'back_sw_fader', false, 'back_sw_label', 'getOnOff', '%s', 'back_sw_grid', 'back_sw_label_grid', 'getOnOff',
+      '{0, 64}'},
+  },
   [43] = { -- auto-pitch
     {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
     {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
@@ -1305,6 +1312,14 @@ local mappingScripts = {
       return pitches[value]
     end
   ]],
+
+  getBackSpin = [[
+    local backSpins = {"1/1", "1/2", "1/4", "1/8", "1/16"}
+
+    function getBackSpin(value)
+      return backSpins[value]
+    end
+  ]]
 }
 
 -- CONTROL SCRIPTS *******************************************
