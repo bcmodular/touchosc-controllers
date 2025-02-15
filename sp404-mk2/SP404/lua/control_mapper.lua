@@ -1229,7 +1229,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
   end
 end
 
-function initializeControls()
+function mapControls()
   for i = 1, 46 do
     --print('Initialising category with fxPage:', i)
     local fxPage = root.children.control_pager.children[i]
@@ -1260,8 +1260,8 @@ function initializeControls()
 end
 
 function onReceiveNotify(key, value)
-  if key == 'init_midi_handler' then
-    print('Initialising MIDI handler')
-    initializeControls()
+  if key == 'init_control_mapper' then
+    print('Initialising Control Mapper')
+    mapControls()
   end
 end

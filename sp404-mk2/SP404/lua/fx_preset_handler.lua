@@ -4,7 +4,6 @@ local midiChannel = 0
 local defaultCCValues = {0, 0, 0, 0, 0, 0}
 
 local presetManager = root.children.preset_manager
-local midiHandler = root.children.midi_handler
 local fxPresetSelectorGroup = root.children.fx_preset_selector_group
 local fxPresetGrid = fxPresetSelectorGroup.children.fx_preset_grid
 local controlsInfo = root.children.controls_info

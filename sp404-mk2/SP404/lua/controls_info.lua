@@ -430,12 +430,10 @@ local controlsInfoArray = {
     if self.name == 'controls_info' then
       for i = 1, 46 do
         local controlInfoJSON = json.fromTable(controlsInfoArray[i])
-        --print(controlInfoJSON)
         self.children[i].tag = controlInfoJSON
       end
-      local midiHandler = root.children.midi_handler
-      --print('Initialising controls info')
-      midiHandler:notify('init_midi_handler', nil)
+      local controlMapper = root.children.control_mapper
+      controlMapper:notify('init_control_mapper', nil)
     end
 
   end
