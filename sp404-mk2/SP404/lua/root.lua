@@ -121,8 +121,8 @@ function setUpChannel(channel)
   local fxEditors = root:findByName('fx_editors', true)
   fxEditors:notify('channel', channel)
 
-  local midiHandler = root.children.midi_handler
-  midiHandler:notify('channel', channel)
+  local fxPresetHandler = root.children.fx_preset_handler
+  fxPresetHandler:notify('channel', channel)
 
 end
 

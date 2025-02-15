@@ -67,13 +67,15 @@ function onReceiveNotify(key, value)
     storePreset(presetIndex, ccValues)
   
   elseif key == 'recall_preset' then
-  
-    local midiHandler = value[1]
+    print('preset_manager received recall_preset notification')
+    
+    local midiChannel = value[1]
     local presetIndex = value[2]
     local result = recallPreset(presetIndex)
+    print('recall_preset result:', unpack(result))
     
-    print('Notifying midiHandler:', midiHandler.name, 'to recall preset:', presetIndex, 'with values:', unpack(result))
-    midiHandler:notify('recall_preset', result)
+    local recallProxy = root.children.recall_proxy
+    recallProxy:notify('recall_preset_response', {midiChannel, presetIndex, result})
     
   elseif key == 'delete_preset' then
   

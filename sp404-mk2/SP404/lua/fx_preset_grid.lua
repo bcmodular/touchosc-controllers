@@ -15,6 +15,13 @@ local BUTTON_STATE_COLORS = {
 local fxPresetHandler = root.children.fx_preset_handler
 local excludeMarkedPresets = false
 
+function init()
+  if self.name == 'fx_preset_grid' then
+    self.outline = true
+    self.outlineStyle = OutlineStyle.FULL
+  end
+end
+
 function changeState(child, newState)
   --print('Changing state of', child.index, 'to:', BUTTON_STATE[newState])
   child.name = BUTTON_STATE[newState]

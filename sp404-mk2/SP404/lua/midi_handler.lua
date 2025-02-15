@@ -1,435 +1,4 @@
-local defaultCCValues = {0, 0, 0, 0, 0, 0}
-local ccValues = {unpack(defaultCCValues)}
-local fxNum = 1
-local midiChannel = 0
-local presetManager = root.children.preset_manager
-
-local controlsInfoArray = {
--- Array structure:
--- 1) MIDI CC number
--- 2) Fader name
--- 3) Is excludable (true/false)
--- 4) Label name
--- 5) Label mapping function
--- 6) Label format string
--- 7) Synced grid (optional)
--- 8) Synced label grid (optional)
--- 9) Synced label grid mapping function (optional)
--- 10) Start values of ranges (optional, used for grids)
--- 11) Am synced fader (optional, used for sync grids)
--- 12) Show/hide fader name (optional, used for sync grids)
--- 13) Show/hide fader label name (optional, used for sync grids)
--- 14) Show/hide grid name (optional, used for sync grids)
--- 15) Show/hide grid label name (optional, used for sync grids)
-
-  [1] = { -- filter + drive
-    {16, 'cutoff_fader', false, 'cutoff_label', 'getFreq', '%s Hz', ''},
-    {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'filter_type_fader', false, 'filter_type_label', 'getFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid', 'getFilterType',
-      '{0, 64}'},
-    {81, 'low_freq_fader', false, 'low_freq_label', 'getFreq', '%s Hz', ''},
-    {82, 'low_gain_fader', false, 'low_gain_label', 'get24dB', '%s dB', ''}
-  },
-  [2] = { -- resonator
-    {16, 'root_fader', true, 'root_value_label', 'getRoot', '%s', ''},
-    {17, 'bright_fader', false, 'bright_value_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s%%', ''},
-    {80, 'chord_fader', true, 'chord_label', 'getChord', '%s', 'chord_grid', 'chord_label_grid', 'getChord',
-      '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
-    {81, 'panning_fader', false, 'panning_value_label', 'getZeroOneHundred', '%s', ''},
-    {82, 'env_mod_fader', false, 'env_mod_value_label', 'getZeroOneHundred', '%s', ''}
-  },
-  [3] = { -- sync delay
-    {16, 'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', 'delay_time_grid', 'delay_time_label_grid', 'getDelayTimes',
-      '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s%%', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s Hz', 'l_damp_f_grid', 'l_damp_f_label_grid', 'getLDampFValues',
-      '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
-    {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s Hz', 'h_damp_f_grid', 'h_damp_f_label_grid', 'getHDampFValues',
-      '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'}
-  },
-  [4] = { -- isolator
-    {16, 'low_fader', false, 'low_label', 'getEQ', '%s', ''},
-    {17, 'mid_fader', false, 'mid_label', 'getEQ', '%s', ''},
-    {18, 'high_fader', false, 'high_label', 'getEQ', '%s', ''}
-  },
-  [5] = { -- djfx looper
-    {16, 'length_fader', false, 'length_label', 'getLooperLength', '%s s', ''},
-    {17, 'speed_fader', false, 'speed_label', 'getBipolarHundred', '%s', ''},
-    {18, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid', 'getOnOff',
-       '{0, 64}'}
-  },
-  [6] = { -- scatter
-    {16, 'scatter_type_fader', false, 'scatter_type_label', 'getScatterType', '%s', 'scatter_type_grid', 'scatter_type_label_grid', 'getScatterType',
-      '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
-    {17, 'scatter_depth_fader', false, 'scatter_depth_label', 'getScatterDepth', '%s', 'scatter_depth_grid', 'scatter_depth_label_grid', 'getScatterDepth',
-      '{0, 13, 26, 39, 52, 65, 77, 90, 103, 115}'},
-    {18, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid', 'getOnOff',
-      '{0, 64}'},
-    {80, 'scatter_speed_fader', false, 'scatter_speed_label', 'getScatterSpeed', '%s', 'scatter_speed_grid', 'scatter_speed_label_grid', 'getScatterSpeed',
-      '{0, 64}'}
-  },
-  [7] = { -- downer
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getDownerRate', '%s', 'rate_grid', 'rate_label_grid', 'getDownerRate',
-      '{0, 19, 37, 55, 73, 91, 127}'},
-    {18, 'filter_fader', false, 'filter_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'pitch_on_off_fader', false, 'pitch_on_off_label', 'getPitchOnOff', '%s', 'pitch_on_off_grid', 'pitch_on_off_label_grid', 'getPitchOnOff',
-      '{0, 64}'},
-    {81, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''}
-  },
-  [8] = { -- ha dou
-    {16, 'mod_depth_fader', false, 'mod_depth_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'time_fader', false, 'time_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid', 'low_cut_label_grid', 'getLowCut',
-      '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
-    {81, 'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid', 'high_cut_label_grid', 'getHighCut',
-      '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-    {82, 'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', '%s ms', ''}
-  },
-  [9] = { -- ko da ma
-    {16, 'time_fader', false, 'time_label', 'getDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getDelayTimes',
-      '{0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121}'},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s%%', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid', 'getLDampFValues',
-      '{0, 11, 22, 33, 44, 55, 65, 76, 87, 98, 109, 119}'},
-    {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid', 'getHDampFValues',
-      '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-    {82, 'mode_fader', false, 'mode_label', 'getKoDaMaMode', '%s', 'mode_grid', 'mode_label_grid', 'getKoDaMaMode',
-      '{0, 64}'}
-  },
-  [10] = { -- zan zou
-    {16, 'time_fader', false, 'time_label', 'getSyncDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getSyncDelayTimes',
-      '{0, 9, 17, 28, 36, 44, 52, 60, 68, 77, 87, 95, 103, 114, 122, 127}', 'true'},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s', ''},
-    {18, 'hf_damp_fader', false, 'hf_damp_label', 'getHFDampValues', '%s', 'hf_damp_grid', 'hf_damp_label_grid', 'getHFDampValues',
-      '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
-    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'mode_fader', false, 'mode_label', 'getZanZouMode', '%s', 'mode_grid', 'mode_label_grid', 'getZanZouMode',
-      '{0, 43, 86}'},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'time_fader', 'time_label', 'time_grid', 'time_label_grid'}
-  },
-  [11] = { -- to gu ro
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getToGuRoRate', '%s', 'rate_grid', 'rate_label_grid', 'getToGuRoRate',
-      '{0, 16, 32, 48, 64, 80, 96, 112, 127}', 'true'},
-    {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', '%s', ''},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'rate_fader', 'rate_label', 'rate_grid', 'rate_label_grid'},
-  },
-  [12] = { -- sbf
-    {16, 'interval_fader', false, 'interval_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'width_fader', false, 'width_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {80, 'sbf_type_fader', false, 'sbf_type_label', 'getSBFType', '%s', 'sbf_type_grid', 'sbf_type_label_grid', 'getSBFType',
-      '{0, 25, 51, 76, 102, 127}'},
-    {81, 'gain_fader', false, 'gain_label', 'getSBFGain', '%s dB', ''}
-  },
-  [13] = { -- stopper
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getStopperRate', '%s', 'rate_grid', 'rate_label_grid', 'getStopperRate',
-      '{0, 16, 32, 48, 64, 80, 96, 112, 127}'},
-    {18, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'flt_mod_fader', false, 'flt_mod_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'amp_mod_fader', false, 'amp_mod_label', 'getZeroOneHundred', '%s', ''}
-  },
-  [14] = { -- tape echo
-    {16, 'time_fader', false, 'time_label', 'getTapeSpeed', '%s ms', ''},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s %%', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'mode_fader', false, 'mode_label', 'getTapeEchoMode', '%s', 'mode_grid', 'mode_label_grid', 'getTapeEchoMode',
-      '{0, 19, 37, 55, 73, 91, 110}'},
-    {81, 'wf_rate_fader', false, 'wf_rate_label', 'getZeroOneHundred', '%s', ''},
-    {82, 'wf_depth_fader', false, 'wf_depth_label', 'getZeroOneHundred', '%s', ''}
-  },
-  [15] = { -- time ctrl delay
-    {16, 'time_fader', false, 'time_label', 'getSyncDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getSyncDelayTimes',
-      '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}', 'true'},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s%%', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'l_damp_f_fader', false, 'l_damp_f_label', 'getLDampFValues', '%s', 'l_damp_f_grid', 'l_damp_f_label_grid', 'getLDampFValues',
-      '{0, 11, 22, 32, 43, 54, 64, 75, 85, 96, 107, 117}'},
-    {81, 'h_damp_f_fader', false, 'h_damp_f_label', 'getHDampFValues', '%s', 'h_damp_f_grid', 'h_damp_f_label_grid', 'getHDampFValues',
-      '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}'},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'time_fader', 'time_label', 'time_grid', 'time_label_grid'}
-  },
-  [16] = { -- super filter
-    {16, 'cutoff_fader', false, 'cutoff_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'filter_type_fader', false, 'filter_type_label', 'getSuperFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid', 'getSuperFilterType',
-      '{0, 43, 85}'},
-    {80, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'rate_fader', false, 'rate_label', 'getFilterRate', '%s', 'rate_grid', 'rate_label_grid', 'getFilterRate',
-      '{0, 7, 13, 19, 25, 31, 37, 43, 49, 55, 61, 67, 73, 79, 85, 92, 98, 104, 110, 116, 122, 127}', 'true'},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'rate_fader', 'rate_label', 'rate_grid', 'rate_label_grid'}
-  },
-  [17] = { -- wrm saturator
-    {16, 'drive_fader', false, 'drive_label', 'get48dB', '%s dB', ''},
-    {17, 'eq_low_fader', false, 'eq_low_label', 'get24dB', '%s dB', ''},
-    {18, 'eq_high_fader', false, 'eq_high_label', 'get24dB', '%s dB', ''},
-    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''}
-  },
-  [18] = { -- 303 VinylSim
-    {16, 'comp_fader', false, 'comp_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''}
-  },
-  [19] = { -- 404 VinylSim
-    {16, 'freq_fader', false, 'freq_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''}
-  },
-  [20] = { -- Cassette Sim
-    {16, 'tone_fader', false, 'tone_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'hiss_fader', false, 'hiss_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'age_fader', false, 'age_label', 'getZeroSixty', '%s', ''},
-    {80, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'wow_flut_fader', false, 'wow_flut_label', 'getZeroOneHundred', '%s', ''},
-    {82, 'catch_fader', false, 'catch_label', 'getZeroOneHundred', '%s', ''},
-  },
-  [21] = { -- Lo-fi
-    {16, 'pre_filt_fader', false, 'pre_filt_label', 'getPreFilter', '%s', 'pre_filt_grid', 'pre_filt_label_grid', 'getPreFilter',
-      '{0, 22, 43, 64, 85, 107}'},
-    {17, 'lofi_type_fader', false, 'lofi_type_label', 'getLofiType', '%s', 'lofi_type_grid', 'lofi_type_label_grid', 'getLofiType',
-      '{0, 15, 29, 43, 57, 71, 85, 100, 114}'},
-    {18, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', '%s', ''},
-    {80, 'cutoff_fader', false, 'cutoff_label', 'getLofiCutoff', '%s', 'cutoff_grid', 'cutoff_label_grid', 'getLofiCutoff',
-      '{0, 8, 15, 23, 30, 38, 45, 53, 60, 68, 75, 83, 90, 98, 105, 113, 120}'},
-    {81, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''}
-  },
-  [22] = { -- reverb
-    {16, 'type_fader', false, 'type_label', 'getReverbType', '%s', 'type_grid', 'type_label_grid', 'getReverbType',
-      '{0, 32, 64, 96}'},
-    {17, 'time_fader', false, 'time_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'low_cut_fader', false, 'low_cut_label', 'getLowCut', '%s', 'low_cut_grid', 'low_cut_label_grid', 'getLowCut',
-      '{0, 8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 95, 102, 109, 116, 123}'},
-    {81, 'high_cut_fader', false, 'high_cut_label', 'getHighCut', '%s', 'high_cut_grid', 'high_cut_label_grid', 'getHighCut',
-      '{0, 9, 18, 26, 35, 43, 52, 60, 69, 77, 86, 94, 103, 111, 120}'},
-    {82, 'pre_delay_fader', false, 'pre_delay_label', 'getHundredMS', '%s ms', ''}
-  },
-  [23] = { -- chorus
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getChorusRate', '%s sec', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {80, 'eq_low_fader', false, 'eq_low_label', 'getChorusEQ', '%s dB', 'eq_low_grid', 'eq_low_label_grid', 'getChorusEQ',
-      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
-    {81, 'eq_high_fader', false, 'eq_high_label', 'getChorusEQ', '%s dB', 'eq_high_grid', 'eq_high_label_grid', 'getChorusEQ',
-    '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
-    {82, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-  },
-  [24] = { -- juno chorus
-    {16, 'mode_fader', false, 'mode_label', 'getJunoChorusMode', '%s', 'mode_grid', 'mode_label_grid', 'getJunoChorusMode',
-      '{0, 26, 51, 77, 102}'},
-    {17, 'noise_fader', false, 'noise_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-  },
-  [25] = { -- flanger
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getFlangerRate', '%s', '', nil, nil, nil, 'true'},
-    {18, 'manual_fader', false, 'manual_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'rate_fader', '', '', ''},
-    },
-  [26] = { -- phaser
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getFlangerRate', '%s', '', nil, nil, nil, 'true'},
-    {18, 'manual_fader', false, 'manual_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'resonance_fader', false, 'resonance_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'rate_fader', '', '', ''},
-    },
-  [27] = { -- wah
-    {16, 'peak_fader', false, 'peak_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getWahRate', '%s', '', nil, nil, nil, 'true'},
-    {18, 'manual_fader', false, 'manual_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'filter_type_fader', false, 'filter_type_label', 'getWahFilterType', '%s', 'filter_type_grid', 'filter_type_label_grid', 'getWahFilterType',
-      '{0, 64}'},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'rate_fader', '', '', ''},
-    },
-  [28] = { -- slicer
-    {16, 'pattern_fader', false, 'pattern_label', 'getSlicerPattern', '%s', 'pattern_grid', 'pattern_label_grid', 'getSlicerPattern',
-      '{0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124}'},
-    {17, 'speed_fader', false, 'speed_label', 'getZeroOneHundred', '%s', 'speed_grid', 'speed_label_grid', 'getRate',
-      '{0, 7, 13, 19, 25, 31, 37, 43, 49, 55, 61, 67, 73, 79, 85, 92, 98, 104, 110, 116, 122, 127}', 'true'},
-    {18, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'shuffle_fader', false, 'shuffle_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'mode_fader', false, 'mode_label', 'getSlicerMode', '%s', 'mode_grid', 'mode_label_grid', 'getSlicerMode',
-      '{0, 64}'},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'speed_fader', 'speed_label', 'speed_grid', 'speed_label_grid'}
-  },
-  [29] = { -- tremolo/pan
-    {16, 'depth_fader', false, 'depth_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getWahRate', '%s', '', nil, nil, nil, 'true'},
-    {18, 'type_fader', false, 'type_label', 'getTremoloPanType', '%s', 'type_grid', 'type_label_grid', 'getTremoloPanType',
-      '{0, 64}'},
-    {80, 'wave_fader', false, 'wave_label', 'getTremoloPanWave', '%s', 'wave_grid', 'wave_label_grid', 'getTremoloPanWave',
-      '{0, 22, 43, 64, 85, 107}'},
-    {81, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'rate_fader', '', '', ''},
-    },
-  [30] = { -- chromatic PS
-    {16, 'pitch1_fader', false, 'pitch1_label', 'getPitch', '%s semi', ''},
-    {17, 'pitch2_fader', false, 'pitch2_label', 'getPitch', '%s semi', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {80, 'pan1_fader', false, 'pan1_label', 'getPan', '%s', ''},
-    {81, 'pan2_fader', false, 'pan2_label', 'getPan', '%s', ''},
-  },
-  [31] = { -- hyper-reso
-    {16, 'note_fader', true, 'note_value_label', 'getNote', '%s', 'note_grid', 'note_label_grid', 'getNote',
-      '{0, 4, 8, 11, 15, 19, 22, 26, 30, 33, 37, 41, 44, 48, 51, 55, 59, 62, 66, 70, 73, 77, 81, 84, 88, 92, 95, 99, 102, 106, 110, 113, 117, 121, 124}'},
-    {17, 'spread_fader', false, 'spread_label', 'getSpread', '%s', 'spread_grid', 'spread_label_grid', 'getSpread',
-      '{0, 26, 51, 77, 102}'},
-    {18, 'character_fader', false, 'character_value_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'scale_fader', true, 'scale_label', 'getScale', '%s', 'scale_grid', 'scale_label_grid', 'getScale',
-      '{0, 6, 11, 16, 22, 27, 32, 38, 43, 48, 54, 59, 64, 70, 75, 80, 85, 91, 96, 101, 107, 112, 117, 123}'},
-    {81, 'feedback_fader', false, 'feedback_value_label', 'getZeroNinetyNine', '%s %%', ''},
-    {82, 'env_mod_fader', false, 'env_mod_value_label', 'getZeroOneHundred', '%s', ''}
-  },
-  [32] = { -- ring-mod
-    {16, 'frequency_fader', false, 'frequency_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'sensitivity_fader', false, 'sensitivity_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {80, 'polarity_fader', false, 'polarity_label', 'getOnOff', '%s', 'polarity_grid', 'polarity_label_grid', 'getOnOff',
-      '{0, 64}'},
-    {81, 'eq_low_fader', false, 'eq_low_label', 'getChorusEQ', '%s dB', 'eq_low_grid', 'eq_low_label_grid', 'getChorusEQ',
-      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
-    {82, 'eq_high_fader', false, 'eq_high_label', 'getChorusEQ', '%s dB', 'eq_high_grid', 'eq_high_label_grid', 'getChorusEQ',
-      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'}
-  },
-  [33] = { -- crusher
-    {16, 'filter_fader', false, 'filter_label', 'getCrusherFilter', '%s Hz', ''},
-    {17, 'rate_fader', false, 'rate_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''}
-  },
-  [34] = { -- overdrive
-    {16, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', '%s', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-  },
-  [35] = { -- distortion
-    {16, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', '%s', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-  },
-  [36] = { -- equalizer
-    {16, 'low_gain_fader', false, 'low_gain_label', 'getChorusEQ', '%s dB', 'low_gain_grid', 'low_gain_label_grid', 'getChorusEQ',
-      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
-    {17, 'mid_gain_fader', false, 'mid_gain_label', 'getChorusEQ', '%s dB', 'mid_gain_grid', 'mid_gain_label_grid', 'getChorusEQ',
-      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
-    {18, 'high_gain_fader', false, 'high_gain_label', 'getChorusEQ', '%s dB', 'high_gain_grid', 'high_gain_label_grid', 'getChorusEQ',
-      '{0, 5, 9, 13, 17, 21, 25, 29, 33, 37, 42, 46, 50, 54, 58, 62, 66, 70, 75, 79, 83, 87, 91, 95, 99, 103, 107, 112, 116, 120, 124}'},
-    {80, 'low_freq_fader', false, 'low_freq_label', 'getEQLowFreq', '%s Hz', 'low_freq_grid', 'low_freq_label_grid', 'getEQLowFreq',
-      '{0, 10, 19, 28, 37, 46, 55, 64, 73, 82, 92, 101, 110, 119}'},
-    {81, 'mid_freq_fader', false, 'mid_freq_label', 'getEQMidFreq', '%s Hz', 'mid_freq_grid', 'mid_freq_label_grid', 'getEQMidFreq',
-      '{0, 8, 15, 23, 30, 38, 45, 53, 60, 68, 75, 83, 90, 98, 105, 113, 120}'},
-    {82, 'high_freq_fader', false, 'high_freq_label', 'getEQHighFreq', '%s Hz', 'high_freq_grid', 'high_freq_label_grid', 'getEQHighFreq',
-      '{0, 13, 26, 39, 52, 64, 77, 90, 102, 115}'}
-  },
-  [37] = { -- compressor
-    {16, 'sustain_fader', false, 'sustain_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'attack_fader', false, 'attack_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'ratio_fader', false, 'ratio_label', 'getZeroOneHundred', '%s', ''},
-    {80, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''}
-  },  
-  [38] = { -- sx reverb
-    {16, 'time_fader', false, 'time_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'tone_fader', false, 'tone_label', 'getBipolarHundredv2', '%s', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-  },
-  [39] = { -- sx delay
-    {16, 'delay_time_fader', false, 'delay_time_label', 'getDelayTimes', '%s', 'delay_time_grid', 'delay_time_label_grid', 'getDelayTimes',
-      '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}'},
-    {17, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s%%', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''}
-  },
-  [40] = { -- cloud delay
-    {16, 'window_fader', false, 'window_label', 'getZeroOneHundred', '%s', ''},
-    {17, 'pitch_fader', false, 'pitch_label', 'getCloudPitch', '%s', ''},
-    {18, 'balance_fader', false, 'balance_label', 'getBalance', '%s %%', ''},
-    {80, 'feedback_fader', false, 'feedback_label', 'getBipolarHundredv2', '%s', ''},
-    {81, 'cloudy_fader', false, 'cloudy_label', 'getZeroOneHundred', '%s', ''},
-    {82, 'lofi_fader', false, 'lofi_label', 'getOnOff', '%s', 'lofi_grid', 'lofi_label_grid', 'getOnOff',
-      '{0, 64}'},
-  },
-  [41] = { -- back spin
-    {16, 'length_fader', false, 'length_label', 'getBackSpin', '%s', 'length_grid', 'length_label_grid', 'getBackSpin',
-      '{0, 32, 64, 96, 127}'},
-    {17, 'speed_fader', false, 'speed_label', 'getZeroOneHundred', '%s', ''},
-    {18, 'back_sw_fader', false, 'back_sw_label', 'getOnOff', '%s', 'back_sw_grid', 'back_sw_label_grid', 'getOnOff',
-      '{0, 64}'},
-  },
-  [42] = { -- djfx delay
-    {16, 'length_fader', false, 'length_label', 'getLooperLength', '%s s', ''},    
-    {17, 'time_fader', false, 'time_label', 'getSyncDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getSyncDelayTimes',
-      '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}', 'true'},
-    {18, 'on_off_fader', false, 'on_off_label', 'getLoopOnOff', '%s', 'on_off_grid', 'on_off_label_grid', 'getLoopOnOff',
-      '{0, 64}'},
-    {80, 'feedback_fader', false, 'feedback_label', 'getZeroNinetyNine', '%s %%', ''},
-    {81, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-    {82, 'sync_fader', false, 'sync_label', 'getSync', '%s', 'sync_grid', 'sync_label_grid', 'getSync',
-      '{0, 64}', 'false', 'time_fader', 'time_label', 'time_grid', 'time_label_grid'}
-  },  
-  [43] = { -- auto-pitch
-    {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
-    {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
-    {18, 'balance_fader', false, 'balance_value_label', 'getBalance', '%s %%', ''},
-    {80, 'at_pitch_fader', false, 'at_pitch_value_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'key_fader', true, 'key_label', 'getPitchKey', '%s', 'key_grid', 'key_label_grid', 'getPitchKey',
-      '{0, 10, 20, 30, 40, 49, 59, 69, 79, 89, 99, 108, 118}'},
-    {82, 'on_off_fader', false, 'on_off_label', 'getOnOff', '%s', 'on_off_grid', 'on_off_label_grid', 'getOnOff',
-      '{0, 64}'}
-  },
-  [44] = { -- vocoder
-    {16, 'note_fader', true, 'note_value_label', 'getNote', '%s', 'note_grid', 'note_label_grid', 'getNote',
-      '{0, 4, 8, 11, 15, 19, 22, 26, 30, 33, 37, 41, 44, 48, 51, 55, 59, 62, 66, 70, 73, 77, 81, 84, 88, 92, 95, 99, 102, 106, 110, 113, 117, 121, 124}'},
-    {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
-    {18, 'tone_fader', false, 'tone_value_label', 'getBipolarHundredv2', '%s', ''},
-    {80, 'scale_fader', true, 'scale_label', 'getScale', '%s', 'scale_grid', 'scale_label_grid', 'getScale',
-      '{0, 6, 11, 16, 22, 27, 32, 38, 43, 48, 54, 59, 64, 70, 75, 80, 85, 91, 96, 101, 107, 112, 117, 123}'},
-    {81, 'chord_fader', true, 'chord_label', 'getVocoderChord', '%s', 'chord_grid', 'chord_label_grid', 'getVocoderChord',
-      '{0, 13, 26, 39, 51, 64, 77, 90, 102, 115}'},
-    {82, 'balance_fader', false, 'balance_value_label', 'getBalance', '%s %%', ''}
-  },
-  [45] = { -- harmony
-    {16, 'pitch_fader', false, 'pitch_value_label', 'getBipolarHundredv2', '%s', ''},
-    {17, 'formant_fader', false, 'formant_value_label', 'getBipolarHundredv2', '%s', ''},
-    {18, 'balance_fader', false, 'balance_value_label', 'getBalance', '%s %%', ''},
-    {80, 'at_pitch_fader', false, 'at_pitch_value_label', 'getZeroOneHundred', '%s', ''},
-    {81, 'key_fader', true, 'key_label', 'getPitchKey', '%s', 'key_grid', 'key_label_grid', 'getPitchKey',
-      '{0, 10, 20, 30, 40, 49, 59, 69, 79, 89, 99, 108, 118}'},
-    {82, 'harmony_fader', false, 'harmony_label', 'getVocoderChord', '%s', 'harmony_grid', 'harmony_label_grid', 'getVocoderChord',
-      '{0, 13, 26, 39, 51, 64, 77, 90, 102, 115}'}
-  },
-   [46] = { -- gt amp sim
-   {16, 'amp_type_fader', false, 'amp_type_label', 'getAmpType', '%s', 'amp_type_grid', 'amp_type_label_grid', 'getAmpType',
-     '{0, 22, 43, 64, 85, 107}'},
-   {17, 'drive_fader', false, 'drive_label', 'getZeroOneHundred', '%s', ''},
-   {18, 'level_fader', false, 'level_label', 'getZeroOneHundred', '%s', ''},
-   {80, 'bass_fader', false, 'bass_label', 'getBipolarHundredv3', '%s', ''},
-   {81, 'middle_fader', false, 'middle_label', 'getBipolarHundredv3', '%s', ''},
-   {82, 'treble_fader', false, 'treble_label', 'getBipolarHundredv3', '%s', ''},
- },
-}
+local controlsInfo = root.children.controls_info
 
 --************************************************************
 -- INITIALISE MAPPING
@@ -1594,6 +1163,7 @@ function generateAndAssignFaderScript(controlGroup, controlInfo)
   local faderObject = controlGroup:findByName(faderName, true)
   if faderObject then
     -- Assign the generated script
+    --print('Assigning fader script to:', faderObject.name)
     faderObject.script = faderScript
   end
 end
@@ -1605,6 +1175,7 @@ function generateAndAssignLabelScript(controlGroup, controlInfo)
   local labelObject = controlGroup:findByName(labelName, true)
   local labelScript = string.format(labelScriptTemplate, labelFormat)
   if labelObject then
+    --print('Assigning label script to:', labelObject.name)
     labelObject.script = labelScript
   end
 end
@@ -1638,6 +1209,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
   local gridObject = controlGroup:findByName(gridName, true)
   if gridObject then
     -- Assign the generated script
+    --print('Assigning grid script to:', gridObject.name)
     gridObject.script = gridScript
   end
 
@@ -1657,111 +1229,39 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
   end
 end
 
-function init()
-  for fxNum, category in pairs(controlsInfoArray) do
-    --print('Initialising category with fxPage:', fxNum)
-    local fxPage = root.children.control_pager.children[fxNum]
+function initializeControls()
+  for i = 1, 46 do
+    --print('Initialising category with fxPage:', i)
+    local fxPage = root.children.control_pager.children[i]
     --print('fxPage:', fxPage.name)
     local controlGroup = fxPage.children.control_group
     --print('controlGroup:', controlGroup.name)
+    
+    local controlInfo = json.toTable(controlsInfo.children[i].tag)
+    if controlInfo then
+      --print('Successfully loaded controlInfo for page:', i)
+      for i, control in ipairs(controlInfo) do
+        --print(string.format('controlInfo[%d]:', i), table.unpack(control))
+        local _, controlName, _, labelName, labelMapping, labelFormat, syncedGrid = table.unpack(control)
         
-    for _, controlInfo in ipairs(category) do
-      local _, controlName, _, labelName, labelMapping, labelFormat, syncedGrid = table.unpack(controlInfo)
-      
-      -- Skip controls without extra values (while WIP)
-      -- Can remove this check once all controls have been updated
-      if labelName then
         --print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedGrid)
         
-        generateAndAssignFaderScript(controlGroup, controlInfo)
-        generateAndAssignLabelScript(controlGroup, controlInfo)
+        generateAndAssignFaderScript(controlGroup, control)
+        generateAndAssignLabelScript(controlGroup, control)
         
         if syncedGrid ~= '' then
-          generateAndAssignGridScript(controlGroup, controlInfo)
+          generateAndAssignGridScript(controlGroup, control)
         end
       end
+    else
+      print('Failed to load controlInfo for page:', i)
     end
   end
 end
 
---************************************************************
--- MIDI HANDLING
---************************************************************
-function floatToMIDI(floatValue)
-  local midiValue = math.floor(floatValue * 127 + 0.5)
-  return midiValue
-end
-
-function midiToFloat(midiValue)
-  local floatValue = midiValue / 127
-  return floatValue
-end
-
 function onReceiveNotify(key, value)
-  --print('Action requested:', key, value)
-  if key == 'change_fx' then
-    fxNum = value
-  elseif key == 'channel' then
-    midiChannel = value
-  elseif key == 'store_fx_preset' then
-    
-    local controlInfoArray = controlsInfoArray[fxNum]
-    ccValues = defaultCCValues
-  
-    local fxPage = root.children.control_pager.children[fxNum]
-    local controlGroup = fxPage.children.control_group
-
-    -- Debugging information
-    --print('fxNum:', fxNum)
-    --print('Storing MIDI values:', unpack(ccValues))
-    --print('Controls:', unpack(controlInfoArray))
-    --print('Control group:', controlGroup.name)
-    --print('Control group tag:', controlGroup.tag)
-    
-    for index, controlInfo in ipairs(controlInfoArray) do
-      local controlObject = controlGroup:findByName(controlInfo[2], true)
-      --print('Control object:', controlObject.name)
-      if controlObject.type == ControlType.LABEL or controlObject.type == ControlType.GRID then
-        ccValues[index] = tonumber(controlObject.tag)
-      else
-        ccValues[index] = floatToMIDI(controlObject.values.x)
-      end
-    end
-
-    --print('Current MIDI values:', unpack(ccValues))
-
-    local presetNum = value
-    local presetIndex = tostring(fxNum)..' '..tostring(presetNum)
-    --print('Preset Index:', presetIndex)
-
-    presetManager:notify('store_preset', {presetIndex, ccValues})
-  
-  elseif key == 'recall_preset' then
-    local controlInfoArray = controlsInfoArray[fxNum]
-    ccValues = value
-    --print('Recalling MIDI values:', unpack(ccValues))
-
-    local fxPage = root.children.control_pager.children[fxNum]
-    local controlGroup = fxPage.children.control_group
-
-    local exclude_marked_presets = false
-    
-    if controlGroup.tag == '1' then
-      --print('Excluding marked presets')
-      exclude_marked_presets = true
-    end
-    
-    for index, controlInfo in ipairs(controlInfoArray) do
-      local ccNumber, controlName, isExcludable = table.unpack(controlInfo)
-    
-      local controlObject = controlGroup:findByName(controlName, true)
-      
-      --print(index, controlObject.name, controlObject.type, isExcludable, exclude_marked_presets)
-      
-      if not isExcludable or not exclude_marked_presets then
-        controlObject:notify('new_value', midiToFloat(ccValues[index]))
-      end
-    end
-    --print('Recalled MIDI values:', unpack(ccValues))
+  if key == 'init_midi_handler' then
+    print('Initialising MIDI handler')
+    initializeControls()
   end
 end
