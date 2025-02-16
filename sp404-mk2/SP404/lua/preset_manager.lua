@@ -1,11 +1,9 @@
 ------------------
 -- PRESET HANDLING
 ------------------
-
-local presetArray
-
 function storePreset(presetIndex, presetValue)
 
+  local presetArray = json.toTable(self.tag)
   presetArray[presetIndex] = presetValue
   
   if presetValue == nil then
@@ -22,6 +20,7 @@ end
 
 function recallPreset(presetIndex)
   
+  local presetArray = json.toTable(self.tag)
   return presetArray[presetIndex]
 
 end
@@ -35,6 +34,7 @@ end
 function storedPresetsPerFX(fxNum)
   
   local result = {}
+  local presetArray = json.toTable(self.tag)
   
   if presetArray == {} or presetArray == nil then
     return result
@@ -96,29 +96,19 @@ function onReceiveNotify(key, value)
   end
 end
 
-function init()
-  
+function initFXPresetHandler()
   local fxPresetHandler = root.children.fx_preset_handler
 
-  if self.tag ~= '' then
-    print('Initialising presetArray with:', self.tag)
-    presetArray = json.toTable(self.tag)
-  else
-    presetArray = {}
+  local fxNum = root.children.control_pager.values.page + 1
+  
+  if fxNum <= 46 then
+    print('Initialising preset manager for FX:', fxNum)
+    fxPresetHandler:notify('change_fx', fxNum)
   end
-  
-  local fxNum
-  
-  if root.children.control_pager.values.page < 46 then
-    fxNum = root.children.control_pager.values.page + 1
-  else
-    fxNum = 47
-  end
-  
-  print('Initialising preset manager for FX:', fxNum)
+end
 
-  fxPresetHandler:notify('change_fx', fxNum)
-  
+function init()
+  initFXPresetHandler()
 end
 
 function onReceiveOSC(message, connections)
@@ -129,10 +119,5 @@ function onReceiveOSC(message, connections)
   print('Received OSC message:', path, 'with preset JSON:', presetJSON)
   self.tag = presetJSON
   
-  local presetTable = json.toTable(presetJSON)
-  presetArray = presetTable
-  
-  print('Converted preset json to table:', unpack(presetTable))
-
-  init()
+  initFXPresetHandler()
 end
