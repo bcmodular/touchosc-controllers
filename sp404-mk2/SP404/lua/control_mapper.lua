@@ -1237,7 +1237,7 @@ function mapControls()
     local controlGroup = fxPage.children.control_group
     --print('controlGroup:', controlGroup.name)
     
-    local controlInfo = json.toTable(controlsInfo.children[i].tag)
+    local controlInfo = json.toTable(controlsInfo.children[tostring(i)].tag)
     if controlInfo then
       --print('Successfully loaded controlInfo for page:', i)
       for i, control in ipairs(controlInfo) do

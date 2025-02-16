@@ -5,11 +5,7 @@ function midiToFloat(midiValue)
   return floatValue
 end
 
-function recallPreset(midiChannel, presetIndex, ccValues)
-
-  local fxNum, presetNum = presetIndex:match("^(%d+) (%d+)$")
-  fxNum = tonumber(fxNum)
-  presetNum = tonumber(presetNum)
+function recallPreset(midiChannel, fxNum, presetNum, ccValues)
 
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
   print('controlInfoArray:', controlInfoArray)
@@ -44,9 +40,10 @@ function onReceiveNotify(key, value)
   if key == 'recall_preset_response' then
     print('proxy received recall_preset_response')
     local midiChannel = value[1]
-    local presetIndex = value[2]
-    local values = value[3]
+    local fxNum = value[2]
+    local presetNum = value[3]
+    local values = value[4]
     
-    recallPreset(midiChannel, presetIndex, values)
+    recallPreset(midiChannel, fxNum, presetNum, values)
   end
 end
