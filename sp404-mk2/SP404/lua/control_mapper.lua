@@ -1136,7 +1136,7 @@ local gridLabelScriptTemplate = [[
 ]]
 
 function generateAndAssignFaderScript(controlGroup, controlInfo)
-  local ccNumber, faderName, _, labelName, labelMapping, _, gridName, _, _, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
+  local ccNumber, faderName, _, _, labelName, labelMapping, _, gridName, _, _, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
 
   if not startValues or startValues == '' then
     -- Just so we don't break the script
@@ -1169,7 +1169,7 @@ function generateAndAssignFaderScript(controlGroup, controlInfo)
 end
 
 function generateAndAssignLabelScript(controlGroup, controlInfo)
-  local ccNumber, _, _, labelName, _, labelFormat, _, _, _, _, _, _, _, _, _ = table.unpack(controlInfo)
+  local ccNumber, _, _, _, labelName, _, labelFormat, _, _, _, _, _, _, _, _, _ = table.unpack(controlInfo)
 
   -- Generate and assign label script
   local labelObject = controlGroup:findByName(labelName, true)
@@ -1182,7 +1182,7 @@ end
 
 function generateAndAssignGridScript(controlGroup, controlInfo)
   -- Generate and assign grid script
-  local ccNumber, faderName, _, _, labelMapping, _, gridName, gridLabelName, gridLabelMapping, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = table.unpack(controlInfo)
+  local ccNumber, faderName, _, _, _, labelMapping, _, gridName, gridLabelName, gridLabelMapping, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = table.unpack(controlInfo)
 
   local amSyncGrid = 'true'
   if not showHideFader then
@@ -1242,7 +1242,7 @@ function mapControls()
       --print('Successfully loaded controlInfo for page:', i)
       for i, control in ipairs(controlInfo) do
         --print(string.format('controlInfo[%d]:', i), table.unpack(control))
-        local _, controlName, _, labelName, labelMapping, labelFormat, syncedGrid = table.unpack(control)
+        local _, controlName, _, _, labelName, labelMapping, labelFormat, syncedGrid = table.unpack(control)
         
         --print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedGrid)
         
@@ -1259,9 +1259,184 @@ function mapControls()
   end
 end
 
+local performFaderScriptTemplate = [[
+  local amSyncFader = %s
+  %s  -- Include the mapping function definition here
+  local startValues = %s
+  local syncOn = false
+
+  function midiToFloat(midiValue)
+    local floatValue = midiValue / 127
+    return floatValue
+  end
+
+  function floatToMIDI(floatValue)
+    local midiValue = math.floor(floatValue * 127 + 0.5)
+    return midiValue
+  end
+
+  local function findRange(ranges, target)
+    print("Finding range for target: " .. tostring(target))
+    
+    for i, rangeStart in ipairs(ranges) do
+      -- Special handling for the last range when it starts at 127
+      if i == #ranges and rangeStart == 127 then
+        if target == 127 then
+          return i
+        else
+          return i - 1
+        end
+      end
+
+      local rangeEnd = ranges[i + 1] or 128
+      print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
+      if target >= rangeStart and target < rangeEnd then
+        print("Found range " .. tostring(i))
+        return i
+      end
+    end
+
+    -- Should never reach here if ranges are properly defined
+    return 1
+  end
+
+  function floatToRange(floatValue)
+
+    local midiValue = math.floor(floatValue * 127 + 0.5)
+
+    if next(startValues) == nil then
+      -- Return full midi range as the range
+      local index = midiValue + 1
+      print("Returning index in full midi range:", index)
+      return index
+    end
+
+    print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
+    
+    local index = findRange(startValues, midiValue)
+
+    print("Index in grid range:", index)
+    
+    return index
+  end
+
+  function updateLabel(value)
+    local label = self.parent:findByName('value_label')
+    local newText = ''
+    local index = floatToRange(value)
+    
+    if amSyncFader then
+      if not syncOn then 
+        index = floatToMIDI(value) + 1
+      end
+      newText = %s(index, syncOn)
+    else
+      newText = %s(index)
+    end
+    
+    print("Updating label '" .. label.name .. "' with value: " .. tostring(newText))
+    label:notify('update_text', newText)
+  end
+
+  function syncMIDI()
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, floatToMIDI(self.values.x)})
+  end
+
+  function onReceiveNotify(key, value)
+    if key == 'new_value' then
+      print('New value:', value)
+      self.values.x = value
+      updateLabel(value)
+    elseif key == 'new_cc_value' then
+      print('New cc value:', value)
+      local floatValue = midiToFloat(value)
+      self.values.x = floatValue
+      updateLabel(floatValue)
+    elseif key == 'sync_toggle' then
+      print('Toggling fader sync:', value)
+      syncOn = value
+      updateLabel(self.values.x)
+    end
+  end
+
+  function onValueChanged(value)
+    if value == 'x' then
+      updateLabel(self.values.x)
+      syncMIDI()
+    end
+  end
+]]
+
+function setUpPerformValueLabel(valueLabel, labelFormat)
+  local labelScript = string.format(labelScriptTemplate, labelFormat)
+  if valueLabel then
+    print('Assigning label script to:', valueLabel.name)
+    valueLabel.script = labelScript
+  end
+end
+
+function setUpPerformFader(controlFader, channel, controlInfo)
+  local ccNumber, _, _, _, _, labelMapping, _, _, _, _, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
+
+  if not startValues or startValues == '' then
+    -- Just so we don't break the script
+    startValues = '{}'
+  end
+
+  if not amSyncFader then
+    amSyncFader = 'false'
+  end
+
+  print('Generating perform fader script for:', controlFader.name, labelMapping, startValues, amSyncFader, mappingScripts[labelMapping])
+
+  local faderScript = string.format(performFaderScriptTemplate, 
+    amSyncFader,
+    mappingScripts[labelMapping],
+    startValues,
+    labelMapping,
+    labelMapping,
+    channel,
+    ccNumber)
+
+  controlFader.script = faderScript
+end
+
 function onReceiveNotify(key, value)
   if key == 'init_control_mapper' then
     print('Initialising Control Mapper')
     mapControls()
+  elseif key == 'init_perform_faders' then
+    print('Initialising perform faders')
+    local fxNum = value[1]
+    local channel = value[2]
+    local controlInfo = json.toTable(controlsInfo.children[tostring(fxNum)].tag)
+    local faderGroups = value[3]
+
+    for index = 1, 6 do
+      local faderGroup = faderGroups.children[tostring(index)]
+      -- Each element contains a control_fader, value_label and name_label
+      local controlFader = faderGroup.children.control_fader
+      local valueLabel = faderGroup.children.value_label
+      local nameLabel = faderGroup.children.name_label
+
+      local control = controlInfo[index]
+      
+      if control == nil then
+        controlFader.visible = false
+        valueLabel.visible = false
+        nameLabel.visible = false
+      else
+        controlFader.visible = true
+        valueLabel.visible = true
+        nameLabel.visible = true
+
+        local ccNumber, _, _, labelText, labelName, labelMapping, labelFormat = table.unpack(control)
+
+        nameLabel.values.text = labelText
+        setUpPerformFader(controlFader, channel, control)
+        setUpPerformValueLabel(valueLabel, labelFormat)
+
+      end
+    end
   end
 end
