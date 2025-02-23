@@ -37,6 +37,16 @@ local function recallPreset(fxNum, ccValues)
   print('Recalled MIDI values:', table.unpack(ccValues))
 end
 
+local function returnValuesToPerform(values)
+  print('Returning values to perform:', table.unpack(values))
+  local faders = self.parent:findByName('faders', true)
+  for i = 1, 6 do
+    local faderGroup = faders:findByName(tostring(i))
+    local controlFader = faderGroup:findByName('control_fader')
+    controlFader:notify('new_value', values[i])
+  end
+end
+
 ---@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if key == 'recall_preset_response' then
@@ -45,5 +55,8 @@ function onReceiveNotify(key, value)
     local values = value[2]
 
     recallPreset(fxNum, values)
+  elseif key == 'return_values_to_perform' then
+    print('proxy received return_values_to_perform')
+    returnValuesToPerform(value)
   end
 end

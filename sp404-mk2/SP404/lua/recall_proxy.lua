@@ -1,4 +1,5 @@
 local controlsInfo = root.children.controls_info
+local performRecallProxy = nil
 
 local function midiToFloat(midiValue)
   local floatValue = midiValue / 127
@@ -23,7 +24,7 @@ local function recallPreset(fxNum, ccValues)
   end
 
   for i, controlInfo in ipairs(controlInfoArray) do
-    local ccNumber, controlName, isExcludable = table.unpack(controlInfo)
+    local _, controlName, isExcludable = table.unpack(controlInfo)
 
     local controlObject = controlGroup:findByName(controlName, true)
 
@@ -36,6 +37,38 @@ local function recallPreset(fxNum, ccValues)
   print('Recalled MIDI values:', table.unpack(ccValues))
 end
 
+local function setCurrentValues(fxNum, values)
+  print('Setting current values:', table.unpack(values))
+  local fxPage = root.children.control_pager.children[fxNum]
+  local controlGroup = fxPage.children.control_group
+  local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
+
+  for i, controlInfo in ipairs(controlInfoArray) do
+    local _, controlName, _ = table.unpack(controlInfo)
+
+    local controlObject = controlGroup:findByName(controlName, true)
+    controlObject:notify('new_value', values[i])
+  end
+end
+
+local function returnValuesToPerform(fxNum)
+  print('Returning values to perform')
+  local values = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
+  local fxPage = root.children.control_pager.children[fxNum]
+  local controlGroup = fxPage.children.control_group
+  local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
+
+  for i, controlInfo in ipairs(controlInfoArray) do
+    local _, controlName, _ = table.unpack(controlInfo)
+
+    local controlObject = controlGroup:findByName(controlName, true)
+    values[i] = controlObject.values.x
+  end
+  if performRecallProxy then
+    performRecallProxy:notify('return_values_to_perform', values)
+  end
+end
+
 ---@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if key == 'recall_preset_response' then
@@ -44,5 +77,15 @@ function onReceiveNotify(key, value)
     local values = value[2]
 
     recallPreset(fxNum, values)
+  elseif key == 'set_current_values' then
+    print('proxy received set_current_values')
+    local fxNum = value[1]
+    local values = value[2]
+    performRecallProxy = value[3]
+    setCurrentValues(fxNum, values)
+  elseif key == 'return_values_to_perform' then
+    print('proxy received return_values_to_perform')
+    local fxNum = value
+    returnValuesToPerform(fxNum)
   end
 end

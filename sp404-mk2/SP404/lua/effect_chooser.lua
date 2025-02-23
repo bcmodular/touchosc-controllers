@@ -248,13 +248,7 @@ local function showBus()
   controlMapper:notify('init_perform', {fxNum, 0, faderGroups, potGroups})
 
   local onOffButtonGroup = self.parent:findByName('on_off_button_group', true)
-  for i = 1, #onOffButtonGroup.children do
-    local onOffButton = onOffButtonGroup.children[i]
-    if onOffButton.type == ControlType.BUTTON then
-      onOffButton:notify('new_settings', {fxNum, midiChannel})
-    end
-  end
-
+  onOffButtonGroup:notify('set_settings', {fxNum, midiChannel})
 end
 
 local function setUpBus()
