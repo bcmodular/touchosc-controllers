@@ -21,11 +21,11 @@ end
   if (key == 'x' and self.values.x == 1 and self.name ~= 'perform_preset_grid') then
 
     local buttonState = tonumber(self.name) or 0
-    --print('button state:', buttonState)
+    print('button state:', buttonState)
 
     if (buttonState == BUTTON_STATE.RECALL) then
-      -- A recall button was clicked
-      --fxPresetHandler:notify('recall', self.index)
+      local performPresetHandler = self.parent.parent:findByName('perform_preset_handler')
+      performPresetHandler:notify('recall', self.index)
     end
   end
 end
@@ -33,9 +33,9 @@ end
 function onReceiveNotify(key, value)
 
   if key == 'init_presets_list' and self.name == 'perform_preset_grid' then
-
     -- Handle the response to our initialisation request
-    local fxNum = value
+    local effectChooser = self.parent.parent:findByName('effect_chooser')
+    local fxNum = effectChooser.tag
     local presetManager = root.children.preset_manager
     local presetArray = json.toTable(presetManager.children[tostring(fxNum)].tag) or {}
     print('presetArray:', table.unpack(presetArray), 'fxNum:', fxNum)

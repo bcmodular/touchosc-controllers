@@ -236,8 +236,11 @@ local function showBus()
   local controlGroup = self.parent:findByName('control_group', true)
   controlGroup.visible = true
 
+  local performPresetHandler = self.parent:findByName('perform_preset_handler', true)
+  performPresetHandler:notify('set_settings', {fxNum, midiChannel})
+
   local performPresetGrid = self.parent:findByName('perform_preset_grid', true)
-  performPresetGrid:notify('init_presets_list', fxNum)
+  performPresetGrid:notify('init_presets_list')
 
   local controlMapper = root:findByName('control_mapper', true)
   local faderGroups = self.parent:findByName('faders', true)

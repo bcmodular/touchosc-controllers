@@ -1,6 +1,5 @@
 -- Index into the Root preset array for this FX
-local fxNum = 0
-local midiChannel = 0
+local fxNum = 1
 local fxPresetGrid = nil
 local defaultCCValues = {0, 0, 0, 0, 0, 0}
 
@@ -21,8 +20,13 @@ local function storeFXPreset(presetNum)
 
   for i, controlInfo in ipairs(controlInfoArray) do
     local controlObject = controlGroup:findByName(controlInfo[2], true)
-    print('Control object:', controlObject.name)
-    ccValues[i] = floatToMIDI(controlObject.values.x)
+    if controlObject then
+      print('Control object:', controlObject.name)
+      ccValues[i] = floatToMIDI(controlObject.values.x)
+    else
+      print('Control object not found:', controlInfo[2])
+      ccValues[i] = 0
+    end
   end
 
   print('Current MIDI values:', table.unpack(ccValues))
@@ -34,7 +38,6 @@ end
 
 local function handleSetSettings(value)
   fxNum = tonumber(value[1]) or 0
-  midiChannel = tonumber(value[2]) or 0
 
   local presetManager = root.children.preset_manager
   presetManager:notify('stored_presets_list', {fxPresetGrid, fxNum})
@@ -60,7 +63,9 @@ end
 local function handleRecall(value)
   print('fx_preset_handler received recall notification for preset:', value)
   local presetManager = root.children.preset_manager
-  presetManager:notify('recall_preset', {fxNum, value})
+  local recallProxy = root.children.recall_proxy
+
+  presetManager:notify('recall_preset', {fxNum, value, recallProxy})
 end
 
 ---@diagnostic disable: lowercase-global
