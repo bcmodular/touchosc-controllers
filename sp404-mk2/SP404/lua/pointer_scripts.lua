@@ -1,11 +1,31 @@
+---@diagnostic disable-next-line: undefined-global
+ValueField = ValueField
+---@diagnostic disable-next-line: undefined-global
+getMillis = getMillis
+---@diagnostic disable-next-line: undefined-global
+PointerState = PointerState
+
+local pointerScript = [[
+-- Limits the value and returns it to ensure it stays within [min, max]
+local function limit(x, min, max)
+  if (x > max) then
+    return max
+  end
+  if (x < min) then
+    return min
+  end
+  return x
+end
+
+---@diagnostic disable: lowercase-global
 function init()
-  
+
   -- The ratio defines how many pixels correspond to one rotation of the knob.
   -- distance_ratio: standard sensitivity
   distance_ratio = 1/200  -- 1 rotation corresponds to 200 pixels movement
   -- distance_ratio_fine: finer sensitivity for precise control
   distance_ratio_fine = 1/1000  -- 1 rotation corresponds to 1000 pixels movement
-  
+
   -- Target Object for controlling the value
   target_obj = self.parent.children['value']
   -- Original value before pointer interaction
@@ -22,7 +42,7 @@ end
 function onPointer(pointers)
   -- Flag to determine if fine control is active (multiple pointers)
   local fine_control = false
-  
+
   -- Determine the number of active pointers
   local new_pointer_count = 1
   if (#self.pointers > 1) then
@@ -36,7 +56,7 @@ function onPointer(pointers)
 
     -- If the number of active pointers has changed, reset start positions
     if (new_pointer_count ~= pointer_count) then
-      start_y = pointer.y 
+      start_y = pointer.y
       og_value = target_obj.values.x
       pointer_count = new_pointer_count
     end
@@ -57,7 +77,7 @@ function onPointer(pointers)
     if (pointer.state == PointerState.END) then
       -- Pointer interaction has ended
       do_move = false -- Do not apply cursor change on end as it can shift on release...
-      
+
       -- Get the current time in milliseconds
       local new_press_time = getMillis()
       -- Check if the press duration was short (a tap)
@@ -75,35 +95,39 @@ function onPointer(pointers)
       -- Pointer is moving, set do_move to true to process movement
       do_move = true
     end
-    
-    if(do_move) then
+
+    if (do_move) then
       -- Calculate the vertical distance moved by the pointer
-      local distance = start_y - pointer.y 
-      
+      local distance = start_y - pointer.y
+
       -- Determine which ratio to use based on control mode
       local ratio = distance_ratio
       if (fine_control) then
         ratio = distance_ratio_fine
       end
-      
+
       -- Calculate the new value based on the distance and ratio
       local new_value = og_value + (distance * ratio)
       -- Ensure the new value is within the allowed range [0,1]
       new_value = limit(new_value, 0,1)
-    
+
       -- Update the target object's value
       target_obj.values.x = new_value
     end
   end
 end
+]]
 
--- Limits the value and returns it to ensure it stays within [min, max]
-function limit(x, min, max)
-  if(x > max) then
-    return max
+-- Initialises the various pointer objects
+local function initialisePointers()
+  local pointers = self.parent:findAllByName('pointer', true)
+  for _, pointer in ipairs(pointers) do
+    print('initialising pointer', pointer.name)
+    pointer.script = pointerScript
   end
-  if(x < min) then
-    return min
-  end
-  return x
+end
+
+---@diagnostic disable: lowercase-global
+function init()
+  initialisePointers()
 end

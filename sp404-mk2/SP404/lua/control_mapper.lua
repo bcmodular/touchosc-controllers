@@ -7,7 +7,7 @@ local controlsInfo = root.children.controls_info
 -- MAPPING SCRIPTS *******************************************
 
 local getZeroOneHundredSnippet = [[
-  function getZeroOneHundred(value)
+  local function getZeroOneHundred(value)
     local midiValue = value - 1
     if midiValue == 127 then
       return 100
@@ -19,25 +19,25 @@ local getZeroOneHundredSnippet = [[
 
 local getTapeSpeedSnippet = [[
   local tapeSpeedMap = {
-    10, 12, 13, 15, 17, 18, 20, 22, 24, 25, 
-    27, 29, 31, 33, 35, 37, 39, 42, 44, 46, 
-    48, 50, 53, 55, 58, 60, 63, 65, 68, 70, 
-    73, 76, 79, 82, 84, 87, 90, 93, 97, 100, 
-    103, 106, 110, 113, 117, 120, 124, 127, 131, 
-    135, 139, 143, 147, 151, 155, 159, 164, 168, 
-    172, 177, 182, 186, 191, 196, 201, 206, 211, 
-    217, 222, 227, 233, 239, 244, 250, 256, 262, 
-    269, 275, 281, 288, 294, 301, 308, 315, 322, 
-    330, 337, 345, 352, 360, 368, 376, 385, 393, 
-    402, 410, 419, 428, 437, 447, 456, 466, 476, 
-    486, 496, 507, 518, 528, 539, 551, 562, 574, 
-    586, 598, 610, 623, 635, 648, 662, 675, 689, 
+    10, 12, 13, 15, 17, 18, 20, 22, 24, 25,
+    27, 29, 31, 33, 35, 37, 39, 42, 44, 46,
+    48, 50, 53, 55, 58, 60, 63, 65, 68, 70,
+    73, 76, 79, 82, 84, 87, 90, 93, 97, 100,
+    103, 106, 110, 113, 117, 120, 124, 127, 131,
+    135, 139, 143, 147, 151, 155, 159, 164, 168,
+    172, 177, 182, 186, 191, 196, 201, 206, 211,
+    217, 222, 227, 233, 239, 244, 250, 256, 262,
+    269, 275, 281, 288, 294, 301, 308, 315, 322,
+    330, 337, 345, 352, 360, 368, 376, 385, 393,
+    402, 410, 419, 428, 437, 447, 456, 466, 476,
+    486, 496, 507, 518, 528, 539, 551, 562, 574,
+    586, 598, 610, 623, 635, 648, 662, 675, 689,
     703, 717, 731, 746, 761, 777, 800
   }
 
-  function getTapeSpeed(value)
+  local function getTapeSpeed(value)
     return tapeSpeedMap[value]
-  end  
+  end
 ]]
 
 local mappingScripts = {
@@ -46,18 +46,18 @@ local mappingScripts = {
       20.0, 21.1, 22.2, 23.4, 24.7, 26.0, 27.4, 28.9, 30.4, 32.1, 33.8, 35.6, 37.5,
       39.5, 41.7, 43.9, 46.3, 48.8, 51.4, 54.2, 57.1, 60.1, 63.4, 66.8, 70.4, 74.2,
       78.2, 82.4, 86.8, 91.5, 96.4, 102.0, 107.0, 113.0, 119.0, 125.0, 132.0, 139.0,
-      147.0, 155.0, 163.0, 172.0, 181.0, 191.0, 201.0, 212.0, 223.0, 235.0, 248.0, 
-      261.0, 275.0, 290.0, 306.0, 322.0, 339.0, 358.0, 377.0, 397.0, 418.0, 441.0, 
-      465.0, 490.0, 516.0, 544.0, 573.0, 604.0, 637.0, 671.0, 707.0, 745.0, 785.0, 
-      827.0, 872.0, 919.0, 968.0, 1020.0, 1075.0, 1133.0, 1194.0, 1258.0, 1326.0, 
-      1397.0, 1473.0, 1552.0, 1636.0, 1724.0, 1816.0, 1914.0, 2017.0, 2126.0, 2240.0, 
-      2361.0, 2488.0, 2622.0, 2763.0, 2912.0, 3068.0, 3233.0, 3407.0, 3591.0, 3784.0, 
-      3988.0, 4202.0, 4429.0, 4667.0, 4918.0, 5183.0, 5462.0, 5756.0, 6066.0, 6392.0, 
-      6736.0, 7099.0, 7481.0, 7884.0, 8308.0, 8755.0, 9227.0, 9723.0, 10247.0, 10798.0, 
+      147.0, 155.0, 163.0, 172.0, 181.0, 191.0, 201.0, 212.0, 223.0, 235.0, 248.0,
+      261.0, 275.0, 290.0, 306.0, 322.0, 339.0, 358.0, 377.0, 397.0, 418.0, 441.0,
+      465.0, 490.0, 516.0, 544.0, 573.0, 604.0, 637.0, 671.0, 707.0, 745.0, 785.0,
+      827.0, 872.0, 919.0, 968.0, 1020.0, 1075.0, 1133.0, 1194.0, 1258.0, 1326.0,
+      1397.0, 1473.0, 1552.0, 1636.0, 1724.0, 1816.0, 1914.0, 2017.0, 2126.0, 2240.0,
+      2361.0, 2488.0, 2622.0, 2763.0, 2912.0, 3068.0, 3233.0, 3407.0, 3591.0, 3784.0,
+      3988.0, 4202.0, 4429.0, 4667.0, 4918.0, 5183.0, 5462.0, 5756.0, 6066.0, 6392.0,
+      6736.0, 7099.0, 7481.0, 7884.0, 8308.0, 8755.0, 9227.0, 9723.0, 10247.0, 10798.0,
       11379.0, 11992.0, 12637.0, 13318.0, 14035.0, 14790.0, 16000.0
     }
 
-    function getFreq(value)
+    local function getFreq(value)
       local scaledValue = midiToFrequencyMap[value]
       return scaledValue
     end
@@ -66,7 +66,7 @@ local mappingScripts = {
   getZeroOneHundred = getZeroOneHundredSnippet,
 
   getZeroSixty = [[
-    function getZeroSixty(value)
+    local function getZeroSixty(value)
       local midiValue = value - 1
       if midiValue == 127 then
         return 60
@@ -77,7 +77,7 @@ local mappingScripts = {
   ]],
 
   get24dB = [[
-    function get24dB(value)
+    local function get24dB(value)
       local midiValue = value - 1
       local dbValue = math.floor((midiValue / 127.5) * 49) - 24
 
@@ -110,7 +110,7 @@ local mappingScripts = {
       '11.74', '12.00'
     }
 
-    function getEQ(value)
+    local function getEQ(value)
       local scaledValue = midiToEQRangeMap[value]
       return scaledValue
     end
@@ -127,7 +127,7 @@ local mappingScripts = {
       79, 81, 82, 84, 86, 87, 89, 90, 92, 93, 95, 97, 98, 100
     }
 
-    function getBipolarHundred(value)
+    local function getBipolarHundred(value)
       return bipolarHundredRangeMap[value]
     end
   ]],
@@ -143,7 +143,7 @@ local mappingScripts = {
       78, 80, 81, 83, 85, 86, 88, 89, 91, 92, 94, 96, 97, 100
     }
 
-    function getBipolarHundredv2(value)
+    local function getBipolarHundredv2(value)
       return bipolarHundredRangeMapv2[value]
     end
   ]],
@@ -160,23 +160,23 @@ local mappingScripts = {
       76, 77, 79, 81, 82, 84, 85, 87, 88, 90, 92, 93, 95, 96, 98, 100
     }
 
-    function getBipolarHundredv3(value)
+    local function getBipolarHundredv3(value)
       return bipolarHundredRangeMapv3[value]
     end
   ]],
 
   getHundredMS = [[
     local hundredMSRangeMap = {
-      0, 0, 1, 2, 3, 3, 4, 5, 6, 7, 7, 8, 9, 10, 11, 11, 12, 13, 14, 15, 15, 16, 
-      17, 18, 19, 19, 20, 21, 22, 22, 23, 24, 25, 26, 26, 27, 28, 29, 30, 30, 31, 
-      32, 33, 34, 34, 35, 36, 37, 38, 38, 39, 40, 41, 41, 42, 43, 44, 45, 45, 46, 
-      47, 48, 49, 49, 50, 51, 52, 53, 53, 54, 55, 56, 57, 57, 58, 59, 60, 61, 61, 
-      62, 63, 64, 64, 65, 66, 67, 68, 68, 69, 70, 71, 72, 72, 73, 74, 75, 76, 76, 
-      77, 78, 79, 80, 80, 81, 82, 83, 83, 84, 85, 86, 87, 87, 88, 89, 90, 91, 91, 
+      0, 0, 1, 2, 3, 3, 4, 5, 6, 7, 7, 8, 9, 10, 11, 11, 12, 13, 14, 15, 15, 16,
+      17, 18, 19, 19, 20, 21, 22, 22, 23, 24, 25, 26, 26, 27, 28, 29, 30, 30, 31,
+      32, 33, 34, 34, 35, 36, 37, 38, 38, 39, 40, 41, 41, 42, 43, 44, 45, 45, 46,
+      47, 48, 49, 49, 50, 51, 52, 53, 53, 54, 55, 56, 57, 57, 58, 59, 60, 61, 61,
+      62, 63, 64, 64, 65, 66, 67, 68, 68, 69, 70, 71, 72, 72, 73, 74, 75, 76, 76,
+      77, 78, 79, 80, 80, 81, 82, 83, 83, 84, 85, 86, 87, 87, 88, 89, 90, 91, 91,
       92, 93, 94, 95, 95, 96, 97, 98, 99, 99, 100
     }
 
-    function getHundredMS(value)
+    local function getHundredMS(value)
       return hundredMSRangeMap[value]
     end
   ]],
@@ -192,12 +192,12 @@ local mappingScripts = {
       92, 93, 93, 94, 95, 96, 96, 97, 98, 99, 100
     }
 
-    function getBalance(value)
+    local function getBalance(value)
       local rangeValue = balanceRangeMap[value]
       local inverseValue = 100 - rangeValue
       local displayString = inverseValue .. '-' .. rangeValue
       return displayString
-    end  
+    end
   ]],
 
   getSBFGain = [[
@@ -220,7 +220,7 @@ local mappingScripts = {
       '+6.7', '+7.2', '+7.6', '+8.1', '+8.5', '+9.0', '+9.4', '+10.0'
     }
 
-    function getSBFGain(value)
+    local function getSBFGain(value)
       return sbfGainMap[value]
     end
   ]],
@@ -228,18 +228,18 @@ local mappingScripts = {
   getTapeSpeed = getTapeSpeedSnippet,
 
   getZeroNinetyNine = [[
-    function getZeroNinetyNine(value)
+    local function getZeroNinetyNine(value)
       local midiValue = value - 1
       if midiValue == 127 then
         return 99
       else
         return math.floor((midiValue / 127.5) * 99)
-      end    
-    end  
+      end
+    end
   ]],
 
   get48dB = [[
-    function get48dB(value)
+    local function get48dB(value)
       local midiValue = value - 1
       local dbValue = math.floor((midiValue / 127.5) * 49)
       return dbValue
@@ -247,8 +247,8 @@ local mappingScripts = {
   ]],
 
   getLooperLength = [[
-    function getLooperLength(value)
-      local midiValue = value - 1    
+    local function getLooperLength(value)
+      local midiValue = value - 1
       if midiValue == 127 then
         return 0.012
       else
@@ -261,31 +261,31 @@ local mappingScripts = {
   ]],
 
   getFilterType = [[
-    function getFilterType(value)
+    local function getFilterType(value)
       local filterTypes = {'HIGH-PASS', 'LOW-PASS'}
       return filterTypes[value]
     end
   ]],
 
   getWahFilterType = [[
-    function getWahFilterType(value)
+    local function getWahFilterType(value)
       local filterTypes = {'LOW-PASS', 'BAND-PASS'}
       return filterTypes[value]
     end
-  ]],  
+  ]],
 
   getSuperFilterType = [[
-    function getSuperFilterType(value)
+    local function getSuperFilterType(value)
       local filterTypes = {'LOW-PASS', 'BAND-PASS', 'HIGH-PASS'}
       return filterTypes[value]
     end
-  ]],  
+  ]],
 
   getRoot = [[
     local rootNotes = {'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'}
     local rootOctaves = {'-1', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
-    
-    function getRoot(value)
+
+    local function getRoot(value)
       local midiValue = value - 1
       local rootNote = rootNotes[(midiValue % 12) + 1]
       local rootOctave = rootOctaves[math.floor(midiValue / 12) + 1]
@@ -295,13 +295,13 @@ local mappingScripts = {
 
   getChord = [[
     local chords = {
-      'Root', 'Oct', 'UpDn', 'P5', 
-      'm3', 'm5', 'm7', 'm7oct', 
-      'm0', 'm11', 'M3', 'M5', 
+      'Root', 'Oct', 'UpDn', 'P5',
+      'm3', 'm5', 'm7', 'm7oct',
+      'm0', 'm11', 'M3', 'M5',
       'M7', 'M7oct', 'M9', 'M11'
     }
 
-    function getChord(value)
+    local function getChord(value)
       local chord = chords[value]
       return chord
     end
@@ -309,13 +309,13 @@ local mappingScripts = {
 
   getDelayTimes = [[
     local delayTimes = {
-        '1/32', '1/16T', '1/32D', '1/16', 
-        '1/8T', '1/16D', '1/8', '1/4T', 
-        '1/8D', '1/4', '1/2T', '1/4D', 
+        '1/32', '1/16T', '1/32D', '1/16',
+        '1/8T', '1/16D', '1/8', '1/4T',
+        '1/8D', '1/4', '1/2T', '1/4D',
         '1/2', '1/1T', '1/2D', '1/1'
     }
 
-    function getDelayTimes(value)
+    local function getDelayTimes(value)
       local delayTime = delayTimes[value]
       return delayTime
     end
@@ -323,13 +323,13 @@ local mappingScripts = {
 
   getSyncDelayTimes = getTapeSpeedSnippet..[[
     local delayTimes = {
-        '1/32', '1/16T', '1/32D', '1/16', 
-        '1/8T', '1/16D', '1/8', '1/4T', 
-        '1/8D', '1/4', '1/2T', '1/4D', 
+        '1/32', '1/16T', '1/32D', '1/16',
+        '1/8T', '1/16D', '1/8', '1/4T',
+        '1/8D', '1/4', '1/2T', '1/4D',
         '1/2', '1/1T', '1/2D', '1/1'
     }
 
-    function getSyncDelayTimes(value, syncOn)
+    local function getSyncDelayTimes(value, syncOn)
       if syncOn then
         return delayTimes[value]
       else
@@ -341,16 +341,16 @@ local mappingScripts = {
   getLDampFValues = [[
     local lDampFValues = {'FLAT', '80', '100', '125', '160', '200', '250', '315', '400', '500', '630', '800'}
 
-    function getLDampFValues(value)
+    local function getLDampFValues(value)
       local lDampFValue = lDampFValues[value]
       return lDampFValue
     end
-  ]],   
+  ]],
 
   getHDampFValues = [[
     local hDampFValues = {'630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000', '10000', '12500', 'FLAT'}
 
-    function getHDampFValues(value)
+    local function getHDampFValues(value)
       local hDampFValue = hDampFValues[value]
       return hDampFValue
     end
@@ -358,42 +358,42 @@ local mappingScripts = {
 
   getOnOff = [[
     local onOff = {'OFF', 'ON'}
-        
-    function getOnOff(value)
+
+    local function getOnOff(value)
       return onOff[value]
     end
   ]],
 
   getScatterSpeed = [[
     local speeds = {'SINGLE', 'DOUBLE'}
-      
-    function getScatterSpeed(value)
+
+    local function getScatterSpeed(value)
       return speeds[value]
     end
-  ]],  
+  ]],
 
   getScatterType = [[
     local types = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10'}
-      
-    function getScatterType(value)
+
+    local function getScatterType(value)
       local type = types[value]
       return type
     end
-  ]],  
-  
+  ]],
+
   getScatterDepth = [[
     local depths = {'10', '20', '30', '40', '50', '60', '70', '80', '90', '100'}
-      
-    function getScatterDepth(value)
+
+    local function getScatterDepth(value)
       local depth = depths[value]
       return depth
     end
-  ]], 
-  
+  ]],
+
   getPitchOnOff = [[
     local pitchOnOff = {'PITCH OFF', 'PITCH ON'}
-      
-    function getPitchOnOff(value)
+
+    local function getPitchOnOff(value)
       return pitchOnOff[value]
     end
   ]],
@@ -401,7 +401,7 @@ local mappingScripts = {
   getDownerRate = [[
     local downerRates = {'2/1', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32'}
 
-    function getDownerRate(value)
+    local function getDownerRate(value)
       local downerRate = downerRates[value]
       return downerRate
     end
@@ -410,7 +410,7 @@ local mappingScripts = {
   getLowCut = [[
     local lowCutValues = {'FLAT', '20', '25', '31', '40', '50', '63', '80', '100', '125', '160', '200', '250', '315', '400', '500', '630', '800'}
 
-    function getLowCut(value)
+    local function getLowCut(value)
       local lowCutValue = lowCutValues[value]
       return lowCutValue
     end
@@ -419,7 +419,7 @@ local mappingScripts = {
   getHighCut = [[
     local highCutValues = {'630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000', '10000', '12500', 'FLAT'}
 
-    function getHighCut(value)
+    local function getHighCut(value)
       local highCutValue = highCutValues[value]
       return highCutValue
     end
@@ -428,7 +428,7 @@ local mappingScripts = {
   getKoDaMaMode = [[
     local koDaMaModes = {'SINGLE', 'PAN'}
 
-    function getKoDaMaMode(value)
+    local function getKoDaMaMode(value)
       return koDaMaModes[value]
     end
   ]],
@@ -436,7 +436,7 @@ local mappingScripts = {
   getZanZouMode = [[
     local zanZouModes = {'2TAP', '3TAP', '4TAP'}
 
-    function getZanZouMode(value)
+    local function getZanZouMode(value)
       local zanZouMode = zanZouModes[value]
       return zanZouMode
     end
@@ -445,7 +445,7 @@ local mappingScripts = {
   getSync = [[
     local sync = {'SYNC OFF', 'SYNC ON'}
 
-    function getSync(value)
+    local function getSync(value)
       return sync[value]
     end
   ]],
@@ -453,7 +453,7 @@ local mappingScripts = {
   getHFDampValues = [[
     local hfDampValues = {'200', '250', '315', '400', '500', '630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000', 'OFF'}
 
-    function getHFDampValues(value)
+    local function getHFDampValues(value)
       local hfDampValue = hfDampValues[value]
       return hfDampValue
     end
@@ -461,12 +461,12 @@ local mappingScripts = {
 
   getToGuRoRate = getZeroOneHundredSnippet..[[
     local rates = {
-      '2/1', '1/1', '1/2', '1/4', 
-      '1/8', '1/16', '1/32', '1/64', 
+      '2/1', '1/1', '1/2', '1/4',
+      '1/8', '1/16', '1/32', '1/64',
       '1/128'
     }
 
-    function getToGuRoRate(value, syncOn)
+    local function getToGuRoRate(value, syncOn)
       if syncOn then
         return rates[value]
       else
@@ -478,7 +478,7 @@ local mappingScripts = {
   getSBFType = [[
     local sbfTypes = {'SBF1', 'SBF2', 'SBF3', 'SBF4', 'SBF5', 'SBF6'}
 
-    function getSBFType(value)
+    local function getSBFType(value)
       local sbfType = sbfTypes[value]
       return sbfType
     end
@@ -487,7 +487,7 @@ local mappingScripts = {
   getStopperRate = [[
   local rates = {'4/1', '2/1', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/64'}
 
-    function getStopperRate(value)
+    local function getStopperRate(value)
       local rate = rates[value]
       return rate
     end
@@ -496,7 +496,7 @@ local mappingScripts = {
   getTapeEchoMode = [[
     local modes = {'S', 'M', 'L', 'S+M', 'S+L', 'M+L', 'S+M+L'}
 
-    function getTapeEchoMode(value)
+    local function getTapeEchoMode(value)
       local mode = modes[value]
       return mode
     end
@@ -505,7 +505,7 @@ local mappingScripts = {
   getRate = [[
     local rates = {'2/1', '1/1D', '2/1T', '1/1', '1/2D', '1/1T', '1/2', '1/4D', '1/2T', '1/4', '1/8D', '1/4T', '1/8', '1/16D', '1/8T', '1/16', '1/32D', '1/16T', '1/32', '1/32T', '1/64', '1/64T'}
 
-    function getRate(value)
+    local function getRate(value)
       local rate = rates[value]
       return rate
     end
@@ -514,7 +514,7 @@ local mappingScripts = {
   getFilterRate = getZeroOneHundredSnippet..[[
     local rates = {'2/1', '1/1D', '2/1T', '1/1', '1/2D', '1/1T', '1/2', '1/4D', '1/2T', '1/4', '1/8D', '1/4T', '1/8', '1/16D', '1/8T', '1/16', '1/32D', '1/16T', '1/32', '1/32T', '1/64', '1/64T'}
 
-    function getFilterRate(value, syncOn)
+    local function getFilterRate(value, syncOn)
       if syncOn then
         return rates[value]
       else
@@ -526,7 +526,7 @@ local mappingScripts = {
   getPreFilter = [[
     local filters = {'1', '2', '3', '4', '5', '6'}
 
-    function getPreFilter(value)
+    local function getPreFilter(value)
       local filter = filters[value]
       return filter
     end
@@ -535,7 +535,7 @@ local mappingScripts = {
   getLofiType = [[
     local types = {'1', '2', '3', '4', '5', '6', '7', '8', '9'}
 
-    function getLofiType(value)
+    local function getLofiType(value)
       local type = types[value]
       return type
     end
@@ -544,12 +544,12 @@ local mappingScripts = {
   getLofiCutoff = [[
     local frequencies = {'200', '250', '315', '400', '500', '630', '800', '1000', '1250', '1600', '2000', '2500', '3150', '4000', '5000', '6300', '8000'}
 
-    function getLofiCutoff(value)
+    local function getLofiCutoff(value)
       local frequency = frequencies[value]
       return frequency
     end
   ]],
-  
+
   getNote = [[
     local notes = {
         "-17", "-16", "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8",
@@ -558,7 +558,7 @@ local mappingScripts = {
         "11", "12", "13", "14", "15", "16", "17", "18"
     }
 
-    function getNote(value)
+    local function getNote(value)
       local note = notes[value]
       return note
     end
@@ -592,7 +592,7 @@ local mappingScripts = {
       "B Min"
     }
 
-    function getScale(value)
+    local function getScale(value)
       local scale = scales[value]
       return scale
     end
@@ -601,7 +601,7 @@ local mappingScripts = {
   getVocoderChord = [[
     local vocoderChords = {'Root', 'P5', 'Oct', 'UpDn', 'UpDnP5', '3rd', '5thUp', '5thDn', '7thUp', '7thDn'}
 
-    function getVocoderChord(value)
+    local function getVocoderChord(value)
       local chord = vocoderChords[value]
       return chord
     end
@@ -610,7 +610,7 @@ local mappingScripts = {
   getPitchKey = [[
     local keys = {'CHROMA', 'A', 'B♭', 'B', 'C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭'}
 
-    function getPitchKey(value)
+    local function getPitchKey(value)
       local key = keys[value]
       return key
     end
@@ -619,7 +619,7 @@ local mappingScripts = {
   getReverbType = [[
     local types = {'AMBI', 'ROOM', 'HALL1', 'HALL2'}
 
-    function getReverbType(value)
+    local function getReverbType(value)
       local type = types[value]
       return type
     end
@@ -642,18 +642,18 @@ local mappingScripts = {
       "2.18", "2.20", "2.22", "2.23", "2.25", "2.26", "2.28", "2.30"
     }
 
-    function getChorusRate(value)
+    local function getChorusRate(value)
       local rate = rates[value]
       return rate
     end
   ]],
 
-  getChorusEQ = [[  
+  getChorusEQ = [[
     local eqValues = {
       "-15", "-14", "-13", "-12", "-11", "-10", "-9", "-8", "-7", "-6", "-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"
     }
 
-    function getChorusEQ(value)
+    local function getChorusEQ(value)
       local eqValue = eqValues[value]
       return eqValue
     end
@@ -662,7 +662,7 @@ local mappingScripts = {
   getJunoChorusMode = [[
     local modes = {'JUNO 1', 'JUNO 2', 'JUNO 12', 'JX-1 1', 'JX-1 2'}
 
-    function getJunoChorusMode(value)
+    local function getJunoChorusMode(value)
       return modes[value]
     end
   ]],
@@ -670,7 +670,7 @@ local mappingScripts = {
   getAmpType = [[
     local types = {'JC', 'TWIN', 'BG', 'MATCH', 'MS', 'SLDN'}
 
-    function getAmpType(value)
+    local function getAmpType(value)
       return types[value]
     end
   ]],
@@ -694,8 +694,8 @@ local mappingScripts = {
       "0.500", "0.469", "0.438", "0.406", "0.375", "0.344", "0.313", "0.281",
       "0.250", "0.219", "0.188", "0.156", "0.125", "0.094", "0.063", "0.016"
     }
-    
-    function getZeroOneHundred(value)
+
+    local function getZeroOneHundred(value)
       local midiValue = value - 1
       if midiValue == 127 then
         return 100
@@ -704,7 +704,7 @@ local mappingScripts = {
       end
     end
 
-    function getFlangerRate(value, syncOn)
+    local function getFlangerRate(value, syncOn)
       if syncOn then
         return rates[value]..' bar'
       else
@@ -733,7 +733,7 @@ local mappingScripts = {
       "0.034", "0.030", "0.027", "0.024", "0.021", "0.018", "0.014", "0.010"
     }
 
-    function getWahRate(value, syncOn)
+    local function getWahRate(value, syncOn)
       if syncOn then
         return rates[value]..' bar'
       else
@@ -745,7 +745,7 @@ local mappingScripts = {
   getSlicerMode = [[
     local modes = {'LEGATO', 'SLASH'}
 
-    function getSlicerMode(value)
+    local function getSlicerMode(value)
       return modes[value]
     end
   ]],
@@ -753,15 +753,15 @@ local mappingScripts = {
   getSlicerPattern = [[
     local patterns = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32'}
 
-    function getSlicerPattern(value)
+    local function getSlicerPattern(value)
       return patterns[value]
     end
   ]],
-  
+
   getTremoloPanType = [[
     local types = {'TREMOLO', 'PAN'}
 
-    function getTremoloPanType(value)
+    local function getTremoloPanType(value)
       return types[value]
     end
   ]],
@@ -769,8 +769,8 @@ local mappingScripts = {
   getTremoloPanWave = [[
     local waves = {'TRI', 'SQR', 'SIN', 'SAW1', 'SAW2', 'TRP'}
 
-    function getTremoloPanWave(value)
-      return waves[value] 
+    local function getTremoloPanWave(value)
+      return waves[value]
     end
   ]],
 
@@ -795,7 +795,7 @@ local mappingScripts = {
         "R44", "R45", "R46", "R47", "R48", "R48", "R50"
     }
 
-    function getPan(value)
+    local function getPan(value)
       return pans[value]
     end
   ]],
@@ -820,7 +820,7 @@ local mappingScripts = {
       "10", "11", "11", "11", "11", "12", "12", "12"
     }
 
-    function getPitch(value)
+    local function getPitch(value)
       return pitches[value]
     end
   ]],
@@ -830,7 +830,7 @@ local mappingScripts = {
       'UNISON', 'TINY', 'SMALL', 'MEDIUM', 'HUGE'
     }
 
-    function getSpread(value)
+    local function getSpread(value)
       return spreads[value]
     end
   ]],
@@ -838,24 +838,24 @@ local mappingScripts = {
   getCrusherFilter = [[
     local filters = {
       331, 345, 358, 373, 388, 403, 420, 437, 454, 473, 492, 512, 533, 554, 577, 600, 625, 650, 677, 704,
-      733, 763, 795, 827, 861, 897, 934, 972, 1012, 1054, 1098, 1143, 1190, 1240, 1291, 1345, 1400, 1458, 
-      1519, 1582, 1647, 1716, 1787, 1861, 1938, 2018, 2101, 2188, 2278, 2372, 2470, 2571, 2676, 2786, 2899, 
-      3017, 3139, 3266, 3397, 3533, 3674, 3820, 3971, 4127, 4288, 4455, 4626, 4803, 4986, 5173, 5366, 5564, 
-      5767, 5975, 6189, 6407, 6630, 6857, 7089, 7325, 7564, 7807, 8053, 8302, 8553, 8806, 9061, 9317, 9573, 
-      9829, 10085, 10339, 10592, 10843, 11092, 11336, 11577, 11814, 12046, 12272, 12492, 12706, 12913, 13113, 
-      13305, 13490, 13666, 13834, 13993, 14143, 14285, 14417, 14541, 14655, 14761, 14857, 14945, 15025, 15095, 
+      733, 763, 795, 827, 861, 897, 934, 972, 1012, 1054, 1098, 1143, 1190, 1240, 1291, 1345, 1400, 1458,
+      1519, 1582, 1647, 1716, 1787, 1861, 1938, 2018, 2101, 2188, 2278, 2372, 2470, 2571, 2676, 2786, 2899,
+      3017, 3139, 3266, 3397, 3533, 3674, 3820, 3971, 4127, 4288, 4455, 4626, 4803, 4986, 5173, 5366, 5564,
+      5767, 5975, 6189, 6407, 6630, 6857, 7089, 7325, 7564, 7807, 8053, 8302, 8553, 8806, 9061, 9317, 9573,
+      9829, 10085, 10339, 10592, 10843, 11092, 11336, 11577, 11814, 12046, 12272, 12492, 12706, 12913, 13113,
+      13305, 13490, 13666, 13834, 13993, 14143, 14285, 14417, 14541, 14655, 14761, 14857, 14945, 15025, 15095,
       15158, 15213, 15259, 15299, 15330, 15355, 15374, 15386, 15392
     }
 
-    function getCrusherFilter(value)
+    local function getCrusherFilter(value)
       return filters[value]
     end
   ]],
 
   getEQLowFreq = [[
     local lowFreqs = {"20", "25", "31", "40", "50", "63", "80", "100", "125", "160", "200", "250", "315", "400"}
-    
-    function getEQLowFreq(value)
+
+    local function getEQLowFreq(value)
       return lowFreqs[value]
     end
   ]],
@@ -863,7 +863,7 @@ local mappingScripts = {
   getEQMidFreq = [[
     local midFreqs = {"200", "250", "315", "400", "500", "630", "800", "1000", "1250", "1600", "2000", "2500", "3150", "4000", "5000", "6300", "8000"}
 
-    function getEQMidFreq(value)
+    local function getEQMidFreq(value)
       return midFreqs[value]
     end
   ]],
@@ -871,7 +871,7 @@ local mappingScripts = {
   getEQHighFreq = [[
     local highFreqs = {"2000", "2500", "3150", "4000", "5000", "6300", "8000", "10000", "12500", "16000"}
 
-    function getEQHighFreq(value)
+    local function getEQHighFreq(value)
       return highFreqs[value]
     end
   ]],
@@ -890,7 +890,7 @@ local mappingScripts = {
       "+11.2", "+11.4", "+11.6", "+11.8", "+12.0"
     }
 
-    function getCloudPitch(value)
+    local function getCloudPitch(value)
       return pitches[value]
     end
   ]],
@@ -898,7 +898,7 @@ local mappingScripts = {
   getBackSpin = [[
     local backSpins = {"1/1", "1/2", "1/4", "1/8", "1/16"}
 
-    function getBackSpin(value)
+    local function getBackSpin(value)
       return backSpins[value]
     end
   ]],
@@ -906,7 +906,7 @@ local mappingScripts = {
   getLoopOnOff = [[
     local loopOnOffs = {"LOOP OFF", "LOOP ON"}
 
-    function getLoopOnOff(value)
+    local function getLoopOnOff(value)
       return loopOnOffs[value]
     end
   ]],
@@ -920,19 +920,19 @@ local faderScriptTemplate = [[
   local startValues = %s
   local syncOn = false
 
-  function midiToFloat(midiValue)
+  local function midiToFloat(midiValue)
     local floatValue = midiValue / 127
     return floatValue
   end
 
-  function floatToMIDI(floatValue)
+  local function floatToMIDI(floatValue)
     local midiValue = math.floor(floatValue * 127 + 0.5)
     return midiValue
   end
 
   local function findRange(ranges, target)
     print("Finding range for target: " .. tostring(target))
-    
+
     for i, rangeStart in ipairs(ranges) do
       -- Special handling for the last range when it starts at 127
       if i == #ranges and rangeStart == 127 then
@@ -955,69 +955,69 @@ local faderScriptTemplate = [[
     return 1
   end
 
-  function floatToRange(floatValue)
+  local function floatToRange(floatValue)
 
     local midiValue = math.floor(floatValue * 127 + 0.5)
 
     if next(startValues) == nil then
       -- Return full midi range as the range
       local index = midiValue + 1
-      print("Returning index in full midi range:", index)
+      -- print("Returning index in full midi range:", index)
       return index
     end
 
-    print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
-    
+    -- print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
+
     local index = findRange(startValues, midiValue)
 
-    print("Index in grid range:", index)
-    
+    -- print("Index in grid range:", index)
+
     return index
   end
 
-  function updateLabel(value)
+  local function updateLabel(value)
     local label = self.parent:findByName(labelName)
     local newText = ''
     local index = floatToRange(value)
-    
+
     if amSyncFader then
-      if not syncOn then 
+      if not syncOn then
         index = floatToMIDI(value) + 1
       end
       newText = %s(index, syncOn)
     else
       newText = %s(index)
     end
-    
-    print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
+
+    -- print("Updating label '" .. tostring(labelName) .. "' with value: " .. tostring(newText))
     label:notify('update_text', newText)
   end
 
   local gridToNotify = '%s'
 
-  function notifyGrid(value)
+  local function notifyGrid(value)
     local rangeIndex = value
-    print("Fader float: " .. tostring(value) .. " to Range: " .. tostring(rangeIndex))
+    -- print("Fader float: " .. tostring(value) .. " to Range: " .. tostring(rangeIndex))
     local gridControl = self.parent:findByName(gridToNotify, true)
     gridControl:notify('new_index', rangeIndex)
   end
 
-  function syncMIDI()
+  local function syncMIDI()
     sendMIDI({ MIDIMessageType.CONTROLCHANGE + tonumber(self.tag), %s, floatToMIDI(self.values.x)})
   end
 
   function onReceiveNotify(key, value)
     if key == 'new_value' then
-      print('New value:', value)
+      -- print('New value:', value)
       self.values.x = value
       updateLabel(value)
     elseif key == 'new_cc_value' then
-      print('New cc value:', value)
+      -- print('New cc value:', value)
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
     elseif key == 'sync_toggle' then
-      print('Toggling fader sync:', value)
+      --  print('Toggling fader sync:', value)
       syncOn = value
       updateLabel(self.values.x)
     end
@@ -1049,7 +1049,7 @@ local labelScriptTemplate = [[
 ]]
 
 local gridScriptTemplate = [[
-  local startValues = %s 
+  local startValues = %s
   local targetGridName = '%s'
   local syncedFaderName = '%s'
   local amSyncGrid = %s
@@ -1068,7 +1068,7 @@ local gridScriptTemplate = [[
   local showHideGrid = self.parent.parent:findByName('%s', true)
   local showHideGridLabel = self.parent.parent:findByName('%s', true)
 
-  function toggleTimeViews(showFader)
+  local function toggleTimeViews(showFader)
     if showHideFader and showHideFaderLabel and showHideGrid and showHideGridLabel then
       showHideFader.visible = not showFader
       showHideFaderLabel.visible = not showFader
@@ -1077,7 +1077,7 @@ local gridScriptTemplate = [[
     end
   end
 
-  function toggleFaderSync(value)
+  local function toggleFaderSync(value)
     if showHideFader then
       --print('Toggling fader sync:', value)
       showHideFader:notify('sync_toggle', value)
@@ -1089,7 +1089,7 @@ local gridScriptTemplate = [[
       local myCCValue = startValues[self.index] -- Already in 0-127 range
       local syncedFader = self.parent.parent:findByName(syncedFaderName)
       syncedFader:notify('new_cc_value', myCCValue)
-      
+
       if amSyncGrid then
         local syncOn = (self.index == 2)
         --print('Toggling:', syncOn)
@@ -1135,7 +1135,7 @@ local gridLabelScriptTemplate = [[
   end
 ]]
 
-function generateAndAssignFaderScript(controlGroup, controlInfo)
+local function generateAndAssignFaderScript(controlGroup, controlInfo)
   local ccNumber, faderName, _, _, labelName, labelMapping, _, gridName, _, _, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
 
   if not startValues or startValues == '' then
@@ -1149,7 +1149,7 @@ function generateAndAssignFaderScript(controlGroup, controlInfo)
 
   --print('Generating fader script for:', faderName, labelName, labelMapping, gridName, startValues, amSyncFader, mappingScripts[labelMapping])
 
-  local faderScript = string.format(faderScriptTemplate, 
+  local faderScript = string.format(faderScriptTemplate,
     amSyncFader,
     labelName,
     mappingScripts[labelMapping],
@@ -1168,7 +1168,7 @@ function generateAndAssignFaderScript(controlGroup, controlInfo)
   end
 end
 
-function generateAndAssignLabelScript(controlGroup, controlInfo)
+local function generateAndAssignLabelScript(controlGroup, controlInfo)
   local ccNumber, _, _, _, labelName, _, labelFormat, _, _, _, _, _, _, _, _, _ = table.unpack(controlInfo)
 
   -- Generate and assign label script
@@ -1180,7 +1180,7 @@ function generateAndAssignLabelScript(controlGroup, controlInfo)
   end
 end
 
-function generateAndAssignGridScript(controlGroup, controlInfo)
+local function generateAndAssignGridScript(controlGroup, controlInfo)
   -- Generate and assign grid script
   local ccNumber, faderName, _, _, _, labelMapping, _, gridName, gridLabelName, gridLabelMapping, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = table.unpack(controlInfo)
 
@@ -1195,7 +1195,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
 
   --print('Generating grid script for:', faderName, gridName, startValues, amSyncGrid, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel)
 
-  local gridScript = string.format(gridScriptTemplate, 
+  local gridScript = string.format(gridScriptTemplate,
     startValues,
     gridName,
     faderName,
@@ -1217,7 +1217,7 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
 
   local gridLabelObject = controlGroup:findByName(gridLabelName, true)
 
-  local gridLabelScript = string.format(gridLabelScriptTemplate, 
+  local gridLabelScript = string.format(gridLabelScriptTemplate,
     mappingScripts[gridLabelMapping],
     gridLabelName,
     gridLabelMapping)
@@ -1229,26 +1229,26 @@ function generateAndAssignGridScript(controlGroup, controlInfo)
   end
 end
 
-function mapControls()
+local function mapControls()
   for i = 1, 46 do
     --print('Initialising category with fxPage:', i)
     local fxPage = root.children.control_pager.children[i]
     --print('fxPage:', fxPage.name)
     local controlGroup = fxPage.children.control_group
     --print('controlGroup:', controlGroup.name)
-    
+
     local controlInfo = json.toTable(controlsInfo.children[tostring(i)].tag)
     if controlInfo then
       --print('Successfully loaded controlInfo for page:', i)
       for i, control in ipairs(controlInfo) do
         --print(string.format('controlInfo[%d]:', i), table.unpack(control))
         local _, controlName, _, _, labelName, labelMapping, labelFormat, syncedGrid = table.unpack(control)
-        
+
         --print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedGrid)
-        
+
         generateAndAssignFaderScript(controlGroup, control)
         generateAndAssignLabelScript(controlGroup, control)
-        
+
         if syncedGrid ~= '' then
           generateAndAssignGridScript(controlGroup, control)
         end
@@ -1265,19 +1265,19 @@ local performFaderScriptTemplate = [[
   local startValues = %s
   local syncOn = false
 
-  function midiToFloat(midiValue)
+  local function midiToFloat(midiValue)
     local floatValue = midiValue / 127
     return floatValue
   end
 
-  function floatToMIDI(floatValue)
+  local function floatToMIDI(floatValue)
     local midiValue = math.floor(floatValue * 127 + 0.5)
     return midiValue
   end
 
   local function findRange(ranges, target)
-    print("Finding range for target: " .. tostring(target))
-    
+    -- print("Finding range for target: " .. tostring(target))
+
     for i, rangeStart in ipairs(ranges) do
       -- Special handling for the last range when it starts at 127
       if i == #ranges and rangeStart == 127 then
@@ -1289,9 +1289,9 @@ local performFaderScriptTemplate = [[
       end
 
       local rangeEnd = ranges[i + 1] or 128
-      print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
+      -- print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
       if target >= rangeStart and target < rangeEnd then
-        print("Found range " .. tostring(i))
+        -- print("Found range " .. tostring(i))
         return i
       end
     end
@@ -1300,61 +1300,63 @@ local performFaderScriptTemplate = [[
     return 1
   end
 
-  function floatToRange(floatValue)
+  local function floatToRange(floatValue)
 
     local midiValue = math.floor(floatValue * 127 + 0.5)
 
     if next(startValues) == nil then
       -- Return full midi range as the range
       local index = midiValue + 1
-      print("Returning index in full midi range:", index)
+      -- print("Returning index in full midi range:", index)
       return index
     end
 
-    print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
-    
+    -- print("floatToRange called with floatValue:", floatValue, "startValues:", startValues)
+
     local index = findRange(startValues, midiValue)
 
-    print("Index in grid range:", index)
-    
+    -- print("Index in grid range:", index)
+
     return index
   end
 
-  function updateLabel(value)
+  local function updateLabel(value)
     local label = self.parent:findByName('value_label')
     local newText = ''
     local index = floatToRange(value)
-    
+
     if amSyncFader then
-      if not syncOn then 
+      if not syncOn then
         index = floatToMIDI(value) + 1
       end
       newText = %s(index, syncOn)
     else
       newText = %s(index)
     end
-    
-    print("Updating label '" .. label.name .. "' with value: " .. tostring(newText))
+
+    -- print("Updating label '" .. label.name .. "' with value: " .. tostring(newText))
     label:notify('update_text', newText)
   end
 
-  function syncMIDI()
+  local function syncMIDI()
     sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, floatToMIDI(self.values.x)})
   end
 
   function onReceiveNotify(key, value)
     if key == 'new_value' then
-      print('New value:', value)
+      -- print('New value:', value)
       self.values.x = value
       updateLabel(value)
     elseif key == 'new_cc_value' then
-      print('New cc value:', value)
+      -- print('New cc value:', value)
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
     elseif key == 'sync_toggle' then
-      print('Toggling fader sync:', value)
+      -- print('Toggling fader sync:', value)
       syncOn = value
+      updateLabel(self.values.x)
+    elseif key == 'update_label' then
       updateLabel(self.values.x)
     end
   end
@@ -1365,17 +1367,21 @@ local performFaderScriptTemplate = [[
       syncMIDI()
     end
   end
+
+  function init()
+    updateLabel(self.values.x)
+  end
 ]]
 
-function setUpPerformValueLabel(valueLabel, labelFormat)
+local function setUpPerformValueLabel(valueLabel, labelFormat)
   local labelScript = string.format(labelScriptTemplate, labelFormat)
   if valueLabel then
-    print('Assigning label script to:', valueLabel.name)
+    -- print('Assigning label script to:', valueLabel.name)
     valueLabel.script = labelScript
   end
 end
 
-function setUpPerformFader(controlFader, channel, controlInfo)
+local function setUpPerformFader(controlFader, channel, controlInfo)
   local ccNumber, _, _, _, _, labelMapping, _, _, _, _, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
 
   if not startValues or startValues == '' then
@@ -1387,9 +1393,9 @@ function setUpPerformFader(controlFader, channel, controlInfo)
     amSyncFader = 'false'
   end
 
-  print('Generating perform fader script for:', controlFader.name, labelMapping, startValues, amSyncFader, mappingScripts[labelMapping])
+  -- print('Generating perform fader script for:', controlFader.name, labelMapping, startValues, amSyncFader, mappingScripts[labelMapping])
 
-  local faderScript = string.format(performFaderScriptTemplate, 
+  local faderScript = string.format(performFaderScriptTemplate,
     amSyncFader,
     mappingScripts[labelMapping],
     startValues,
@@ -1399,44 +1405,66 @@ function setUpPerformFader(controlFader, channel, controlInfo)
     ccNumber)
 
   controlFader.script = faderScript
+  controlFader:notify('update_label')
 end
 
+local function setUpPerformFaders(fxNum, channel, faderGroups)
+  -- print('Initialising perform faders')
+  local controlInfo = json.toTable(controlsInfo.children[tostring(fxNum)].tag)
+
+  for index = 1, 6 do
+    local faderGroup = faderGroups.children[tostring(index)]
+    -- Each element contains a control_fader, value_label and name_label
+    local controlFader = faderGroup.children.control_fader
+    local valueLabel = faderGroup.children.value_label
+    local nameLabel = faderGroup.children.name_label
+
+    local control = controlInfo[index]
+
+    if control == nil then
+      faderGroup.visible = false
+    else
+      faderGroup.visible = true
+
+      local ccNumber, _, _, labelText, labelName, labelMapping, labelFormat = table.unpack(control)
+
+      nameLabel.values.text = labelText
+      setUpPerformFader(controlFader, channel, control)
+      setUpPerformValueLabel(valueLabel, labelFormat)
+
+    end
+  end
+end
+
+local function setUpPerformPots(fxNum, channel, potGroups)
+  -- print('Initialising perform pots')
+  local controlInfo = json.toTable(controlsInfo.children[tostring(fxNum)].tag)
+
+  for index = 1, 6 do
+    local potGroup = potGroups.children[tostring(index)]
+
+    local control = controlInfo[index]
+
+    if control == nil then
+      potGroup.visible = false
+    else
+      potGroup.visible = true
+    end
+  end
+end
+
+---@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if key == 'init_control_mapper' then
-    print('Initialising Control Mapper')
+    -- print('Initialising Control Mapper')
     mapControls()
-  elseif key == 'init_perform_faders' then
-    print('Initialising perform faders')
+  elseif key == 'init_perform' then
     local fxNum = value[1]
     local channel = value[2]
-    local controlInfo = json.toTable(controlsInfo.children[tostring(fxNum)].tag)
     local faderGroups = value[3]
+    local potGroups = value[4]
 
-    for index = 1, 6 do
-      local faderGroup = faderGroups.children[tostring(index)]
-      -- Each element contains a control_fader, value_label and name_label
-      local controlFader = faderGroup.children.control_fader
-      local valueLabel = faderGroup.children.value_label
-      local nameLabel = faderGroup.children.name_label
-
-      local control = controlInfo[index]
-      
-      if control == nil then
-        controlFader.visible = false
-        valueLabel.visible = false
-        nameLabel.visible = false
-      else
-        controlFader.visible = true
-        valueLabel.visible = true
-        nameLabel.visible = true
-
-        local ccNumber, _, _, labelText, labelName, labelMapping, labelFormat = table.unpack(control)
-
-        nameLabel.values.text = labelText
-        setUpPerformFader(controlFader, channel, control)
-        setUpPerformValueLabel(valueLabel, labelFormat)
-
-      end
-    end
+    setUpPerformFaders(fxNum, channel, faderGroups)
+    setUpPerformPots(fxNum, channel, potGroups)
   end
 end
