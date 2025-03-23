@@ -70,7 +70,13 @@ local function initItem(index, item)
 end
 
 local function initUI()
-  ITEM_WIDTH = (self.frame.w - (SETTINGS["global_padding"] * 2) - (SETTINGS["item_padding"] * (SETTINGS["columns_count"] - 1))) / SETTINGS["columns_count"]
+  -- Calculate item width based on fixed width or available space
+  if SETTINGS["fixed_item_width"] then
+    ITEM_WIDTH = SETTINGS["fixed_item_width"]
+  else
+    -- Use original calculation
+    ITEM_WIDTH = (self.frame.w - (SETTINGS["global_padding"] * 2) - (SETTINGS["item_padding"] * (SETTINGS["columns_count"] - 1))) / SETTINGS["columns_count"]
+  end
 
   -- background
   self.children.background.frame.w = self.frame.w

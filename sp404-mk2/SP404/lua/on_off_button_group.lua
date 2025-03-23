@@ -127,7 +127,8 @@ function onReceiveNotify(key, value)
 end
 ]]
 
-local editButtonScript = [[
+local editButtonScript =[[
+
 local function setSettings(fxNum, midiChannel)
   local settings = json.toTable(self.tag) or {}
   settings['fxNum'] = fxNum
@@ -146,49 +147,43 @@ local function collectCurrentValues()
       values[i] = fader.values.x
     end
   end
-  print('collectCurrentValues', unpack(values))
+  print('collectCurrentValues', table.unpack(values))
   return values
 end
 
-local function goToEditPage()
+local function goToEditPage(value)
   local settings = json.toTable(self.tag)
   local fxNum = tonumber(settings["fxNum"])
   local midiChannel = tonumber(settings["midiChannel"])
+  performGroupToReturnTo = value
 
   local performGroup = root:findByName('perform_group', true)
   performGroup:notify('hide')
 
-  local onOffButtonGroup = root:findByName('on_off_button_group', true)
-  onOffButtonGroup:notify('new_settings', {fxNum, midiChannel})
-
-  local controlPager = root:findByName('control_pager', true)
-  local editPageNum = tonumber(fxNum) - 1
-  controlPager.values.page = tonumber(fxNum) - 1
-
   local currentValues = collectCurrentValues()
-  local recallProxy = root:findByName('recall_proxy', true)
   local performRecallProxy = self.parent.parent:findByName('perform_recall_proxy', true)
-  recallProxy:notify('set_current_values', {fxNum, currentValues, performRecallProxy})
-
-  local fxPresetHandler = root:findByName('fx_preset_handler', true)
-  fxPresetHandler:notify('set_settings', {fxNum, midiChannel})
+  root:notify('edit_page', {fxNum, midiChannel, currentValues, performRecallProxy})
 end
 
+---@diagnostic disable: lowercase-global
 function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
-    goToEditPage()
+    goToEditPage(value)
   end
 end
 
 function onReceiveNotify(key, value)
   if key == 'new_settings' then
-    print(key, unpack(value))
+    print(key, table.unpack(value))
     setSettings(value[1], value[2])
   end
 end
 ]]
 
 local performButtonScript = [[
+
+local performGroupToReturnTo = nil
+
 local function setSettings(fxNum, midiChannel)
   local settings = json.toTable(self.tag) or {}
   settings['fxNum'] = fxNum
@@ -213,26 +208,7 @@ function onReceiveNotify(key, value)
 end
 ]]
 
----@diagnostic disable: lowercase-global
-function init()
-  local onButton = self:findByName('on_button')
-  local offButton = self:findByName('off_button')
-  local grabButton = self:findByName('grab_button')
-  local editButton = self:findByName('edit_button')
-  local performButton = self:findByName('perform_button')
-  onButton.script = onButtonScript
-  offButton.script = offButtonScript
-  grabButton.script = grabButtonScript
-
-  if editButton then
-    editButton.script = editButtonScript
-  end
-
-  if performButton then
-    performButton.script = performButtonScript
-  end
-end
-
+local onOffButtonGroupScript = [[
 function onReceiveNotify(key, value)
   if key == 'new_settings' then
     local fxNum = value[1]
@@ -244,6 +220,34 @@ function onReceiveNotify(key, value)
         print('Setting button tag:', onOffButton.tag, onOffButton.name)
         onOffButton:notify('new_settings', {fxNum, midiChannel})
       end
+    end
+  end
+end
+]]
+
+---@diagnostic disable: lowercase-global
+function init()
+
+  local onOffButtonGroups = root:findAllByName('on_off_button_group', true)
+
+  for _, onOffButtonGroup in ipairs(onOffButtonGroups) do
+    onOffButtonGroup.script = onOffButtonGroupScript
+
+    local onButton = onOffButtonGroup:findByName('on_button')
+    local offButton = onOffButtonGroup:findByName('off_button')
+    local grabButton = onOffButtonGroup:findByName('grab_button')
+    local editButton = onOffButtonGroup:findByName('edit_button')
+    local performButton = onOffButtonGroup:findByName('perform_button')
+    onButton.script = onButtonScript
+    offButton.script = offButtonScript
+    grabButton.script = grabButtonScript
+
+    if editButton then
+      editButton.script = editButtonScript
+    end
+
+    if performButton then
+      performButton.script = performButtonScript
     end
   end
 end
