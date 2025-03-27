@@ -18,7 +18,7 @@ local function goToEditPage(fxNum, midiChannel, currentValues, performRecallProx
   end
 
   local onOffButtonGroup = root:findByName('on_off_button_group', true)
-  onOffButtonGroup:notify('new_settings', {fxNum, midiChannel})
+  onOffButtonGroup:notify('set_settings', {fxNum, midiChannel})
 
   local recallProxy = root:findByName('recall_proxy', true)
   recallProxy:notify('set_current_values', {fxNum, currentValues, performRecallProxy})

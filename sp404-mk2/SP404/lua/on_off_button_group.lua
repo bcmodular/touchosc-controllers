@@ -11,7 +11,7 @@ function onValueChanged(key, value)
 end
 
 function onReceiveNotify(key, value)
-  if key == 'new_settings' then
+  if key == 'set_settings' then
     self.tag = value[2]
   elseif key == 'fx_off' then
     sendOffMIDI()
@@ -61,7 +61,7 @@ function onValueChanged(key, value)
 end
 
 function onReceiveNotify(key, value)
-  if key == 'new_settings' then
+  if key == 'set_settings' then
     print(key, unpack(value))
     setSettings(value[1], value[2])
   end
@@ -121,7 +121,7 @@ function onValueChanged(key, value)
 end
 
 function onReceiveNotify(key, value)
-  if key == 'new_settings' then
+  if key == 'set_settings' then
     setSettings(value[1], value[2])
   end
 end
@@ -173,7 +173,7 @@ function onValueChanged(key, value)
 end
 
 function onReceiveNotify(key, value)
-  if key == 'new_settings' then
+  if key == 'set_settings' then
     print(key, table.unpack(value))
     setSettings(value[1], value[2])
   end
@@ -202,7 +202,7 @@ function onValueChanged(key, value)
 end
 
 function onReceiveNotify(key, value)
-  if key == 'new_settings' then
+  if key == 'set_settings' then
     setSettings(value[1], value[2])
   end
 end
@@ -210,7 +210,7 @@ end
 
 local onOffButtonGroupScript = [[
 function onReceiveNotify(key, value)
-  if key == 'new_settings' then
+  if key == 'set_settings' then
     local fxNum = value[1]
     local midiChannel = value[2]
 
@@ -218,7 +218,7 @@ function onReceiveNotify(key, value)
       local onOffButton = self.children[i]
       if onOffButton.type == ControlType.BUTTON then
         print('Setting button tag:', onOffButton.tag, onOffButton.name)
-        onOffButton:notify('new_settings', {fxNum, midiChannel})
+        onOffButton:notify('set_settings', {fxNum, midiChannel})
       end
     end
   end

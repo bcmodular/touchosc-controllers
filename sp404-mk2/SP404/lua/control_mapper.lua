@@ -1017,7 +1017,7 @@ local faderScriptTemplate = [[
       self.values.x = floatValue
       updateLabel(floatValue)
     elseif key == 'sync_toggle' then
-      --  print('Toggling fader sync:', value)
+      print('Toggling fader sync:', value)
       syncOn = value
       updateLabel(self.values.x)
     end
@@ -1079,7 +1079,7 @@ local gridScriptTemplate = [[
 
   local function toggleFaderSync(value)
     if showHideFader then
-      --print('Toggling fader sync:', value)
+      print('Toggling fader sync:', value)
       showHideFader:notify('sync_toggle', value)
     end
   end
@@ -1092,7 +1092,7 @@ local gridScriptTemplate = [[
 
       if amSyncGrid then
         local syncOn = (self.index == 2)
-        --print('Toggling:', syncOn)
+        print('Toggling:', syncOn)
         toggleTimeViews(syncOn)
         toggleFaderSync(syncOn)
       end
@@ -1116,7 +1116,7 @@ local gridScriptTemplate = [[
       self.children[childToSelect]:notify('new_child_value')
       if amSyncGrid then
         local syncOn = (value == 2)
-        --print('Toggling:', syncOn)
+        print('Toggling:', syncOn)
         toggleTimeViews(syncOn)
         toggleFaderSync(syncOn)
       end
@@ -1353,7 +1353,7 @@ local performFaderScriptTemplate = [[
       self.values.x = floatValue
       updateLabel(floatValue)
     elseif key == 'sync_toggle' then
-      -- print('Toggling fader sync:', value)
+      print('Toggling fader sync:', value)
       syncOn = value
       updateLabel(self.values.x)
     elseif key == 'update_label' then
@@ -1426,7 +1426,7 @@ local function setUpPerformFaders(fxNum, channel, faderGroups)
     else
       faderGroup.visible = true
 
-      local ccNumber, _, _, labelText, labelName, labelMapping, labelFormat = table.unpack(control)
+      local _, _, _, labelText, _, _, labelFormat = table.unpack(control)
 
       nameLabel.values.text = labelText
       setUpPerformFader(controlFader, channel, control)

@@ -235,7 +235,7 @@ local function showBus()
 
   local fxNum = selected_menu_item_data["id"]
   local midiChannel = tonumber(self.parent.tag)
-  print("showBus() [id: " .. fxNum .. "][label: " .. selected_menu_item_data["label"] .. "][value: " .. selected_menu_item_data["value"] .. "]")
+  print("showBus [id: " .. fxNum .. "][label: " .. selected_menu_item_data["label"] .. "][value: " .. selected_menu_item_data["value"] .. "]")
 
   closeMenu()
 
@@ -251,7 +251,7 @@ local function showBus()
   local controlMapper = root:findByName('control_mapper', true)
   local faderGroups = self.parent:findByName('faders', true)
   local potGroups = self.parent:findByName('pots', true)
-  controlMapper:notify('init_perform', {fxNum, 0, faderGroups, potGroups})
+  controlMapper:notify('init_perform', {fxNum, midiChannel, faderGroups, potGroups})
 
   local onOffButtonGroup = self.parent:findByName('on_off_button_group', true)
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel})
