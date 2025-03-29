@@ -16,7 +16,7 @@ local controlsInfoArray = {
   -- 14) Show/hide fader label name (optional, used for sync grids)
   -- 15) Show/hide grid name (optional, used for sync grids)
   -- 16) Show/hide grid label name (optional, used for sync grids)
-  
+
   [1] = { -- filter + drive
     {16, 'cutoff_fader', false, 'CUTOFF', 'cutoff_label', 'getFreq', '%s Hz', ''},
     {17, 'resonance_fader', false, 'RESONANCE', 'resonance_label', 'getZeroOneHundred', '%s', ''},
@@ -98,7 +98,7 @@ local controlsInfoArray = {
       '{0, 64}'}
   },
   [10] = { -- zan zou
-    {16, 'time_fader', false, 'TIME', 'time_label', 'getSyncDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getSyncDelayTimes',
+    {16, 'time_fader', false, 'TIME', 'time_label', 'getZanZouTimes', '%s', 'time_grid', 'time_label_grid', 'getZanZouTimes',
       '{0, 9, 17, 28, 36, 44, 52, 60, 68, 77, 87, 95, 103, 114, 122, 127}', 'true'},
     {17, 'feedback_fader', false, 'FEEDBACK', 'feedback_label', 'getZeroNinetyNine', '%s', ''},
     {18, 'hf_damp_fader', false, 'HF DAMP', 'hf_damp_label', 'getHFDampValues', '%s', 'hf_damp_grid', 'hf_damp_label_grid', 'getHFDampValues',
@@ -345,7 +345,7 @@ local controlsInfoArray = {
     {17, 'attack_fader', false, 'ATTACK', 'attack_label', 'getZeroOneHundred', '%s', ''},
     {18, 'ratio_fader', false, 'RATIO', 'ratio_label', 'getZeroOneHundred', '%s', ''},
     {80, 'level_fader', false, 'LEVEL', 'level_label', 'getZeroOneHundred', '%s', ''}
-  },  
+  },
   [38] = { -- sx reverb
     {16, 'time_fader', false, 'TIME', 'time_label', 'getZeroOneHundred', '%s', ''},
     {17, 'tone_fader', false, 'TONE', 'tone_label', 'getBipolarHundredv2', '%s', ''},
@@ -374,7 +374,7 @@ local controlsInfoArray = {
       '{0, 64}'},
   },
   [42] = { -- djfx delay
-    {16, 'length_fader', false, 'LENGTH', 'length_label', 'getLooperLength', '%s s', ''},    
+    {16, 'length_fader', false, 'LENGTH', 'length_label', 'getLooperLength', '%s s', ''},
     {17, 'time_fader', false, 'TIME', 'time_label', 'getSyncDelayTimes', '%s', 'time_grid', 'time_label_grid', 'getSyncDelayTimes',
       '{0, 9, 17, 26, 34, 43, 51, 60, 68, 77, 85, 94, 102, 111, 119, 127}', 'true'},
     {18, 'on_off_fader', false, 'ON/OFF', 'on_off_label', 'getLoopOnOff', '%s', 'on_off_grid', 'on_off_label_grid', 'getLoopOnOff',
@@ -435,7 +435,7 @@ end
 ]]
 
 function init()
-  
+
   for i = 1, #self.children do
     local controlInfoJSON = json.fromTable(controlsInfoArray[i])
     self.children[tostring(i)].script = childScript

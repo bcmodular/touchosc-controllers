@@ -338,6 +338,23 @@ local mappingScripts = {
     end
   ]],
 
+  getZanZouTimes = getZeroOneHundredSnippet..[[
+    local delayTimes = {
+        '1/32', '1/16T', '1/32D', '1/16',
+        '1/8T', '1/16D', '1/8', '1/4T',
+        '1/8D', '1/4', '1/2T', '1/4D',
+        '1/2', '1/1T', '1/2D', '1/1'
+    }
+
+    local function getZanZouTimes(value, syncOn)
+      if syncOn then
+        return delayTimes[value]
+      else
+        return getZeroOneHundred(value)
+      end
+    end
+  ]],
+
   getLDampFValues = [[
     local lDampFValues = {'FLAT', '80', '100', '125', '160', '200', '250', '315', '400', '500', '630', '800'}
 
@@ -1260,8 +1277,10 @@ local function mapControls()
 end
 
 local performFaderScriptTemplate = [[
-  local amSyncFader = %s
-  %s  -- Include the mapping function definition here
+  local amSyncedFader = %s
+  local syncedFaderNum = %s
+  local syncedFader = nil
+  %s -- Include the mapping function definition here
   local startValues = %s
   local syncOn = false
 
@@ -1320,12 +1339,25 @@ local performFaderScriptTemplate = [[
     return index
   end
 
+  local function toggleFaderSync(value)
+    if syncedFader then
+      local parent = self.parent
+      print ('parent:', parent.name)
+
+      print('Toggling fader sync:', value)
+      local syncedFaderParent = syncedFader.parent
+      print('syncedFaderParent:', syncedFaderParent.name)
+      print('syncedFaderNum:', syncedFaderNum)
+      syncedFader:notify('sync_toggle', value)
+    end
+  end
+
   local function updateLabel(value)
     local label = self.parent:findByName('value_label')
     local newText = ''
     local index = floatToRange(value)
 
-    if amSyncFader then
+    if amSyncedFader then
       if not syncOn then
         index = floatToMIDI(value) + 1
       end
@@ -1334,7 +1366,13 @@ local performFaderScriptTemplate = [[
       newText = %s(index)
     end
 
-    -- print("Updating label '" .. label.name .. "' with value: " .. tostring(newText))
+    if newText == 'SYNC OFF' then
+      toggleFaderSync(false)
+    elseif newText == 'SYNC ON' then
+      toggleFaderSync(true)
+    end
+
+    print("Updating label '" .. label.name .. "' with value: " .. tostring(newText).." syncOn: "..tostring(syncOn))
     label:notify('update_text', newText)
   end
 
@@ -1343,6 +1381,7 @@ local performFaderScriptTemplate = [[
   end
 
   function onReceiveNotify(key, value)
+    print('onReceiveNotify:', key, value)
     if key == 'new_value' then
       -- print('New value:', value)
       self.values.x = value
@@ -1353,6 +1392,8 @@ local performFaderScriptTemplate = [[
       self.values.x = floatValue
       updateLabel(floatValue)
     elseif key == 'sync_toggle' then
+      local parent = self.parent
+      print ('parent:', parent.name)
       print('Toggling fader sync:', value)
       syncOn = value
       updateLabel(self.values.x)
@@ -1369,6 +1410,10 @@ local performFaderScriptTemplate = [[
   end
 
   function init()
+    if syncedFaderNum ~= 0 then
+      print('syncedFaderNum:', syncedFaderNum)
+      syncedFader = self.parent.parent.children[syncedFaderNum].children.control_fader
+    end
     updateLabel(self.values.x)
   end
 ]]
@@ -1381,22 +1426,23 @@ local function setUpPerformValueLabel(valueLabel, labelFormat)
   end
 end
 
-local function setUpPerformFader(controlFader, channel, controlInfo)
-  local ccNumber, _, _, _, _, labelMapping, _, _, _, _, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
+local function setUpPerformFader(controlFader, channel, controlInfo, syncedFaderNum)
+  local ccNumber, _, _, _, _, labelMapping, _, _, _, _, startValues, amSyncedFader, _, _, _, _ = table.unpack(controlInfo)
 
   if not startValues or startValues == '' then
     -- Just so we don't break the script
     startValues = '{}'
   end
 
-  if not amSyncFader then
-    amSyncFader = 'false'
+  if not amSyncedFader then
+    amSyncedFader = 'false'
   end
 
-  -- print('Generating perform fader script for:', controlFader.name, labelMapping, startValues, amSyncFader, mappingScripts[labelMapping])
+  print('Generating perform fader script for:', controlFader.name, labelMapping, startValues, amSyncedFader, mappingScripts[labelMapping])
 
   local faderScript = string.format(performFaderScriptTemplate,
-    amSyncFader,
+    amSyncedFader,
+    syncedFaderNum,
     mappingScripts[labelMapping],
     startValues,
     labelMapping,
@@ -1412,6 +1458,8 @@ local function setUpPerformFaders(fxNum, channel, faderGroups)
   -- print('Initialising perform faders')
   local controlInfo = json.toTable(controlsInfo.children[tostring(fxNum)].tag)
 
+  local syncedFaderNum = 0
+
   for index = 1, 6 do
     local faderGroup = faderGroups.children[tostring(index)]
     -- Each element contains a control_fader, value_label and name_label
@@ -1426,17 +1474,30 @@ local function setUpPerformFaders(fxNum, channel, faderGroups)
     else
       faderGroup.visible = true
 
-      local _, _, _, labelText, _, _, labelFormat = table.unpack(control)
+      local _, faderName, _, labelText, _, _, labelFormat, _, _, _, _, amSyncedFader = table.unpack(control)
+
+      if amSyncedFader == 'true' then
+        -- Collect the synced fader number for later use by the sync fader
+        syncedFaderNum = index
+      end
 
       nameLabel.values.text = labelText
-      setUpPerformFader(controlFader, channel, control)
+
+      if faderName == 'sync_fader' then
+        -- Set up the sync fader
+        setUpPerformFader(controlFader, channel, control, tostring(syncedFaderNum))
+      else
+        -- Set up the other faders
+        setUpPerformFader(controlFader, channel, control, '0')
+      end
+
       setUpPerformValueLabel(valueLabel, labelFormat)
 
     end
   end
 end
 
-local function setUpPerformPots(fxNum, channel, potGroups)
+local function setUpPerformPots(fxNum, potGroups)
   -- print('Initialising perform pots')
   local controlInfo = json.toTable(controlsInfo.children[tostring(fxNum)].tag)
 
@@ -1465,6 +1526,6 @@ function onReceiveNotify(key, value)
     local potGroups = value[4]
 
     setUpPerformFaders(fxNum, channel, faderGroups)
-    setUpPerformPots(fxNum, channel, potGroups)
+    setUpPerformPots(fxNum, potGroups)
   end
 end
