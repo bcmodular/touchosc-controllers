@@ -948,7 +948,7 @@ local faderScriptTemplate = [[
   end
 
   local function findRange(ranges, target)
-    print("Finding range for target: " .. tostring(target))
+    -- print("Finding range for target: " .. tostring(target))
 
     for i, rangeStart in ipairs(ranges) do
       -- Special handling for the last range when it starts at 127
@@ -961,9 +961,9 @@ local faderScriptTemplate = [[
       end
 
       local rangeEnd = ranges[i + 1] or 128
-      print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
+      -- print("Checking range " .. tostring(i) .. ": " .. tostring(rangeStart) .. " to " .. tostring(rangeEnd - 1))
       if target >= rangeStart and target < rangeEnd then
-        print("Found range " .. tostring(i))
+        -- print("Found range " .. tostring(i))
         return i
       end
     end
@@ -1028,13 +1028,15 @@ local faderScriptTemplate = [[
       -- print('New value:', value)
       self.values.x = value
       updateLabel(value)
+      syncMIDI()
     elseif key == 'new_cc_value' then
       -- print('New cc value:', value)
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
+      syncMIDI()
     elseif key == 'sync_toggle' then
-      print('Toggling fader sync:', value)
+      -- print('Toggling fader sync:', value)
       syncOn = value
       updateLabel(self.values.x)
     end
@@ -1096,7 +1098,7 @@ local gridScriptTemplate = [[
 
   local function toggleFaderSync(value)
     if showHideFader then
-      print('Toggling fader sync:', value)
+      -- print('Toggling fader sync:', value)
       showHideFader:notify('sync_toggle', value)
     end
   end
@@ -1109,7 +1111,7 @@ local gridScriptTemplate = [[
 
       if amSyncGrid then
         local syncOn = (self.index == 2)
-        print('Toggling:', syncOn)
+        -- print('Toggling:', syncOn)
         toggleTimeViews(syncOn)
         toggleFaderSync(syncOn)
       end
@@ -1133,7 +1135,7 @@ local gridScriptTemplate = [[
       self.children[childToSelect]:notify('new_child_value')
       if amSyncGrid then
         local syncOn = (value == 2)
-        print('Toggling:', syncOn)
+        -- print('Toggling:', syncOn)
         toggleTimeViews(syncOn)
         toggleFaderSync(syncOn)
       end
@@ -1342,12 +1344,7 @@ local performFaderScriptTemplate = [[
   local function toggleFaderSync(value)
     if syncedFader then
       local parent = self.parent
-      print ('parent:', parent.name)
-
-      print('Toggling fader sync:', value)
       local syncedFaderParent = syncedFader.parent
-      print('syncedFaderParent:', syncedFaderParent.name)
-      print('syncedFaderNum:', syncedFaderNum)
       syncedFader:notify('sync_toggle', value)
     end
   end
@@ -1372,7 +1369,7 @@ local performFaderScriptTemplate = [[
       toggleFaderSync(true)
     end
 
-    print("Updating label '" .. label.name .. "' with value: " .. tostring(newText).." syncOn: "..tostring(syncOn))
+    -- print("Updating label '" .. label.name .. "' with value: " .. tostring(newText).." syncOn: "..tostring(syncOn))
     label:notify('update_text', newText)
   end
 
@@ -1381,20 +1378,17 @@ local performFaderScriptTemplate = [[
   end
 
   function onReceiveNotify(key, value)
-    print('onReceiveNotify:', key, value)
     if key == 'new_value' then
-      -- print('New value:', value)
       self.values.x = value
       updateLabel(value)
+      syncMIDI()
     elseif key == 'new_cc_value' then
-      -- print('New cc value:', value)
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
+      syncMIDI()
     elseif key == 'sync_toggle' then
       local parent = self.parent
-      print ('parent:', parent.name)
-      print('Toggling fader sync:', value)
       syncOn = value
       updateLabel(self.values.x)
     elseif key == 'update_label' then
@@ -1411,7 +1405,6 @@ local performFaderScriptTemplate = [[
 
   function init()
     if syncedFaderNum ~= 0 then
-      print('syncedFaderNum:', syncedFaderNum)
       syncedFader = self.parent.parent.children[syncedFaderNum].children.control_fader
     end
     updateLabel(self.values.x)
@@ -1421,7 +1414,6 @@ local performFaderScriptTemplate = [[
 local function setUpPerformValueLabel(valueLabel, labelFormat)
   local labelScript = string.format(labelScriptTemplate, labelFormat)
   if valueLabel then
-    -- print('Assigning label script to:', valueLabel.name)
     valueLabel.script = labelScript
   end
 end
@@ -1437,8 +1429,6 @@ local function setUpPerformFader(controlFader, channel, controlInfo, syncedFader
   if not amSyncedFader then
     amSyncedFader = 'false'
   end
-
-  print('Generating perform fader script for:', controlFader.name, labelMapping, startValues, amSyncedFader, mappingScripts[labelMapping])
 
   local faderScript = string.format(performFaderScriptTemplate,
     amSyncedFader,

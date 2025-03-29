@@ -35,27 +35,29 @@ function onReceiveNotify(key, value)
 
   if key == 'init_presets_list' and self.name == 'perform_preset_grid' then
     -- Handle the response to our initialisation request
-    local effectChooser = self.parent.parent:findByName('effect_chooser')
-    local fxNum = effectChooser.tag
-    local presetManager = root.children.preset_manager
-    print('presetManager', presetManager.name, fxNum)
-    local presetManagerChild = presetManager.children[tostring(fxNum)]
-    local presetArray = json.toTable(presetManagerChild.tag) or {}
-    --print('presetArray:', table.unpack(presetArray), 'fxNum:', fxNum)
+    local fxNum = value
 
-    local childCount = #self.children
+    if fxNum ~= '0' then
+      local presetManager = root.children.preset_manager
+      print('presetManager', presetManager.name, fxNum)
+      local presetManagerChild = presetManager.children[tostring(fxNum)]
+      local presetArray = json.toTable(presetManagerChild.tag) or {}
+      print('presetArray:', table.unpack(presetArray), 'fxNum:', fxNum)
 
-    --print('storedPresets:', table.unpack(presetArray))
+      local childCount = #self.children
 
-    -- Initialise the entries first
-    for index = 1, childCount do
-      changeState(self.children[index], 'DISABLED')
-    end
+      print('storedPresets:', table.unpack(presetArray))
 
-    for index, preset in pairs(presetArray) do
-      --print('Setting state for:', tonumber(index), 'to:', preset)
-      if preset then
-        changeState(self.children[tonumber(index)], 'RECALL')
+      -- Initialise the entries first
+      for index = 1, childCount do
+        changeState(self.children[index], 'DISABLED')
+      end
+
+      for index, preset in pairs(presetArray) do
+        print('Setting state for:', tonumber(index), 'to:', preset)
+        if preset then
+          changeState(self.children[tonumber(index)], 'RECALL')
+        end
       end
     end
   end

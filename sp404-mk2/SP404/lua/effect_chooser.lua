@@ -139,8 +139,8 @@ end
 
 local function updateMenuItemsData()
 
-  for item_index, item_group in ipairs(all_items) do
-  item_group.visible = false
+  for _, item_group in ipairs(all_items) do
+    item_group.visible = false
   end
 
   for index, menu_item in ipairs(menu_items) do
@@ -224,6 +224,15 @@ local function closeMenu()
   self.children.items.visible = false
 end
 
+local function initPresetList()
+  print('initPresetList', selected_menu_index)
+  local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
+  local fxNum = selected_menu_item_data["id"]
+
+  local performPresetGrid = self.parent:findByName('perform_preset_grid', true)
+  performPresetGrid:notify('init_presets_list', fxNum)
+end
+
 local function showBus()
 
   local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
@@ -245,8 +254,7 @@ local function showBus()
   local performPresetHandler = self.parent:findByName('perform_preset_handler', true)
   performPresetHandler:notify('set_settings', {fxNum, midiChannel})
 
-  local performPresetGrid = self.parent:findByName('perform_preset_grid', true)
-  performPresetGrid:notify('init_presets_list')
+  initPresetList()
 
   local controlMapper = root:findByName('control_mapper', true)
   local faderGroups = self.parent:findByName('faders', true)
@@ -257,7 +265,7 @@ local function showBus()
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel})
 end
 
-local function setUpBus()
+local function setUpBus(fxNum)
   self.tag = selected_menu_index
 
   if(selected_menu_index ~= 0) then
@@ -275,7 +283,7 @@ function onReceiveNotify(key, value)
   if(key == "set_menu_items") then
     menu_items = value
     onMenuItemsChanged()
-    setUpBus()
+    setUpBus(0)
     return
   end
 
@@ -292,12 +300,20 @@ function onReceiveNotify(key, value)
     openMenu()
   end
 
+  if(key == "closeMenu") then
+    print('closing menu for', self.parent.name)
+    closeMenu()
+  end
+
   if(key == "toggle_menu") then
     if(self.children.items.visible == true) then
       closeMenu()
     else
       openMenu()
     end
+
+    local performGroup = self.parent.parent.parent:findByName('perform_group')
+    performGroup:notify('hide_other_than_me', self)
   end
 
   if(key == "select_index") then
@@ -315,26 +331,26 @@ function onReceiveNotify(key, value)
       self.children.selected_item.children.label.values.text = SETTINGS["selected_item_header"] .. "None"
     end
 
-    return
-  end
+     return
+   end
 
-  if(key == "select_index_by_id") then
-    for item_index, item in ipairs(menu_items) do
-      if(item["id"] == tonumber(value)) then
-        selected_menu_index = item_index
-        setUpBus()
-      end
-    end
-  end
+  -- if(key == "select_index_by_id") then
+  --   for item_index, item in ipairs(menu_items) do
+  --     if(item["id"] == tonumber(value)) then
+  --       selected_menu_index = item_index
+  --       setUpBus()
+  --     end
+  --   end
+  -- end
 
-  if(key == "select_index_by_label") then
-    for item_index, item in ipairs(menu_items) do
-      if(item["label"] == tostring(value)) then
-        selected_menu_index = item_index
-        setUpBus()
-      end
-    end
-  end
+  -- if(key == "select_index_by_label") then
+  --   for item_index, item in ipairs(menu_items) do
+  --     if(item["label"] == tostring(value)) then
+  --       selected_menu_index = item_index
+  --       setUpBus()
+  --     end
+  --   end
+  -- end
 
   if(key == "btn_pressed") then
     selected_menu_index = tonumber(value) or 0
@@ -344,6 +360,11 @@ function onReceiveNotify(key, value)
 
   if(key == "init_effect_chooser") then
     setUpBus()
+    return
+  end
+
+  if(key == "init_preset_list") then
+    initPresetList()
     return
   end
 end
