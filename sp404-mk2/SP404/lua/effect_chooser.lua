@@ -1,32 +1,13 @@
----@diagnostic disable-next-line: undefined-global
-self = self
----@diagnostic disable-next-line: undefined-global
-root = root
----@diagnostic disable-next-line: undefined-global
-AlignH = AlignH
----@diagnostic disable-next-line: undefined-global
-ControlType = ControlType
-
+local effectChooserScript = [[
 local selected_menu_index = 0
 local all_items = {}
 local menu_items = {}
 local ITEM_WIDTH = 0
 
----@diagnostic disable-next-line: lowercase-global
 function init()
   selected_menu_index = tonumber(self.tag) or 0
   all_items = self.children.items:findAllByProperty("tag", "item", false)
 end
-
-local itemButtonScript = [[
-function onValueChanged(key)
-
-  if(key == "touch" and self.values.touch == true) then
-    self.parent.parent.parent:notify("btn_pressed", self.tag)
-  end
-
-end
-]]
 
 local function initItem(index, item)
 
@@ -104,12 +85,12 @@ local function initUI()
     self.children.selected_item.children.background.color = SETTINGS["selected_item_default_color"]
   end
 
-  -- selected_item.btn
-  self.children.selected_item.children.btn.frame.w = selected_item_width
-  self.children.selected_item.children.btn.frame.h = SETTINGS["item_height"]
-  self.children.selected_item.children.btn.frame.x = 0
-  self.children.selected_item.children.btn.frame.y = 0
-  self.children.selected_item.children.btn.cornerRadius = SETTINGS["corner_radius"]
+  -- selected_item.selected_item_button
+  self.children.selected_item.children.selected_item_button.frame.w = selected_item_width
+  self.children.selected_item.children.selected_item_button.frame.h = SETTINGS["item_height"]
+  self.children.selected_item.children.selected_item_button.frame.x = 0
+  self.children.selected_item.children.selected_item_button.frame.y = 0
+  self.children.selected_item.children.selected_item_button.cornerRadius = SETTINGS["corner_radius"]
 
   -- selected_item.label
   self.children.selected_item.children.label.frame.w = selected_item_width - (SETTINGS["item_label_padding"] * 2)
@@ -130,9 +111,7 @@ local function initUI()
   self.children.items.frame.x = 0
   self.children.items.frame.y = 0
 
-  -- items
   for item_index, item in ipairs(all_items) do
-    item.children.btn.script = itemButtonScript
     initItem(item_index, item)
   end
 end
@@ -262,10 +241,10 @@ local function showBus()
   controlMapper:notify('init_perform', {fxNum, midiChannel, faderGroups, potGroups})
 
   local onOffButtonGroup = self.parent:findByName('on_off_button_group', true)
-  onOffButtonGroup:notify('set_settings', {fxNum, midiChannel})
+  onOffButtonGroup:notify('set_settings', {fxNum, midiChannel, selected_menu_item_data["label"]})
 end
 
-local function setUpBus(fxNum)
+local function setUpBus()
   self.tag = selected_menu_index
 
   if(selected_menu_index ~= 0) then
@@ -283,7 +262,7 @@ function onReceiveNotify(key, value)
   if(key == "set_menu_items") then
     menu_items = value
     onMenuItemsChanged()
-    setUpBus(0)
+    setUpBus()
     return
   end
 
@@ -330,27 +309,7 @@ function onReceiveNotify(key, value)
       self.tag = selected_menu_index
       self.children.selected_item.children.label.values.text = SETTINGS["selected_item_header"] .. "None"
     end
-
-     return
-   end
-
-  -- if(key == "select_index_by_id") then
-  --   for item_index, item in ipairs(menu_items) do
-  --     if(item["id"] == tonumber(value)) then
-  --       selected_menu_index = item_index
-  --       setUpBus()
-  --     end
-  --   end
-  -- end
-
-  -- if(key == "select_index_by_label") then
-  --   for item_index, item in ipairs(menu_items) do
-  --     if(item["label"] == tostring(value)) then
-  --       selected_menu_index = item_index
-  --       setUpBus()
-  --     end
-  --   end
-  -- end
+  end
 
   if(key == "btn_pressed") then
     selected_menu_index = tonumber(value) or 0
@@ -366,5 +325,44 @@ function onReceiveNotify(key, value)
   if(key == "init_preset_list") then
     initPresetList()
     return
+  end
+end
+]]
+
+local selectedItemScript = [[
+function onValueChanged(key)
+
+  if(key == "touch" and self.values.touch == true) then
+    self.parent.parent:notify("toggle_menu")
+  end
+
+end
+]]
+
+local itemButtonScript = [[
+function onValueChanged(key)
+
+  if(key == "touch" and self.values.touch == true) then
+    self.parent.parent.parent:notify("btn_pressed", self.tag)
+  end
+
+end
+]]
+
+function init()
+  local effectChoosers = root:findAllByName('effect_chooser', true)
+
+  for _, effectChooser in ipairs(effectChoosers) do
+    effectChooser.script = effectChooserScript
+  end
+
+  local buttons = root:findAllByName('btn', true)
+  for _, button in ipairs(buttons) do
+    button.script = itemButtonScript
+  end
+
+  local selectedItemButtons = root:findAllByName('selected_item_button', true)
+  for _, button in ipairs(selectedItemButtons) do
+    button.script = selectedItemScript
   end
 end

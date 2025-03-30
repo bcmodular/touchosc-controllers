@@ -127,12 +127,13 @@ function onReceiveNotify(key, value)
 end
 ]]
 
-local editButtonScript =[[
+local editButtonScript = [[
 
-local function setSettings(fxNum, midiChannel)
+local function setSettings(fxNum, midiChannel, fxName)
   local settings = json.toTable(self.tag) or {}
   settings['fxNum'] = fxNum
   settings['midiChannel'] = midiChannel
+  settings['fxName'] = fxName
   self.tag = json.fromTable(settings)
 end
 
@@ -147,13 +148,14 @@ local function collectCurrentValues()
       values[i] = fader.values.x
     end
   end
-  print('collectCurrentValues', table.unpack(values))
+  print('collectCurrentValues', unpack(values))
   return values
 end
 
 local function goToEditPage(value)
   local settings = json.toTable(self.tag)
   local fxNum = tonumber(settings["fxNum"])
+  local fxName = settings["fxName"]
   local midiChannel = tonumber(settings["midiChannel"])
   performGroupToReturnTo = value
 
@@ -162,10 +164,9 @@ local function goToEditPage(value)
 
   local currentValues = collectCurrentValues()
   local performRecallProxy = self.parent.parent:findByName('perform_recall_proxy', true)
-  root:notify('edit_page', {fxNum, midiChannel, currentValues, performRecallProxy})
+  root:notify('edit_page', {fxNum, midiChannel, currentValues, performRecallProxy, fxName})
 end
 
----@diagnostic disable: lowercase-global
 function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
     goToEditPage(value)
@@ -174,8 +175,11 @@ end
 
 function onReceiveNotify(key, value)
   if key == 'set_settings' then
-    print(key, table.unpack(value))
-    setSettings(value[1], value[2])
+    print(key, unpack(value))
+    local fxNum = value[1]
+    local midiChannel = value[2]
+    local fxName = value[3]
+    setSettings(fxNum, midiChannel, fxName)
   end
 end
 ]]
@@ -213,19 +217,19 @@ function onReceiveNotify(key, value)
   if key == 'set_settings' then
     local fxNum = value[1]
     local midiChannel = value[2]
+    local fxName = value[3]
 
     for i = 1, #self.children do
       local onOffButton = self.children[i]
       if onOffButton.type == ControlType.BUTTON then
         print('Setting button tag:', onOffButton.tag, onOffButton.name)
-        onOffButton:notify('set_settings', {fxNum, midiChannel})
+        onOffButton:notify('set_settings', {fxNum, midiChannel, fxName})
       end
     end
   end
 end
 ]]
 
----@diagnostic disable: lowercase-global
 function init()
 
   local onOffButtonGroups = root:findAllByName('on_off_button_group', true)

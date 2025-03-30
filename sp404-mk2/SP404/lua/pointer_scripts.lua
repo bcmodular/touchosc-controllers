@@ -1,10 +1,3 @@
----@diagnostic disable-next-line: undefined-global
-ValueField = ValueField
----@diagnostic disable-next-line: undefined-global
-getMillis = getMillis
----@diagnostic disable-next-line: undefined-global
-PointerState = PointerState
-
 local pointerScript = [[
 -- Limits the value and returns it to ensure it stays within [min, max]
 local function limit(x, min, max)
@@ -127,7 +120,6 @@ local function initialisePointers()
   end
 end
 
----@diagnostic disable: lowercase-global
 function init()
   initialisePointers()
 end

@@ -11,7 +11,7 @@ local function recallPreset(fxNum, ccValues)
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
   print('controlInfoArray:', controlInfoArray)
 
-  print('Recalling MIDI values:', table.unpack(ccValues))
+  print('Recalling MIDI values:', unpack(ccValues))
 
   local fxPage = root.children.control_pager.children[fxNum]
   local controlGroup = fxPage.children.control_group
@@ -24,7 +24,7 @@ local function recallPreset(fxNum, ccValues)
   end
 
   for i, controlInfo in ipairs(controlInfoArray) do
-    local _, controlName, isExcludable = table.unpack(controlInfo)
+    local _, controlName, isExcludable = unpack(controlInfo)
 
     local controlObject = controlGroup:findByName(controlName, true)
 
@@ -34,17 +34,17 @@ local function recallPreset(fxNum, ccValues)
       controlObject:notify('new_value', midiToFloat(ccValues[i]))
     end
   end
-  print('Recalled MIDI values:', table.unpack(ccValues))
+  print('Recalled MIDI values:', unpack(ccValues))
 end
 
 local function setCurrentValues(fxNum, values)
-  print('Setting current values:', table.unpack(values))
+  print('Setting current values:', unpack(values))
   local fxPage = root.children.control_pager.children[fxNum]
   local controlGroup = fxPage.children.control_group
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
 
   for i, controlInfo in ipairs(controlInfoArray) do
-    local _, controlName, _ = table.unpack(controlInfo)
+    local _, controlName, _ = unpack(controlInfo)
 
     local controlObject = controlGroup:findByName(controlName, true)
     controlObject:notify('new_value', values[i])
@@ -59,7 +59,7 @@ local function returnValuesToPerform(fxNum)
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
 
   for i, controlInfo in ipairs(controlInfoArray) do
-    local _, controlName, _ = table.unpack(controlInfo)
+    local _, controlName, _ = unpack(controlInfo)
 
     local controlObject = controlGroup:findByName(controlName, true)
     values[i] = controlObject.values.x
@@ -69,7 +69,6 @@ local function returnValuesToPerform(fxNum)
   end
 end
 
----@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if key == 'recall_preset_response' then
     print('proxy received recall_preset_response')

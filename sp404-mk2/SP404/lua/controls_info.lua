@@ -426,7 +426,7 @@ local controlsInfoArray = {
   },
 }
 
-childScript = [[
+local childScript = [[
 function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
       print('Control info values:', self.tag)

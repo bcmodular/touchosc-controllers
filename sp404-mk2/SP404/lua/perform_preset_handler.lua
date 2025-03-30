@@ -1,3 +1,5 @@
+local performPresetHandlerScript = [[
+
 local fxNum = 1
 local performPresetGrid = nil
 
@@ -15,7 +17,6 @@ local function handleRecall(value)
   presetManager:notify('recall_preset', {fxNum, value, recallProxy})
 end
 
----@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if key == 'set_settings' then
     handleSetSettings(value)
@@ -26,4 +27,12 @@ end
 
 function init()
   performPresetGrid = self.parent:findByName('perform_preset_grid', true)
+end
+]]
+
+function init()
+  local performPresetHandlers = root:findAllByName('perform_preset_handler', true)
+  for _, performPresetHandler in ipairs(performPresetHandlers) do
+    performPresetHandler.script = performPresetHandlerScript
+  end
 end

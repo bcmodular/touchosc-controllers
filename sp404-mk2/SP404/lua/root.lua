@@ -27,7 +27,6 @@ local function goToEditPage(fxNum, midiChannel, currentValues, performRecallProx
   fxPresetHandler:notify('set_settings', {fxNum, midiChannel})
 end
 
----@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if key == 'edit_page' then
     --print('Setting channel to:', value)
@@ -35,6 +34,14 @@ function onReceiveNotify(key, value)
     local channel = value[2]
     local currentValues = value[3]
     local performRecallProxy = value[4]
+    local fxName = value[5]
+    local busNum = tostring(tonumber(channel) + 1)
+
+    local fxPageLabelText = 'Bus '..busNum..' - '..fxName
+    print('Setting fx page label to:', fxPageLabelText)
+    local fxPageLabel = root:findByName('fx_page_label')
+    fxPageLabel.values.text = fxPageLabelText
+
     goToEditPage(fxNum, channel, currentValues, performRecallProxy)
   end
 end

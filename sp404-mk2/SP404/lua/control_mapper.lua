@@ -1155,7 +1155,7 @@ local gridLabelScriptTemplate = [[
 ]]
 
 local function generateAndAssignFaderScript(controlGroup, controlInfo)
-  local ccNumber, faderName, _, _, labelName, labelMapping, _, gridName, _, _, startValues, amSyncFader, _, _, _, _ = table.unpack(controlInfo)
+  local ccNumber, faderName, _, _, labelName, labelMapping, _, gridName, _, _, startValues, amSyncFader, _, _, _, _ = unpack(controlInfo)
 
   if not startValues or startValues == '' then
     -- Just so we don't break the script
@@ -1188,7 +1188,7 @@ local function generateAndAssignFaderScript(controlGroup, controlInfo)
 end
 
 local function generateAndAssignLabelScript(controlGroup, controlInfo)
-  local ccNumber, _, _, _, labelName, _, labelFormat, _, _, _, _, _, _, _, _, _ = table.unpack(controlInfo)
+  local ccNumber, _, _, _, labelName, _, labelFormat, _, _, _, _, _, _, _, _, _ = unpack(controlInfo)
 
   -- Generate and assign label script
   local labelObject = controlGroup:findByName(labelName, true)
@@ -1201,7 +1201,7 @@ end
 
 local function generateAndAssignGridScript(controlGroup, controlInfo)
   -- Generate and assign grid script
-  local ccNumber, faderName, _, _, _, labelMapping, _, gridName, gridLabelName, gridLabelMapping, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = table.unpack(controlInfo)
+  local ccNumber, faderName, _, _, _, labelMapping, _, gridName, gridLabelName, gridLabelMapping, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = unpack(controlInfo)
 
   local amSyncGrid = 'true'
   if not showHideFader then
@@ -1260,8 +1260,8 @@ local function mapControls()
     if controlInfo then
       --print('Successfully loaded controlInfo for page:', i)
       for i, control in ipairs(controlInfo) do
-        --print(string.format('controlInfo[%d]:', i), table.unpack(control))
-        local _, controlName, _, _, labelName, labelMapping, labelFormat, syncedGrid = table.unpack(control)
+        --print(string.format('controlInfo[%d]:', i), unpack(control))
+        local _, controlName, _, _, labelName, labelMapping, labelFormat, syncedGrid = unpack(control)
 
         --print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedGrid)
 
@@ -1419,7 +1419,7 @@ local function setUpPerformValueLabel(valueLabel, labelFormat)
 end
 
 local function setUpPerformFader(controlFader, channel, controlInfo, syncedFaderNum)
-  local ccNumber, _, _, _, _, labelMapping, _, _, _, _, startValues, amSyncedFader, _, _, _, _ = table.unpack(controlInfo)
+  local ccNumber, _, _, _, _, labelMapping, _, _, _, _, startValues, amSyncedFader, _, _, _, _ = unpack(controlInfo)
 
   if not startValues or startValues == '' then
     -- Just so we don't break the script
@@ -1464,7 +1464,7 @@ local function setUpPerformFaders(fxNum, channel, faderGroups)
     else
       faderGroup.visible = true
 
-      local _, faderName, _, labelText, _, _, labelFormat, _, _, _, _, amSyncedFader = table.unpack(control)
+      local _, faderName, _, labelText, _, _, labelFormat, _, _, _, _, amSyncedFader = unpack(control)
 
       if amSyncedFader == 'true' then
         -- Collect the synced fader number for later use by the sync fader
@@ -1503,8 +1503,6 @@ local function setUpPerformPots(fxNum, potGroups)
     end
   end
 end
-
----@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if key == 'init_control_mapper' then
     -- print('Initialising Control Mapper')

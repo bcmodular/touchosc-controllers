@@ -13,7 +13,7 @@ local function storeFXPreset(presetNum)
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
   print('controlInfoArray:', controlInfoArray)
 
-  local ccValues = {table.unpack(defaultCCValues)}
+  local ccValues = {unpack(defaultCCValues)}
 
   local fxPage = root.children.control_pager.children[fxNum]
   local controlGroup = fxPage.children.control_group
@@ -29,7 +29,7 @@ local function storeFXPreset(presetNum)
     end
   end
 
-  print('Current MIDI values:', table.unpack(ccValues))
+  print('Current MIDI values:', unpack(ccValues))
 
   local presetManager = root.children.preset_manager
   presetManager:notify('store_preset', {fxNum, presetNum, ccValues})

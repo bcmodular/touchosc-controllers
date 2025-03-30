@@ -26,7 +26,6 @@ local function hideOtherThanMe(notToHide)
   end
 end
 
----@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   print('perform_group received notification:', key, value)
   if key == 'show' then

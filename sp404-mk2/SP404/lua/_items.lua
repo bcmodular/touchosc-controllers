@@ -1,3 +1,4 @@
+local itemsScript = [[
 local effects = {
     "Filter + Drive", "Resonator", "Sync Delay", "Isolator", "DJFX Looper", "Scatter",
     "Downer", "Ha-Dou", "Ko-Da-Ma", "Zan-Zou", "To-Gu-Ro", "SBF",
@@ -36,14 +37,11 @@ local function getMappedEffects(case)
 
     return result
 end
-
----@diagnostic disable: lowercase-global
 function init()
 
-  menu_items = {}
-  local busGroup = self.parent.parent
-  local midiChannel = tonumber(busGroup.tag) or 0
-  print('midiChannel:', midiChannel, busGroup.name)
+  local menu_items = {}
+  local midiChannel = tonumber(self.tag) - 1
+  print('midiChannel:', midiChannel, self.tag)
 
   local mappingCase = 3
 
@@ -56,7 +54,7 @@ function init()
   local mappedEffects = getMappedEffects(mappingCase) -- Replace with 1, 2, or 3
   for _, entry in ipairs(mappedEffects) do
     -- print(entry[1], entry[2], entry[3])
-    menu_item = {}
+    local menu_item = {}
     menu_item["id"] = entry[1]
     menu_item["label"] = entry[2]
     menu_item["value"] = entry[3]
@@ -66,4 +64,12 @@ function init()
 
   self.parent:notify("set_menu_items", menu_items)
 
+end
+]]
+
+function init()
+  local items = root:findAllByName('_items', true)
+  for _, item in ipairs(items) do
+    item.script = itemsScript
+  end
 end

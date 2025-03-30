@@ -84,7 +84,7 @@ local function handleStoredPresetsList(value)
   local halfCount = childCount / 2
 
   print('childCount:', childCount, 'halfCount:', halfCount)
-  print('storedPresets:', table.unpack(storedPresets))
+  print('storedPresets:', unpack(storedPresets))
 
   -- Initialise the entries first
   for index = 1, childCount do

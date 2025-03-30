@@ -15,8 +15,7 @@ local function changeState(child, newState)
   child.color = BUTTON_STATE_COLORS[newState]
 end
 
----@diagnostic disable: lowercase-global
-  function onValueChanged(key, value)
+function onValueChanged(key, value)
 
   -- Interpret button presses as a child button
   if (key == 'x' and self.values.x == 1 and self.name ~= 'perform_preset_grid') then
@@ -42,11 +41,11 @@ function onReceiveNotify(key, value)
       print('presetManager', presetManager.name, fxNum)
       local presetManagerChild = presetManager.children[tostring(fxNum)]
       local presetArray = json.toTable(presetManagerChild.tag) or {}
-      print('presetArray:', table.unpack(presetArray), 'fxNum:', fxNum)
+      print('presetArray:', unpack(presetArray), 'fxNum:', fxNum)
 
       local childCount = #self.children
 
-      print('storedPresets:', table.unpack(presetArray))
+      print('storedPresets:', unpack(presetArray))
 
       -- Initialise the entries first
       for index = 1, childCount do
@@ -64,7 +63,7 @@ function onReceiveNotify(key, value)
 
 end
 
-  function init()
+function init()
     if self.name == 'perform_preset_grid' then
       self.outline = true
       self.outlineStyle = OutlineStyle.FULL
@@ -72,7 +71,6 @@ end
   end
 ]]
 
----@diagnostic disable: lowercase-global
 function init()
   local performPresetGrids = self.parent:findAllByName('perform_preset_grid', true)
 

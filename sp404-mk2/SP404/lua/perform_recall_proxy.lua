@@ -1,3 +1,5 @@
+local performRecallProxyScript = [[
+
 local controlsInfo = root.children.controls_info
 
 local function midiToFloat(midiValue)
@@ -10,7 +12,7 @@ local function recallPreset(fxNum, ccValues)
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
   print('controlInfoArray:', controlInfoArray)
 
-  print('Recalling MIDI values:', table.unpack(ccValues))
+  print('Recalling MIDI values:', unpack(ccValues))
 
   local faders = self.parent:findByName('faders', true)
 
@@ -23,7 +25,7 @@ local function recallPreset(fxNum, ccValues)
   -- end
 
   for i, controlInfo in ipairs(controlInfoArray) do
-    local _, _, isExcludable = table.unpack(controlInfo)
+    local _, _, isExcludable = unpack(controlInfo)
 
     local faderGroup = faders:findByName(tostring(i))
     local controlFader = faderGroup:findByName('control_fader')
@@ -34,11 +36,11 @@ local function recallPreset(fxNum, ccValues)
       controlFader:notify('new_value', midiToFloat(ccValues[i]))
     end
   end
-  print('Recalled MIDI values:', table.unpack(ccValues))
+  print('Recalled MIDI values:', unpack(ccValues))
 end
 
 local function returnValuesToPerform(values)
-  print('Returning values to perform:', table.unpack(values))
+  print('Returning values to perform:', unpack(values))
   local faders = self.parent:findByName('faders', true)
   for i = 1, 6 do
     local faderGroup = faders:findByName(tostring(i))
@@ -47,7 +49,6 @@ local function returnValuesToPerform(values)
   end
 end
 
----@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if key == 'recall_preset_response' then
     print('proxy received recall_preset_response')
@@ -58,5 +59,14 @@ function onReceiveNotify(key, value)
   elseif key == 'return_values_to_perform' then
     print('proxy received return_values_to_perform')
     returnValuesToPerform(value)
+  end
+end
+
+]]
+
+function init()
+  local performRecallProxies = root:findAllByName('perform_recall_proxy', true)
+  for _, performRecallProxy in ipairs(performRecallProxies) do
+    performRecallProxy.script = performRecallProxyScript
   end
 end

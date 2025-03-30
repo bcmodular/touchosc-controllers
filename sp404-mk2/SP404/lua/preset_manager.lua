@@ -20,7 +20,7 @@ local function storePreset(fxNum, presetNum, presetValue)
   if presetValue == nil then
     print('Deleting preset:', fxNum, presetNum)
   else
-    print('Storing preset:', fxNum, presetNum, 'with values:', table.unpack(presetValue))
+    print('Storing preset:', fxNum, presetNum, 'with values:', unpack(presetValue))
   end
 
   presetArray[formatPresetNum(presetNum)] = presetValue
@@ -33,7 +33,7 @@ end
 
 local function recallPreset(fxNum, presetNum)
   local presetArray = json.toTable(self.children[tostring(fxNum)].tag) or {}
-  print('Preset manager recalling preset:', fxNum, presetNum, table.unpack(presetArray))
+  print('Preset manager recalling preset:', fxNum, presetNum, unpack(presetArray))
   return presetArray[formatPresetNum(presetNum)]
 end
 
@@ -58,7 +58,7 @@ local function storedPresetsPerFX(fxNum)
   print('Preset manager getting stored presets for FX:', fxNum)
   local presetArray = json.toTable(self.children[tostring(fxNum)].tag) or {}
 
-  print('Returning stored presets for FX:', fxNum, table.unpack(presetArray))
+  print('Returning stored presets for FX:', fxNum, unpack(presetArray))
   return presetArray
 
 end
@@ -69,7 +69,6 @@ local function assignChildScripts()
   end
 end
 
----@diagnostic disable: lowercase-global
 function init()
   print('Initialising preset manager')
   assignChildScripts()
@@ -96,7 +95,7 @@ function onReceiveNotify(key, value)
     local fxNum = value[1]
     local presetNum = value[2]
     local ccValues = value[3]
-    print('Storing preset:', fxNum, presetNum, 'with values:', table.unpack(ccValues))
+    print('Storing preset:', fxNum, presetNum, 'with values:', unpack(ccValues))
     storePreset(fxNum, presetNum, ccValues)
 
   elseif key == 'recall_preset' then
@@ -106,7 +105,7 @@ function onReceiveNotify(key, value)
     local presetNum = value[2]
     local recallProxy = value[3]
     local result = recallPreset(fxNum, presetNum)
-    print('recall_preset result:', table.unpack(result))
+    print('recall_preset result:', unpack(result))
 
     recallProxy:notify('recall_preset_response', {fxNum, result, recallProxy})
 
@@ -133,7 +132,7 @@ function onReceiveNotify(key, value)
 
     local storedPresets = storedPresetsPerFX(fxNum)
 
-    print('Returning stored presets list to:', fxPresetGrid.name, table.unpack(storedPresets))
+    print('Returning stored presets list to:', fxPresetGrid.name, unpack(storedPresets))
     fxPresetGrid:notify('stored_presets_list', storedPresets)
 
   end
