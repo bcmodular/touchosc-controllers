@@ -10,7 +10,6 @@ local function limit(x, min, max)
   return x
 end
 
----@diagnostic disable: lowercase-global
 function init()
 
   -- The ratio defines how many pixels correspond to one rotation of the knob.
@@ -113,9 +112,9 @@ end
 
 -- Initialises the various pointer objects
 local function initialisePointers()
-  local pointers = self.parent:findAllByName('pointer', true)
+  local pointers = root:findAllByName('pointer', true)
   for _, pointer in ipairs(pointers) do
-    print('initialising pointer', pointer.name)
+    --print('initialising pointer', pointer.name)
     pointer.script = pointerScript
   end
 end

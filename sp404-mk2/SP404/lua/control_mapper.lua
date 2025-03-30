@@ -1393,6 +1393,8 @@ local performFaderScriptTemplate = [[
       updateLabel(self.values.x)
     elseif key == 'update_label' then
       updateLabel(self.values.x)
+    elseif key == 'sync_midi' then
+      syncMIDI()
     end
   end
 

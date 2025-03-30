@@ -31,12 +31,6 @@ local function storePreset(fxNum, presetNum, presetValue)
 
 end
 
-local function recallPreset(fxNum, presetNum)
-  local presetArray = json.toTable(self.children[tostring(fxNum)].tag) or {}
-  print('Preset manager recalling preset:', fxNum, presetNum, unpack(presetArray))
-  return presetArray[formatPresetNum(presetNum)]
-end
-
 local function deletePreset(fxNum, presetNum)
   print('Preset manager deleting preset:', fxNum, presetNum)
   storePreset(fxNum, presetNum, nil)
@@ -97,17 +91,6 @@ function onReceiveNotify(key, value)
     local ccValues = value[3]
     print('Storing preset:', fxNum, presetNum, 'with values:', unpack(ccValues))
     storePreset(fxNum, presetNum, ccValues)
-
-  elseif key == 'recall_preset' then
-    print('preset_manager received recall_preset notification')
-
-    local fxNum = value[1]
-    local presetNum = value[2]
-    local recallProxy = value[3]
-    local result = recallPreset(fxNum, presetNum)
-    print('recall_preset result:', unpack(result))
-
-    recallProxy:notify('recall_preset_response', {fxNum, result, recallProxy})
 
   elseif key == 'delete_preset' then
 

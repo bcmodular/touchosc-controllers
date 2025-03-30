@@ -230,6 +230,27 @@ function onReceiveNotify(key, value)
 end
 ]]
 
+local syncButtonScript = [[
+function onValueChanged(key, value)
+  if key == 'x' and self.values.x == 0 then
+    local controlFaders = self.parent.parent.parent:findAllByName('control_fader', true)
+    for _, controlFader in ipairs(controlFaders) do
+      controlFader:notify('sync_midi')
+    end
+  end
+end
+]]
+
+local defaultsButtonScript = [[
+function onValueChanged(key, value)
+  if key == 'x' and self.values.x == 0 then
+    print('defaults button pressed')
+    local performRecallProxy = self.parent.parent.parent:findByName('perform_recall_proxy', true)
+    performRecallProxy:notify('recall_defaults')
+  end
+end
+]]
+
 function init()
 
   local onOffButtonGroups = root:findAllByName('on_off_button_group', true)
@@ -242,6 +263,9 @@ function init()
     local grabButton = onOffButtonGroup:findByName('grab_button')
     local editButton = onOffButtonGroup:findByName('edit_button')
     local performButton = onOffButtonGroup:findByName('perform_button')
+    local syncButton = onOffButtonGroup:findByName('sync_button')
+    local defaultsButton = onOffButtonGroup:findByName('defaults_button')
+
     onButton.script = onButtonScript
     offButton.script = offButtonScript
     grabButton.script = grabButtonScript
@@ -252,6 +276,14 @@ function init()
 
     if performButton then
       performButton.script = performButtonScript
+    end
+
+    if syncButton then
+      syncButton.script = syncButtonScript
+    end
+
+    if defaultsButton then
+      defaultsButton.script = defaultsButtonScript
     end
   end
 end

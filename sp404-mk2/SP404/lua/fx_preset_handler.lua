@@ -8,6 +8,33 @@ local function floatToMIDI(floatValue)
   return midiValue
 end
 
+local function storeFXDefaults()
+  local controlsInfo = root.children.controls_info
+  local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
+  print('controlInfoArray:', controlInfoArray)
+
+  local ccValues = {unpack(defaultCCValues)}
+
+  local fxPage = root.children.control_pager.children[fxNum]
+  local controlGroup = fxPage.children.control_group
+
+  for i, controlInfo in ipairs(controlInfoArray) do
+    local controlObject = controlGroup:findByName(controlInfo[2], true)
+    if controlObject then
+      print('Control object:', controlObject.name)
+      ccValues[i] = floatToMIDI(controlObject.values.x)
+    else
+      print('Control object not found:', controlInfo[2])
+      ccValues[i] = 0
+    end
+  end
+
+  print('Current MIDI values:', unpack(ccValues))
+
+  local defaultManager = root.children.default_manager
+  defaultManager:notify('store_defaults', {fxNum, ccValues})
+
+end
 local function storeFXPreset(presetNum)
   local controlsInfo = root.children.controls_info
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
@@ -62,13 +89,11 @@ end
 
 local function handleRecall(value)
   print('fx_preset_handler received recall notification for preset:', value)
-  local presetManager = root.children.preset_manager
   local recallProxy = root.children.recall_proxy
 
-  presetManager:notify('recall_preset', {fxNum, value, recallProxy})
+  recallProxy:notify('recall_preset', value)
 end
 
----@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if key == 'set_settings' then
     handleSetSettings(value)
@@ -82,6 +107,8 @@ function onReceiveNotify(key, value)
     storeFXPreset(value)
   elseif key == 'recall' then
     handleRecall(value)
+  elseif key == 'store_defaults' then
+    storeFXDefaults()
   end
 end
 

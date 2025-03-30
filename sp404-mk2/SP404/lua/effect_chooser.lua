@@ -205,6 +205,11 @@ end
 
 local function initPresetList()
   print('initPresetList', selected_menu_index)
+
+  if selected_menu_index == 0 then
+    return
+  end
+
   local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
   local fxNum = selected_menu_item_data["id"]
 
@@ -232,6 +237,9 @@ local function showBus()
 
   local performPresetHandler = self.parent:findByName('perform_preset_handler', true)
   performPresetHandler:notify('set_settings', {fxNum, midiChannel})
+
+  local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
+  performRecallProxy:notify('set_settings', fxNum)
 
   initPresetList()
 

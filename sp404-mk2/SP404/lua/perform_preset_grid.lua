@@ -24,8 +24,8 @@ function onValueChanged(key, value)
     --print('button state:', buttonState)
 
     if (buttonState == BUTTON_STATE.RECALL) then
-      local performPresetHandler = self.parent.parent:findByName('perform_preset_handler')
-      performPresetHandler:notify('recall', self.index)
+      local performRecallProxy = self.parent.parent:findByName('perform_recall_proxy')
+      performRecallProxy:notify('recall_preset', self.index)
     end
   end
 end
@@ -72,7 +72,7 @@ function init()
 ]]
 
 function init()
-  local performPresetGrids = self.parent:findAllByName('perform_preset_grid', true)
+  local performPresetGrids = root:findAllByName('perform_preset_grid', true)
 
   for _, performPresetGrid in ipairs(performPresetGrids) do
     performPresetGrid.script = performPresetGridScript
