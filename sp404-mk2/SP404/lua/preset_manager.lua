@@ -68,18 +68,6 @@ function init()
   assignChildScripts()
 end
 
--- TODO: change the handling so it writes the values to the
--- children of the preset manager
-function onReceiveOSC(message, connections)
-
-  local path = message[1]
-  local arguments = message[2]
-  local presetJSON = arguments[1].value
-
-  print('Received OSC message:', path, 'with preset JSON:', presetJSON)
-  self.tag = presetJSON
-end
-
 function onReceiveNotify(key, value)
 
   print('preset_manager received notification:', key, value)
@@ -118,5 +106,25 @@ function onReceiveNotify(key, value)
     print('Returning stored presets list to:', fxPresetGrid.name, unpack(storedPresets))
     fxPresetGrid:notify('stored_presets_list', storedPresets)
 
+  elseif key == 'export_presets_to_osc' then
+
+    local fullPresetArray = {}
+    for fxNum = 1, 46 do
+      local presetArray = json.toTable(self.children[tostring(fxNum)].tag) or {}
+      fullPresetArray[fxNum] = presetArray
+    end
+
+    local jsonPresets = json.fromTable(fullPresetArray)
+    print('Full preset array:', jsonPresets)
+    sendOSC('/presets', jsonPresets)
+
+  elseif key == 'import_presets_from_osc' then
+
+    local fullPresetArray = value
+
+    for fxNum = 1, 46 do
+      local presetArray = fullPresetArray[fxNum]
+      self.children[tostring(fxNum)].tag = presetArray
+    end
   end
 end

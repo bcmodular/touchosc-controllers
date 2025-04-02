@@ -250,6 +250,9 @@ local function showBus()
 
   local onOffButtonGroup = self.parent:findByName('on_off_button_group', true)
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel, selected_menu_item_data["label"]})
+
+  local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
+  performRecallProxy:notify('recall_defaults')
 end
 
 local function setUpBus()
