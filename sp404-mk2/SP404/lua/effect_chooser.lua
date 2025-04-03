@@ -219,6 +219,9 @@ end
 
 local function showBus()
 
+  local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
+  performRecallProxy:notify('store_current_values')
+
   local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
 
   self.children.selected_item.tag = json.fromTable(selected_menu_item_data)
@@ -239,7 +242,7 @@ local function showBus()
   performPresetHandler:notify('set_settings', {fxNum, midiChannel})
 
   local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
-  performRecallProxy:notify('set_settings', fxNum)
+  performRecallProxy:notify('set_settings', {fxNum, midiChannel})
 
   initPresetList()
 
@@ -251,8 +254,7 @@ local function showBus()
   local onOffButtonGroup = self.parent:findByName('on_off_button_group', true)
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel, selected_menu_item_data["label"]})
 
-  local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
-  performRecallProxy:notify('recall_defaults')
+  performRecallProxy:notify('recall_recent_values')
 end
 
 local function setUpBus()
