@@ -1,5 +1,8 @@
 local function saveEffectBuses(buses)
-  self.tag = json.fromTable(buses)
+  local busesString = json.fromTable(buses)
+  print('busesString', busesString)
+  self.tag = busesString
+  print('saved buses', busesString)
 end
 
 local function loadEffectBuses()
@@ -18,15 +21,19 @@ local function loadEffectBuses()
   return buses
 end
 
-local function pushEffectToBus(busNum, fxNum, parameters)
+local function pushEffectToBus(channel, fxNum, parameters)
   local buses = loadEffectBuses()
-
+  local busNum = tostring(channel + 1)
   local stack = buses[busNum] or {}
+
+  print('current buses', unpack(buses))
+  print('current stack', unpack(stack))
 
   local existingIndex = nil
 
   for i, effect in ipairs(stack) do
-    if effect.id == fxNum then
+    if effect.fxNum == fxNum then
+      print('found existing effect', effect.fxNum)
       existingIndex = i
       break
     end
@@ -37,22 +44,27 @@ local function pushEffectToBus(busNum, fxNum, parameters)
     effect.parameters = parameters
     table.insert(stack, 1, effect)
   else
+    print('no existing effect found for fxNum', fxNum, 'on bus', busNum)
     local newEffect = {
-      id = fxNum,
+      fxNum = fxNum,
       parameters = parameters
     }
 
     table.insert(stack, 1, newEffect)
 
+    print('new stack', unpack(stack))
+
     if #stack > 16 then
       table.remove(stack)
+      print('stack after removing', unpack(stack))
     end
   end
 
   buses[busNum] = stack
 
+  print('buses after saving', unpack(buses))
+
   saveEffectBuses(buses)
-  return buses
 end
 
 function onReceiveNotify(key, value)
@@ -60,7 +72,7 @@ function onReceiveNotify(key, value)
     local channel = value[1]
     local fxNum = value[2]
     local parameters = value[3]
-
+    print('update_recent_values', channel, fxNum, unpack(parameters))
     pushEffectToBus(channel, fxNum, parameters)
   end
 end

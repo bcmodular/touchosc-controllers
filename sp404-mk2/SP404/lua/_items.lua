@@ -41,7 +41,6 @@ function init()
 
   local menu_items = {}
   local midiChannel = tonumber(self.tag) - 1
-  print('midiChannel:', midiChannel, self.tag)
 
   local mappingCase = 3
 
@@ -53,7 +52,6 @@ function init()
 
   local mappedEffects = getMappedEffects(mappingCase) -- Replace with 1, 2, or 3
   for _, entry in ipairs(mappedEffects) do
-    -- print(entry[1], entry[2], entry[3])
     local menu_item = {}
     menu_item["id"] = entry[1]
     menu_item["label"] = entry[2]

@@ -5,7 +5,7 @@
 local childScript = [[
 function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
-      print('Current default values:', self.tag)
+    print('Current default values:', self.tag)
   end
 end
 ]]
@@ -27,13 +27,10 @@ local function assignChildScripts()
 end
 
 function init()
-  print('Initialising default manager')
   assignChildScripts()
 end
 
 function onReceiveNotify(key, value)
-
-  print('default_manager received notification:', key, value)
 
   if key == 'store_defaults' then
 

@@ -64,7 +64,6 @@ local function assignChildScripts()
 end
 
 function init()
-  print('Initialising preset manager')
   assignChildScripts()
 end
 

@@ -62,7 +62,6 @@ end
 
 function onReceiveNotify(key, value)
   if key == 'set_settings' then
-    print(key, unpack(value))
     setSettings(value[1], value[2])
   end
 end
@@ -148,7 +147,6 @@ local function collectCurrentValues()
       values[i] = fader.values.x
     end
   end
-  print('collectCurrentValues', unpack(values))
   return values
 end
 
@@ -175,7 +173,6 @@ end
 
 function onReceiveNotify(key, value)
   if key == 'set_settings' then
-    print(key, unpack(value))
     local fxNum = value[1]
     local midiChannel = value[2]
     local fxName = value[3]
@@ -222,7 +219,6 @@ function onReceiveNotify(key, value)
     for i = 1, #self.children do
       local onOffButton = self.children[i]
       if onOffButton.type == ControlType.BUTTON then
-        print('Setting button tag:', onOffButton.tag, onOffButton.name)
         onOffButton:notify('set_settings', {fxNum, midiChannel, fxName})
       end
     end
@@ -244,7 +240,6 @@ end
 local defaultsButtonScript = [[
 function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
-    print('defaults button pressed')
     local performRecallProxy = self.parent.parent.parent:findByName('perform_recall_proxy', true)
     performRecallProxy:notify('recall_defaults')
   end

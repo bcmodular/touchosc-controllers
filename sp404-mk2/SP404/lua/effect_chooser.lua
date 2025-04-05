@@ -3,9 +3,16 @@ local selected_menu_index = 0
 local all_items = {}
 local menu_items = {}
 local ITEM_WIDTH = 0
+local fxNum = nil
+local midiChannel = tonumber(self.parent.tag)
 
 function init()
   selected_menu_index = tonumber(self.tag) or 0
+  if selected_menu_index ~= 0 then
+    fxNum = tonumber(menu_items[tonumber(selected_menu_index)]["id"])
+  else
+    fxNum = nil
+  end
   all_items = self.children.items:findAllByProperty("tag", "item", false)
 end
 
@@ -176,6 +183,9 @@ end
 local function clearBus()
   local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
 
+  -- Store current values
+  local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
+  performRecallProxy:notify('store_current_values')
   self.children.selected_item.tag = json.fromTable(selected_menu_item_data)
   self.children.selected_item.children.label.values.text = "Choose FX..."
 
@@ -211,7 +221,6 @@ local function initPresetList()
   end
 
   local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
-  local fxNum = selected_menu_item_data["id"]
 
   local performPresetGrid = self.parent:findByName('perform_preset_grid', true)
   performPresetGrid:notify('init_presets_list', fxNum)
@@ -219,30 +228,29 @@ end
 
 local function showBus()
 
-  local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
-  performRecallProxy:notify('store_current_values')
-
   local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
+  local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
+
+  if fxNum ~= nil and fxNum ~= tonumber(selected_menu_item_data["id"]) then
+    performRecallProxy:notify('store_current_values')
+  end
 
   self.children.selected_item.tag = json.fromTable(selected_menu_item_data)
   self.children.selected_item.children.label.values.text = SETTINGS["selected_item_header"] .. selected_menu_item_data["label"]
 
   updateMenuItemsData()
 
-  local fxNum = selected_menu_item_data["id"]
-  local midiChannel = tonumber(self.parent.tag)
-  print("showBus [id: " .. fxNum .. "][label: " .. selected_menu_item_data["label"] .. "][value: " .. selected_menu_item_data["value"] .. "]")
+  fxNum = tonumber(selected_menu_item_data["id"])
+  print("showBus [id: " .. tostring(fxNum) .. "][label: " .. selected_menu_item_data["label"] .. "][value: " .. selected_menu_item_data["value"] .. "]")
 
   closeMenu()
+  performRecallProxy:notify('set_settings', {fxNum, midiChannel})
 
   local controlGroup = self.parent:findByName('control_group', true)
   controlGroup.visible = true
 
   local performPresetHandler = self.parent:findByName('perform_preset_handler', true)
   performPresetHandler:notify('set_settings', {fxNum, midiChannel})
-
-  local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
-  performRecallProxy:notify('set_settings', {fxNum, midiChannel})
 
   initPresetList()
 
@@ -270,7 +278,7 @@ end
 ---@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
 
-  print('onReceiveNotify', key, value)
+  --print('onReceiveNotify', key, value)
 
   if(key == "set_menu_items") then
     menu_items = value
@@ -288,12 +296,7 @@ function onReceiveNotify(key, value)
     return
   end
 
-  if(key == "openMenu") then
-    openMenu()
-  end
-
   if(key == "closeMenu") then
-    print('closing menu for', self.parent.name)
     closeMenu()
   end
 
@@ -306,6 +309,14 @@ function onReceiveNotify(key, value)
 
     local performGroup = self.parent.parent.parent:findByName('perform_group')
     performGroup:notify('hide_other_than_me', self)
+
+    local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
+
+    if selected_menu_item_data ~= nil then
+
+      local performRecallProxy = self.parent.parent.parent:findByName('perform_recall_proxy', true)
+      performRecallProxy:notify('set_settings', {fxNum, midiChannel})
+    end
   end
 
   if(key == "select_index") then
@@ -318,6 +329,7 @@ function onReceiveNotify(key, value)
       setUpBus()
     else
       -- empty
+      fxNum = nil
       selected_menu_index = 0
       self.tag = selected_menu_index
       self.children.selected_item.children.label.values.text = SETTINGS["selected_item_header"] .. "None"

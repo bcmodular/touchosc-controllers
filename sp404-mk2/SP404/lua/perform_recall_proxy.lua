@@ -1,8 +1,8 @@
 local performRecallProxyScript = [[
 
 local controlsInfo = root.children.controls_info
-local fxNum = 1
-local channel = 1
+local fxNum = nil
+local channel = nil
 
 local function formatPresetNum(num)
   return string.format("%02d", num)
@@ -12,10 +12,12 @@ local function midiToFloat(midiValue)
   local floatValue = midiValue / 127
   return floatValue
 end
+
 local function floatToMIDI(floatValue)
   local midiValue = math.floor(floatValue * 127 + 0.5)
   return midiValue
 end
+
 local function recallPreset(presetNum)
 
   local presetManager = root.children.preset_manager
@@ -54,19 +56,23 @@ local function recallPreset(presetNum)
 end
 
 
-local function getRecentValuesForBus(channel)
+local function getRecentValuesForBus(busNum)
 
   local recentValues = json.toTable(root.children.recent_values.tag) or {}
-  local recentValuesForBus = recentValues[tostring(channel)] or {}
+  local recentValuesForBus = recentValues[tostring(busNum)] or {}
+
+  print('Recent values for bus:', busNum, recentValuesForBus)
 
   return recentValuesForBus
 end
 
 local function getEffectParametersFromBus(channel, fxNum)
-  local recentValuesForBus = getRecentValuesForBus(channel)
+  local recentValuesForBus = getRecentValuesForBus(tostring(channel + 1))
 
+  print('Recent values for bus:', busNum, recentValuesForBus)
   for _, effect in ipairs(recentValuesForBus) do
-    if effect.id == fxNum then
+    print('Effect:', effect.fxNum, fxNum, unpack(effect.parameters))
+    if effect.fxNum == fxNum then
       return effect.parameters
     end
   end
@@ -128,17 +134,21 @@ local function returnValuesToPerform(values)
 end
 
 local function storeCurrentValues()
-  print('Storing current values')
-  local faders = self.parent:findByName('faders', true)
-  local currentValues = {}
-  for i = 1, 6 do
+  if fxNum ~= nil then
+    print('Storing current values')
+    local faders = self.parent:findByName('faders', true)
+    local currentValues = {}
+    for i = 1, 6 do
     local faderGroup = faders:findByName(tostring(i))
-    local controlFader = faderGroup:findByName('control_fader')
-    currentValues[i] = floatToMIDI(controlFader.values.x)
+      local controlFader = faderGroup:findByName('control_fader')
+      currentValues[i] = floatToMIDI(controlFader.values.x)
+    end
+    local recentValues = root.children.recent_values
+    recentValues:notify('update_recent_values', {channel, fxNum, currentValues})
+    print('Current values:', unpack(currentValues))
+  else
+    print('No fxNum set, skipping storeCurrentValues')
   end
-  local recentValues = root.children.recent_values
-  recentValues:notify('store_current_values', {channel, fxNum, currentValues})
-  print('Current values:', unpack(currentValues))
 end
 
 function onReceiveNotify(key, value)

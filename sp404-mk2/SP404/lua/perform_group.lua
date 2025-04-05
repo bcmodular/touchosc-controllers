@@ -1,7 +1,6 @@
 local function initialiseEffectChoosers()
   local effectChoosers = self:findAllByName('effect_chooser', true)
   for _, effectChooser in ipairs(effectChoosers) do
-    print('initialising effect chooser', effectChooser.name)
     effectChooser:notify('init_effect_chooser')
   end
 end
@@ -9,7 +8,6 @@ end
 local function initialisePresetGrids()
   local effectChoosers = self:findAllByName('effect_chooser', true)
   for _, effectChooser in ipairs(effectChoosers) do
-    print('initialising preset grid', effectChooser.name)
     effectChooser:notify('init_preset_list')
   end
 end
@@ -20,14 +18,13 @@ local function hideOtherThanMe(notToHide)
 
   for _, effectChooser in ipairs(effectChoosers) do
     if effectChooser ~= notToHide then
-      print('closing menu for', effectChooser.name)
       effectChooser:notify('closeMenu')
     end
   end
 end
 
 function onReceiveNotify(key, value)
-  print('perform_group received notification:', key, value)
+  --print('perform_group received notification:', key, value)
   if key == 'show' then
     self.visible = true
     initialiseEffectChoosers()
