@@ -181,8 +181,6 @@ end
 
 local performButtonScript = [[
 
-local performGroupToReturnTo = nil
-
 local function setSettings(fxNum, midiChannel)
   local settings = json.toTable(self.tag) or {}
   settings['fxNum'] = fxNum

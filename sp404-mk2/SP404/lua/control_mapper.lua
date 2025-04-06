@@ -1028,6 +1028,10 @@ local faderScriptTemplate = [[
       -- print('New value:', value)
       self.values.x = value
       updateLabel(value)
+      if gridToNotify ~= '' then
+        local gridIndex = floatToRange(self.values.x)
+        notifyGrid(gridIndex)
+      end
       syncMIDI()
     elseif key == 'new_cc_value' then
       -- print('New cc value:', value)
