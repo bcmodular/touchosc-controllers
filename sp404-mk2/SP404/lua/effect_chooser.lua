@@ -180,6 +180,10 @@ local function getUIHeight()
   return total_height
 end
 
+local function sendOffMIDI()
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
+end
+
 local function clearBus()
   local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
 
@@ -193,6 +197,7 @@ local function clearBus()
   updateMenuItemsData()
   local controlGroup = self.parent:findByName('control_group', true)
   controlGroup.visible = false
+  sendOffMIDI()
 end
 
 local function openMenu()
@@ -221,8 +226,6 @@ local function initPresetList()
     return
   end
 
-  local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
-
   local performPresetGrid = self.parent:findByName('perform_preset_grid', true)
   performPresetGrid:notify('init_presets_list', fxNum)
 end
@@ -246,7 +249,7 @@ local function showBus()
   print("showBus [id: " .. tostring(fxNum) .. "][label: " .. selected_menu_item_data["label"] .. "][value: " .. selected_menu_item_data["value"] .. "]")
 
   closeMenu()
-  performRecallProxy:notify('set_settings', fxNum)
+  performRecallProxy:notify('set_fx_num', fxNum)
 
   local controlGroup = self.parent:findByName('control_group', true)
   controlGroup.visible = true
@@ -264,6 +267,7 @@ local function showBus()
   local onOffButtonGroup = self.parent:findByName('on_off_button_group', true)
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel, selected_menu_item_data["label"]})
 
+  sendOffMIDI()
   performRecallProxy:notify('recall_recent_values')
 end
 
@@ -318,7 +322,7 @@ function onReceiveNotify(key, value)
     if selected_menu_item_data ~= nil then
 
       local performRecallProxy = self.parent.parent.parent:findByName('perform_recall_proxy', true)
-      performRecallProxy:notify('set_settings', {fxNum, midiChannel})
+      performRecallProxy:notify('set_fx_num', fxNum)
     end
   end
 

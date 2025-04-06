@@ -82,8 +82,8 @@ end
 
 local function recallValues(useDefaults)
 
-  local defaultManager = root.children.default_manager
-  local valuesToRecall = json.toTable(defaultManager.children[tostring(fxNum)].tag) or {0, 0, 0, 0, 0, 0}
+  local fullDefaults = json.toTable(root.children.default_manager.tag)
+  local valuesToRecall = fullDefaults[tostring(fxNum)] or {0, 0, 0, 0, 0, 0}
 
   print('recallValues - useDefaults:', useDefaults, 'fxNum:', fxNum, 'default values:', unpack(valuesToRecall))
   if not useDefaults then
@@ -166,8 +166,8 @@ function onReceiveNotify(key, value)
   elseif key == 'return_values_to_perform' then
     print('proxy received return_values_to_perform')
     returnValuesToPerform(value)
-  elseif key == 'set_settings' then
-    print('proxy received set_settings: ', value)
+  elseif key == 'set_fx_num' then
+    print('proxy received set_fx_num: ', value)
     fxNum = value
   elseif key == 'recall_defaults' then
     print('proxy received recall_defaults')

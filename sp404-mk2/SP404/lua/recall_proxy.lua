@@ -50,8 +50,8 @@ end
 
 local function recallDefaults()
 
-  local defaultManager = root.children.default_manager
-  local defaultValues = json.toTable(defaultManager.children[tostring(fxNum)].tag) or {0, 0, 0, 0, 0, 0}
+  local fullDefaults = json.toTable(root.children.default_manager.tag)
+  local defaultValues = fullDefaults[tostring(fxNum)] or {0, 0, 0, 0, 0, 0}
   print('Recall proxy recalling defaults:', fxNum, unpack(defaultValues))
 
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
