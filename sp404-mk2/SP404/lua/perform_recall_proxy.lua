@@ -2,7 +2,7 @@ local performRecallProxyScript = [[
 
 local controlsInfo = root.children.controls_info
 local fxNum = nil
-local channel = nil
+local busNum = self.tag
 
 local function formatPresetNum(num)
   return string.format("%02d", num)
@@ -56,20 +56,20 @@ local function recallPreset(presetNum)
 end
 
 
-local function getRecentValuesForBus(busNum)
+local function getRecentValuesForBus()
 
   local recentValues = json.toTable(root.children.recent_values.tag) or {}
-  local recentValuesForBus = recentValues[tostring(busNum)] or {}
+  local recentValuesForBus = recentValues[busNum] or {}
 
-  print('Recent values for bus:', busNum, recentValuesForBus)
+  print('getRecentValuesForBus - Recent values for bus:', busNum, unpack(recentValuesForBus))
 
   return recentValuesForBus
 end
 
-local function getEffectParametersFromBus(channel, fxNum)
-  local recentValuesForBus = getRecentValuesForBus(tostring(channel + 1))
+local function getEffectParametersFromBus(fxNum)
+  local recentValuesForBus = getRecentValuesForBus()
 
-  print('Recent values for bus:', busNum, recentValuesForBus)
+  print('getEffectParametersFromBus - Recent values for bus:', busNum, unpack(recentValuesForBus))
   for _, effect in ipairs(recentValuesForBus) do
     print('Effect:', effect.fxNum, fxNum, unpack(effect.parameters))
     if effect.fxNum == fxNum then
@@ -85,11 +85,13 @@ local function recallValues(useDefaults)
   local defaultManager = root.children.default_manager
   local valuesToRecall = json.toTable(defaultManager.children[tostring(fxNum)].tag) or {0, 0, 0, 0, 0, 0}
 
+  print('recallValues - useDefaults:', useDefaults, 'fxNum:', fxNum, 'default values:', unpack(valuesToRecall))
   if not useDefaults then
-    local recentValues = getEffectParametersFromBus(channel, fxNum)
+    local recentValues = getEffectParametersFromBus(fxNum)
 
     if recentValues then
       valuesToRecall = recentValues
+      print('recallValues - recent values:', unpack(valuesToRecall))
     end
   end
 
@@ -134,7 +136,7 @@ local function returnValuesToPerform(values)
     controlFader:notify('new_value', values[i])
   end
   local recentValues = root.children.recent_values
-  recentValues:notify('update_recent_values', {channel, fxNum, currentValues})
+  recentValues:notify('update_recent_values', {busNum, fxNum, currentValues})
   root:findByName('perform_group', true):notify('show')
 end
 
@@ -149,7 +151,7 @@ local function storeCurrentValues()
       currentValues[i] = floatToMIDI(controlFader.values.x)
     end
     local recentValues = root.children.recent_values
-    recentValues:notify('update_recent_values', {channel, fxNum, currentValues})
+    recentValues:notify('update_recent_values', {busNum, fxNum, currentValues})
     print('Current values:', unpack(currentValues))
   else
     print('No fxNum set, skipping storeCurrentValues')
@@ -160,15 +162,13 @@ function onReceiveNotify(key, value)
   if key == 'recall_preset' then
     print('proxy received recall_preset')
     local presetNum = value
-
     recallPreset(presetNum)
   elseif key == 'return_values_to_perform' then
     print('proxy received return_values_to_perform')
     returnValuesToPerform(value)
   elseif key == 'set_settings' then
     print('proxy received set_settings: ', value)
-    fxNum = value[1]
-    channel = value[2]
+    fxNum = value
   elseif key == 'recall_defaults' then
     print('proxy received recall_defaults')
     recallValues(true)

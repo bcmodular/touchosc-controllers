@@ -1410,6 +1410,7 @@ local performFaderScriptTemplate = [[
       syncedFader = self.parent.parent.children[syncedFaderNum].children.control_fader
     end
     updateLabel(self.values.x)
+    self.messages.LOCAL[1]:trigger()
   end
 ]]
 

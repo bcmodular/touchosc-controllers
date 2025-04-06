@@ -246,7 +246,7 @@ local function showBus()
   print("showBus [id: " .. tostring(fxNum) .. "][label: " .. selected_menu_item_data["label"] .. "][value: " .. selected_menu_item_data["value"] .. "]")
 
   closeMenu()
-  performRecallProxy:notify('set_settings', {fxNum, midiChannel})
+  performRecallProxy:notify('set_settings', fxNum)
 
   local controlGroup = self.parent:findByName('control_group', true)
   controlGroup.visible = true

@@ -21,9 +21,8 @@ local function loadEffectBuses()
   return buses
 end
 
-local function pushEffectToBus(channel, fxNum, parameters)
+local function pushEffectToBus(busNum, fxNum, parameters)
   local buses = loadEffectBuses()
-  local busNum = tostring(channel + 1)
   local stack = buses[busNum] or {}
 
   print('current buses', unpack(buses))
@@ -69,10 +68,10 @@ end
 
 function onReceiveNotify(key, value)
   if key == 'update_recent_values' then
-    local channel = value[1]
+    local busNum = value[1]
     local fxNum = value[2]
     local parameters = value[3]
-    print('update_recent_values', channel, fxNum, unpack(parameters))
-    pushEffectToBus(channel, fxNum, parameters)
+    print('update_recent_values', busNum, fxNum, unpack(parameters))
+    pushEffectToBus(busNum, fxNum, parameters)
   end
 end
