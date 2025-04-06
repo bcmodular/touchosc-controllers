@@ -1,7 +1,7 @@
 local controlsInfo = root.children.controls_info
-local performRecallProxy = nil
 
-local fxNum = 1
+local fxNum = nil
+local midiChannel = nil
 
 local function formatPresetNum(num)
   return string.format("%02d", num)
@@ -110,22 +110,24 @@ local function returnValuesToPerform()
     local controlObject = controlGroup:findByName(controlName, true)
     values[i] = controlObject.values.x
   end
-  if performRecallProxy then
-    performRecallProxy:notify('return_values_to_perform', values)
-  end
+
+  local busGroupName = 'bus' .. tostring(midiChannel + 1) .. '_group'
+  local busGroup = root:findByName(busGroupName, true)
+  local performControlGroup = busGroup:findByName('control_group')
+  local performRecallProxy = performControlGroup:findByName('perform_recall_proxy')
+  performRecallProxy:notify('return_values_to_perform', values)
 end
 
 function onReceiveNotify(key, value)
   if key == 'recall_preset' then
     print('proxy received recall_preset')
     local presetNum = value
-
     recallPreset(presetNum)
   elseif key == 'set_current_values' then
     print('proxy received set_current_values')
     fxNum = value[1]
-    local values = value[2]
-    performRecallProxy = value[3]
+    midiChannel = value[2]
+    local values = value[3]
     setCurrentValues(values)
   elseif key == 'return_values_to_perform' then
     print('proxy received return_values_to_perform')

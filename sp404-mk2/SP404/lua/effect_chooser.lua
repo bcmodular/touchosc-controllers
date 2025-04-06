@@ -185,6 +185,7 @@ local function clearBus()
 
   -- Store current values
   local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
+  print('store_current_values from clearBus')
   performRecallProxy:notify('store_current_values')
   self.children.selected_item.tag = json.fromTable(selected_menu_item_data)
   self.children.selected_item.children.label.values.text = "Choose FX..."
@@ -232,6 +233,7 @@ local function showBus()
   local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
 
   if fxNum ~= nil and fxNum ~= tonumber(selected_menu_item_data["id"]) then
+    print('store_current_values from showBus')
     performRecallProxy:notify('store_current_values')
   end
 
@@ -267,7 +269,7 @@ end
 
 local function setUpBus()
   self.tag = selected_menu_index
-
+  print('setUpBus', selected_menu_index)
   if(selected_menu_index ~= 0) then
     showBus()
   else
@@ -283,6 +285,7 @@ function onReceiveNotify(key, value)
   if(key == "set_menu_items") then
     menu_items = value
     onMenuItemsChanged()
+    print('setUpBus after set_menu_items')
     setUpBus()
     return
   end
@@ -326,6 +329,7 @@ function onReceiveNotify(key, value)
       else
         selected_menu_index = 1
       end
+      print('setUpBus after select_index')
       setUpBus()
     else
       -- empty
@@ -338,11 +342,13 @@ function onReceiveNotify(key, value)
 
   if(key == "btn_pressed") then
     selected_menu_index = tonumber(value) or 0
+    print('setUpBus after btn_pressed')
     setUpBus()
     return
   end
 
   if(key == "init_effect_chooser") then
+    print('setUpBus after init_effect_chooser')
     setUpBus()
     return
   end

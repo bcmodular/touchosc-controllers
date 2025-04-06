@@ -150,24 +150,22 @@ local function collectCurrentValues()
   return values
 end
 
-local function goToEditPage(value)
+local function goToEditPage()
   local settings = json.toTable(self.tag)
   local fxNum = tonumber(settings["fxNum"])
   local fxName = settings["fxName"]
   local midiChannel = tonumber(settings["midiChannel"])
-  performGroupToReturnTo = value
 
   local performGroup = root:findByName('perform_group', true)
   performGroup:notify('hide')
 
   local currentValues = collectCurrentValues()
-  local performRecallProxy = self.parent.parent:findByName('perform_recall_proxy', true)
-  root:notify('edit_page', {fxNum, midiChannel, currentValues, performRecallProxy, fxName})
+  root:notify('edit_page', {fxNum, midiChannel, currentValues, fxName})
 end
 
 function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
-    goToEditPage(value)
+    goToEditPage()
   end
 end
 
@@ -198,7 +196,6 @@ function onValueChanged(key, value)
     local fxNum = tonumber(settings["fxNum"])
 
     root:findByName('recall_proxy', true):notify('return_values_to_perform', fxNum)
-    root:findByName('perform_group', true):notify('show')
   end
 end
 

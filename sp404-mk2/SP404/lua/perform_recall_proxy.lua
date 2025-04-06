@@ -126,11 +126,16 @@ end
 local function returnValuesToPerform(values)
   print('Returning values to perform:', unpack(values))
   local faders = self.parent:findByName('faders', true)
+  local currentValues = {}
   for i = 1, 6 do
     local faderGroup = faders:findByName(tostring(i))
     local controlFader = faderGroup:findByName('control_fader')
+    currentValues[i] = floatToMIDI(values[i])
     controlFader:notify('new_value', values[i])
   end
+  local recentValues = root.children.recent_values
+  recentValues:notify('update_recent_values', {channel, fxNum, currentValues})
+  root:findByName('perform_group', true):notify('show')
 end
 
 local function storeCurrentValues()

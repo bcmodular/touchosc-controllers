@@ -27,7 +27,6 @@ function onReceiveNotify(key, value)
   --print('perform_group received notification:', key, value)
   if key == 'show' then
     self.visible = true
-    initialiseEffectChoosers()
     initialisePresetGrids()
   elseif key == 'hide' then
     self.visible = false
