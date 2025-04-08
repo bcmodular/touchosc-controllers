@@ -230,6 +230,29 @@ local function initPresetList()
   performPresetGrid:notify('init_presets_list', fxNum)
 end
 
+local function midiToFloat(midiValue)
+  local floatValue = midiValue / 127
+  return floatValue
+end
+
+local function setDefaultValues(controlGroup, fxNum)
+  local potGroup = controlGroup:findByName('pots', true)
+  local faderGroup = controlGroup:findByName('faders', true)
+
+  local fullDefaults = json.toTable(root.children.default_manager.tag)
+  local valuesToRecall = fullDefaults[tostring(fxNum)] or {0, 0, 0, 0, 0, 0}
+
+  for i = 1, 6 do
+    local pot = potGroup:findByName(tostring(i))
+    local fader = faderGroup:findByName(tostring(i))
+
+    local potValue = pot:findByName('value')
+    local faderControl = fader:findByName('control_fader')
+    potValue:setValueField("x", ValueField.DEFAULT, midiToFloat(valuesToRecall[i]))
+    faderControl:setValueField("x", ValueField.DEFAULT, midiToFloat(valuesToRecall[i]))
+  end
+end
+
 local function showBus()
 
   local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
@@ -253,6 +276,8 @@ local function showBus()
 
   local controlGroup = self.parent:findByName('control_group', true)
   controlGroup.visible = true
+
+  setDefaultValues(controlGroup, fxNum)
 
   local performPresetHandler = self.parent:findByName('perform_preset_handler', true)
   performPresetHandler:notify('set_settings', {fxNum, midiChannel})

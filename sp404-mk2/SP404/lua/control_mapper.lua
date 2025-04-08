@@ -1383,7 +1383,8 @@ local performFaderScriptTemplate = [[
 
   function onReceiveNotify(key, value)
     if key == 'new_value' then
-      self.values.x = value
+      print('new_value', value)
+    self.values.x = value
       updateLabel(value)
       syncMIDI()
     elseif key == 'new_cc_value' then
@@ -1404,17 +1405,42 @@ local performFaderScriptTemplate = [[
 
   function onValueChanged(value)
     if value == 'x' then
+      print('onValueChanged', self.values.x)
       updateLabel(self.values.x)
       syncMIDI()
     end
   end
 
+  function onPointer(pointers)
+    -- Iterate through each pointer event
+    for i = 1, #pointers do
+      local pointer = pointers[i]
+
+      if (pointer.state == PointerState.END) then
+        -- Get the current time in milliseconds
+        local new_press_time = getMillis()
+        -- Check if the press duration was short (a tap)
+        print('new_press_time', new_press_time, 'press_time', press_time)
+        if (new_press_time - press_time < 200) then
+          local defaultValue = self:getValueField("x", ValueField.DEFAULT)
+          print('resetting to default', self.values.x, defaultValue)
+          self.values.x = defaultValue
+          return
+        end
+        -- Update the press_time to the current time
+        press_time = new_press_time
+      end
+    end
+  end
+
   function init()
+    self.properties.response = Response.RELATIVE
     if syncedFaderNum ~= 0 then
       syncedFader = self.parent.parent.children[syncedFaderNum].children.control_fader
     end
     updateLabel(self.values.x)
     self.messages.LOCAL[1]:trigger()
+    press_time = 0
   end
 ]]
 
