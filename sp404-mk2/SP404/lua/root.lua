@@ -1,7 +1,7 @@
 local function setChannelTagsForChildren(parentControl, channel)
   local faders = parentControl:findAllByType(ControlType.FADER, true)
 
-  for name, fader in pairs(faders) do
+  for _, fader in pairs(faders) do
     fader.tag = channel
   end
 end
@@ -15,6 +15,11 @@ local function goToEditPage(fxNum, midiChannel, currentValues)
     print('Setting channel tag for:', fxPage.name, controlGroup.name, 'fxNum:', fxNum)
     setChannelTagsForChildren(controlGroup, midiChannel)
     controlPager.values.page = tonumber(fxNum) - 1
+
+    local faders = controlGroup:findAllByType(ControlType.FADER)
+    for _, fader in pairs(faders) do
+      fader:notify('update_default')
+    end
   end
 
   local onOffButtonGroup = root:findByName('on_off_button_group', true)

@@ -1019,8 +1019,28 @@ local faderScriptTemplate = [[
     gridControl:notify('new_index', rangeIndex)
   end
 
+  local midiCC = %s
+
   local function syncMIDI()
-    sendMIDI({ MIDIMessageType.CONTROLCHANGE + tonumber(self.tag), %s, floatToMIDI(self.values.x)})
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + tonumber(self.tag), midiCC, floatToMIDI(self.values.x)})
+  end
+
+  local function findMIDICCIndex(midiCCToFind)
+    local midiCCs = {16, 17, 18, 80, 81, 82}
+    for i, midiCC in ipairs(midiCCs) do
+      if midiCCToFind == midiCC then
+        return i
+      end
+    end
+  end
+
+  function updateDefault()
+    local fullDefaults = json.toTable(root.children.default_manager.tag)
+    local valuesToRecall = fullDefaults[tostring(%s)] or {0, 0, 0, 0, 0, 0}
+
+    local index = findMIDICCIndex(midiCC)
+    print('updateDefault', midiCC, index, valuesToRecall[index])
+    self:setValueField("x", ValueField.DEFAULT, midiToFloat(valuesToRecall[index]))
   end
 
   function onReceiveNotify(key, value)
@@ -1043,6 +1063,8 @@ local faderScriptTemplate = [[
       -- print('Toggling fader sync:', value)
       syncOn = value
       updateLabel(self.values.x)
+    elseif key == 'update_default' then
+      updateDefault()
     end
   end
 
@@ -1057,6 +1079,33 @@ local faderScriptTemplate = [[
 
       syncMIDI()
     end
+  end
+
+    function onPointer(pointers)
+    -- Iterate through each pointer event
+    for i = 1, #pointers do
+      local pointer = pointers[i]
+
+      if (pointer.state == PointerState.END) then
+        -- Get the current time in milliseconds
+        local new_press_time = getMillis()
+        -- Check if the press duration was short (a tap)
+        print('new_press_time', new_press_time, 'press_time', press_time)
+        if (new_press_time - press_time < 200) then
+          local defaultValue = self:getValueField("x", ValueField.DEFAULT)
+          print('resetting to default', self.values.x, defaultValue)
+          self.values.x = defaultValue
+          return
+        end
+        -- Update the press_time to the current time
+        press_time = new_press_time
+      end
+    end
+  end
+
+  function init()
+    self.properties.response = Response.RELATIVE
+    press_time = 0
   end
 ]]
 
@@ -1158,7 +1207,7 @@ local gridLabelScriptTemplate = [[
   end
 ]]
 
-local function generateAndAssignFaderScript(controlGroup, controlInfo)
+local function generateAndAssignFaderScript(controlGroup, controlInfo, fxNum)
   local ccNumber, faderName, _, _, labelName, labelMapping, _, gridName, _, _, startValues, amSyncFader, _, _, _, _ = unpack(controlInfo)
 
   if not startValues or startValues == '' then
@@ -1180,7 +1229,8 @@ local function generateAndAssignFaderScript(controlGroup, controlInfo)
     labelMapping,
     labelMapping,
     gridName,
-    ccNumber)
+    ccNumber,
+    fxNum)
 
   -- Find the fader object
   local faderObject = controlGroup:findByName(faderName, true)
@@ -1192,7 +1242,7 @@ local function generateAndAssignFaderScript(controlGroup, controlInfo)
 end
 
 local function generateAndAssignLabelScript(controlGroup, controlInfo)
-  local ccNumber, _, _, _, labelName, _, labelFormat, _, _, _, _, _, _, _, _, _ = unpack(controlInfo)
+  local _, _, _, _, labelName, _, labelFormat, _, _, _, _, _, _, _, _, _ = unpack(controlInfo)
 
   -- Generate and assign label script
   local labelObject = controlGroup:findByName(labelName, true)
@@ -1205,7 +1255,7 @@ end
 
 local function generateAndAssignGridScript(controlGroup, controlInfo)
   -- Generate and assign grid script
-  local ccNumber, faderName, _, _, _, labelMapping, _, gridName, gridLabelName, gridLabelMapping, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = unpack(controlInfo)
+  local _, faderName, _, _, _, _, _, gridName, gridLabelName, gridLabelMapping, startValues, _, showHideFader, showHideFaderLabel, showHideGrid, showHideGridLabel = unpack(controlInfo)
 
   local amSyncGrid = 'true'
   if not showHideFader then
@@ -1263,13 +1313,13 @@ local function mapControls()
     local controlInfo = json.toTable(controlsInfo.children[tostring(i)].tag)
     if controlInfo then
       --print('Successfully loaded controlInfo for page:', i)
-      for i, control in ipairs(controlInfo) do
+      for _, control in ipairs(controlInfo) do
         --print(string.format('controlInfo[%d]:', i), unpack(control))
         local _, controlName, _, _, labelName, labelMapping, labelFormat, syncedGrid = unpack(control)
 
         --print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedGrid)
 
-        generateAndAssignFaderScript(controlGroup, control)
+        generateAndAssignFaderScript(controlGroup, control, i)
         generateAndAssignLabelScript(controlGroup, control)
 
         if syncedGrid ~= '' then
