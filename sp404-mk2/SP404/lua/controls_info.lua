@@ -412,7 +412,7 @@ local controlsInfoArray = {
     {80, 'at_pitch_fader', false, 'AT PITCH', 'at_pitch_value_label', 'getZeroOneHundred', '%s', ''},
     {81, 'key_fader', true, 'KEY', 'key_label', 'getPitchKey', '%s', 'key_grid', 'key_label_grid', 'getPitchKey',
       '{0, 10, 20, 30, 40, 49, 59, 69, 79, 89, 99, 108, 118}'},
-    {82, 'harmony_fader', false, 'HARMONY', 'harmony_label', 'getVocoderChord', '%s', 'harmony_grid', 'harmony_label_grid', 'getVocoderChord',
+    {82, 'harmony_fader', true, 'HARMONY', 'harmony_label', 'getVocoderChord', '%s', 'harmony_grid', 'harmony_label_grid', 'getVocoderChord',
       '{0, 13, 26, 39, 51, 64, 77, 90, 102, 115}'}
   },
   [46] = { -- gt amp sim

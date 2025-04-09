@@ -28,17 +28,18 @@ local function recallPreset(presetNum)
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
   print('controlInfoArray:', controlInfoArray)
 
-  print('Recalling MIDI values:', unpack(presetValues))
-
-  local faders = self.parent:findByName('faders', true)
+  local fxPage = root.children.control_pager.children[fxNum]
+  local controlGroup = fxPage.children.control_group
 
   local exclude_marked_presets = false
 
-  -- TODO: Add this back in
-  -- if faders.tag == '1' then
-  --   print('Excluding marked presets')
-  --   exclude_marked_presets = true
-  -- end
+  if controlGroup.tag == '1' then
+    print('Excluding marked presets')
+    exclude_marked_presets = true
+  end
+
+  print('Recalling MIDI values:', unpack(presetValues))
+  local faders = self.parent:findByName('faders', true)
 
   for i, controlInfo in ipairs(controlInfoArray) do
     local _, _, isExcludable = unpack(controlInfo)
