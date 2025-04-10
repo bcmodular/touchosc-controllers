@@ -435,14 +435,15 @@ end
 ]]
 
 function init()
+  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  if debugMode == 1 then
+    for i = 1, #self.children do
+      local controlInfoJSON = json.fromTable(controlsInfoArray[i])
+      self.children[tostring(i)].script = childScript
+      self.children[tostring(i)].tag = controlInfoJSON
+    end
 
-  for i = 1, #self.children do
-    local controlInfoJSON = json.fromTable(controlsInfoArray[i])
-    self.children[tostring(i)].script = childScript
-    self.children[tostring(i)].tag = controlInfoJSON
+    local controlMapper = root.children.control_mapper
+    controlMapper:notify('init_control_mapper')
   end
-
-  local controlMapper = root.children.control_mapper
-  controlMapper:notify('init_control_mapper')
-
 end

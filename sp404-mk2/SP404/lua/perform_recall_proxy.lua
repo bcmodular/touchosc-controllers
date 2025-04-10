@@ -185,8 +185,11 @@ end
 ]]
 
 function init()
-  local performRecallProxies = root:findAllByName('perform_recall_proxy', true)
-  for _, performRecallProxy in ipairs(performRecallProxies) do
-    performRecallProxy.script = performRecallProxyScript
+  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  if debugMode == 1 then
+    local performRecallProxies = root:findAllByName('perform_recall_proxy', true)
+    for _, performRecallProxy in ipairs(performRecallProxies) do
+      performRecallProxy.script = performRecallProxyScript
+    end
   end
 end

@@ -1317,9 +1317,7 @@ local function mapControls()
       --print('Successfully loaded controlInfo for page:', i)
       for _, control in ipairs(controlInfo) do
         --print(string.format('controlInfo[%d]:', i), unpack(control))
-        local _, controlName, _, _, labelName, labelMapping, labelFormat, syncedGrid = unpack(control)
-
-        --print('Initialising control:', controlName, labelName, labelMapping, labelFormat, syncedGrid)
+        local _, _, _, _, _, _, _, syncedGrid = unpack(control)
 
         generateAndAssignFaderScript(controlGroup, control, i)
         generateAndAssignLabelScript(controlGroup, control)
@@ -1590,7 +1588,6 @@ local function setUpPerformPots(fxNum, potGroups)
 end
 function onReceiveNotify(key, value)
   if key == 'init_control_mapper' then
-    -- print('Initialising Control Mapper')
     mapControls()
   elseif key == 'init_perform' then
     local fxNum = value[1]

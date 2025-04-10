@@ -31,8 +31,11 @@ end
 ]]
 
 function init()
-  local performPresetHandlers = root:findAllByName('perform_preset_handler', true)
-  for _, performPresetHandler in ipairs(performPresetHandlers) do
-    performPresetHandler.script = performPresetHandlerScript
+  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  if debugMode == 1 then
+    local performPresetHandlers = root:findAllByName('perform_preset_handler', true)
+    for _, performPresetHandler in ipairs(performPresetHandlers) do
+      performPresetHandler.script = performPresetHandlerScript
+    end
   end
 end

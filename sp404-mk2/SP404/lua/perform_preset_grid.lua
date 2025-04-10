@@ -72,9 +72,12 @@ function init()
 ]]
 
 function init()
-  local performPresetGrids = root:findAllByName('perform_preset_grid', true)
+  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  if debugMode == 1 then
+    local performPresetGrids = root:findAllByName('perform_preset_grid', true)
 
-  for _, performPresetGrid in ipairs(performPresetGrids) do
-    performPresetGrid.script = performPresetGridScript
+    for _, performPresetGrid in ipairs(performPresetGrids) do
+      performPresetGrid.script = performPresetGridScript
+    end
   end
 end

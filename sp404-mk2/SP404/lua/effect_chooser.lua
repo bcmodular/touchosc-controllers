@@ -413,19 +413,22 @@ end
 ]]
 
 function init()
-  local effectChoosers = root:findAllByName('effect_chooser', true)
+  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  if debugMode == 1 then
+    local effectChoosers = root:findAllByName('effect_chooser', true)
 
-  for _, effectChooser in ipairs(effectChoosers) do
-    effectChooser.script = effectChooserScript
-  end
+    for _, effectChooser in ipairs(effectChoosers) do
+      effectChooser.script = effectChooserScript
+    end
 
-  local buttons = root:findAllByName('btn', true)
-  for _, button in ipairs(buttons) do
-    button.script = itemButtonScript
-  end
+    local buttons = root:findAllByName('btn', true)
+    for _, button in ipairs(buttons) do
+      button.script = itemButtonScript
+    end
 
-  local selectedItemButtons = root:findAllByName('selected_item_button', true)
-  for _, button in ipairs(selectedItemButtons) do
-    button.script = selectedItemScript
+    local selectedItemButtons = root:findAllByName('selected_item_button', true)
+    for _, button in ipairs(selectedItemButtons) do
+      button.script = selectedItemScript
+    end
   end
 end

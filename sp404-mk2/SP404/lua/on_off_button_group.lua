@@ -286,43 +286,45 @@ end
 ]]
 
 function init()
+  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  if debugMode == 1 then
+    local onOffButtonGroups = root:findAllByName('on_off_button_group', true)
 
-  local onOffButtonGroups = root:findAllByName('on_off_button_group', true)
+    for _, onOffButtonGroup in ipairs(onOffButtonGroups) do
+      onOffButtonGroup.script = onOffButtonGroupScript
 
-  for _, onOffButtonGroup in ipairs(onOffButtonGroups) do
-    onOffButtonGroup.script = onOffButtonGroupScript
+      local onButton = onOffButtonGroup:findByName('on_button')
+      local offButton = onOffButtonGroup:findByName('off_button')
+      local grabButton = onOffButtonGroup:findByName('grab_button')
+      local editButton = onOffButtonGroup:findByName('edit_button')
+      local performButton = onOffButtonGroup:findByName('perform_button')
+      local syncButton = onOffButtonGroup:findByName('sync_button')
+      local editPageSyncButton = onOffButtonGroup:findByName('edit_page_sync_button')
+      local defaultsButton = onOffButtonGroup:findByName('defaults_button')
 
-    local onButton = onOffButtonGroup:findByName('on_button')
-    local offButton = onOffButtonGroup:findByName('off_button')
-    local grabButton = onOffButtonGroup:findByName('grab_button')
-    local editButton = onOffButtonGroup:findByName('edit_button')
-    local performButton = onOffButtonGroup:findByName('perform_button')
-    local syncButton = onOffButtonGroup:findByName('sync_button')
-    local editPageSyncButton = onOffButtonGroup:findByName('edit_page_sync_button')
-    local defaultsButton = onOffButtonGroup:findByName('defaults_button')
+      onButton.script = onButtonScript
+      offButton.script = offButtonScript
+      grabButton.script = grabButtonScript
 
-    onButton.script = onButtonScript
-    offButton.script = offButtonScript
-    grabButton.script = grabButtonScript
+      if editButton then
+        editButton.script = editButtonScript
+      end
 
-    if editButton then
-      editButton.script = editButtonScript
-    end
+      if performButton then
+        performButton.script = performButtonScript
+      end
 
-    if performButton then
-      performButton.script = performButtonScript
-    end
+      if syncButton then
+        syncButton.script = syncButtonScript
+      end
 
-    if syncButton then
-      syncButton.script = syncButtonScript
-    end
+      if editPageSyncButton then
+        editPageSyncButton.script = editPageSyncButtonScript
+      end
 
-    if editPageSyncButton then
-      editPageSyncButton.script = editPageSyncButtonScript
-    end
-
-    if defaultsButton then
-      defaultsButton.script = defaultsButtonScript
+      if defaultsButton then
+        defaultsButton.script = defaultsButtonScript
+      end
     end
   end
 end

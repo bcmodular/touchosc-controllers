@@ -66,8 +66,11 @@ end
 ]]
 
 function init()
-  local items = root:findAllByName('_items', true)
-  for _, item in ipairs(items) do
-    item.script = itemsScript
+  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  if debugMode == 1 then
+    local items = root:findAllByName('_items', true)
+    for _, item in ipairs(items) do
+      item.script = itemsScript
+    end
   end
 end
