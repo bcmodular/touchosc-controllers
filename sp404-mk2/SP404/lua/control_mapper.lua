@@ -1065,6 +1065,8 @@ local faderScriptTemplate = [[
       updateLabel(self.values.x)
     elseif key == 'update_default' then
       updateDefault()
+    elseif key == 'sync_midi' then
+      syncMIDI()
     end
   end
 
@@ -1081,7 +1083,7 @@ local faderScriptTemplate = [[
     end
   end
 
-    function onPointer(pointers)
+  function onPointer(pointers)
     -- Iterate through each pointer event
     for i = 1, #pointers do
       local pointer = pointers[i]

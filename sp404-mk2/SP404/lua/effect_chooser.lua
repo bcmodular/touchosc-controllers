@@ -292,7 +292,10 @@ local function showBus()
   local onOffButtonGroup = self.parent:findByName('on_off_button_group', true)
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel, selected_menu_item_data["label"]})
 
-  sendOffMIDI()
+  -- Flip the effect on and off, so it switches to the effect
+  local onButton = onOffButtonGroup:findByName('on_button')
+  onButton:notify('switch_to_effect')
+
   performRecallProxy:notify('recall_recent_values')
 end
 

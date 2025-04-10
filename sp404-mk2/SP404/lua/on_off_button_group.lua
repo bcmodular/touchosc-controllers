@@ -39,30 +39,43 @@ function setSettings(fxNum, midiChannel)
   self.tag = json.fromTable(settings)
 end
 
-function onValueChanged(key, value)
+function turnEffectOn()
   local settings = json.toTable(self.tag)
   local fxNum = tonumber(settings["fxNum"])
   local midiChannel = tonumber(settings["midiChannel"])
   local midiValues = onButtonMidiValues[fxNum]
 
+  local ccValue = onButtonMidiValues[1]
+
+  if midiChannel <= 1 then
+    ccValue = midiValues[1]
+  elseif midiChannel <= 3 then
+    ccValue = midiValues[2]
+  else
+    ccValue = midiValues[3]
+  end
+
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, ccValue })
+end
+
+function turnEffectOff()
+  local settings = json.toTable(self.tag)
+  local midiChannel = tonumber(settings["midiChannel"])
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
+end
+
+function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
-    local ccValue = onButtonMidiValues[1]
-
-    if midiChannel <= 1 then
-      ccValue = midiValues[1]
-    elseif midiChannel <= 3 then
-      ccValue = midiValues[2]
-    else
-      ccValue = midiValues[3]
-    end
-
-    sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, ccValue })
+    turnEffectOn()
   end
 end
 
 function onReceiveNotify(key, value)
   if key == 'set_settings' then
     setSettings(value[1], value[2])
+  elseif key == 'switch_to_effect' then
+    turnEffectOn()
+    turnEffectOff()
   end
 end
 ]]
@@ -232,6 +245,37 @@ function onValueChanged(key, value)
 end
 ]]
 
+local editPageSyncButtonScript = [[
+local function setFXNum(fxNum)
+  local settings = json.toTable(self.tag) or {}
+  settings['fxNum'] = fxNum
+  self.tag = json.fromTable(settings)
+end
+
+local function getFXNum()
+  local settings = json.toTable(self.tag)
+  return settings["fxNum"]
+end
+
+function onValueChanged(key, value)
+  if key == 'x' and self.values.x == 0 then
+    local controlPager = root:findByName('control_pager')
+    local fxPage = controlPager.children[getFXNum()]
+    local controlGroup = fxPage:findByName('control_group', true)
+    local faders = controlGroup:findAllByType(ControlType.FADER)
+    for _, fader in pairs(faders) do
+      fader:notify('sync_midi')
+    end
+  end
+end
+
+function onReceiveNotify(key, value)
+  if key == 'set_settings' then
+    setFXNum(value[1])
+  end
+end
+]]
+
 local defaultsButtonScript = [[
 function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
@@ -254,6 +298,7 @@ function init()
     local editButton = onOffButtonGroup:findByName('edit_button')
     local performButton = onOffButtonGroup:findByName('perform_button')
     local syncButton = onOffButtonGroup:findByName('sync_button')
+    local editPageSyncButton = onOffButtonGroup:findByName('edit_page_sync_button')
     local defaultsButton = onOffButtonGroup:findByName('defaults_button')
 
     onButton.script = onButtonScript
@@ -270,6 +315,10 @@ function init()
 
     if syncButton then
       syncButton.script = syncButtonScript
+    end
+
+    if editPageSyncButton then
+      editPageSyncButton.script = editPageSyncButtonScript
     end
 
     if defaultsButton then
