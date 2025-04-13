@@ -143,7 +143,7 @@ end
 
 local function storeCurrentValues()
   if fxNum ~= nil then
-    print('Storing current values')
+    --print('Storing current values')
     local faders = self.parent:findByName('faders', true)
     local currentValues = {}
     for i = 1, 6 do
@@ -153,31 +153,31 @@ local function storeCurrentValues()
     end
     local recentValues = root.children.recent_values
     recentValues:notify('update_recent_values', {busNum, fxNum, currentValues})
-    print('Current values:', unpack(currentValues))
+    --print('Current values:', unpack(currentValues))
   else
-    print('No fxNum set, skipping storeCurrentValues')
+    --print('No fxNum set, skipping storeCurrentValues')
   end
 end
 
 function onReceiveNotify(key, value)
   if key == 'recall_preset' then
-    print('proxy received recall_preset')
+    --print('proxy received recall_preset')
     local presetNum = value
     recallPreset(presetNum)
   elseif key == 'return_values_to_perform' then
-    print('proxy received return_values_to_perform')
+    --print('proxy received return_values_to_perform')
     returnValuesToPerform(value)
   elseif key == 'set_fx_num' then
-    print('proxy received set_fx_num: ', value)
+    --print('proxy received set_fx_num: ', value)
     fxNum = value
   elseif key == 'recall_defaults' then
-    print('proxy received recall_defaults')
+    --print('proxy received recall_defaults')
     recallValues(true)
   elseif key == 'recall_recent_values' then
-    print('proxy received recall_recent_values')
+    --print('proxy received recall_recent_values')
     recallValues(false)
   elseif key == 'store_current_values' then
-    print('proxy received store_current_values')
+    --print('proxy received store_current_values')
     storeCurrentValues()
   end
 end
@@ -185,7 +185,7 @@ end
 ]]
 
 function init()
-  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
     local performRecallProxies = root:findAllByName('perform_recall_proxy', true)
     for _, performRecallProxy in ipairs(performRecallProxies) do

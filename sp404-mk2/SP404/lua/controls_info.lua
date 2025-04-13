@@ -435,7 +435,7 @@ end
 ]]
 
 function init()
-  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
     for i = 1, #self.children do
       local controlInfoJSON = json.fromTable(controlsInfoArray[i])

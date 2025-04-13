@@ -168,12 +168,21 @@ local function goToEditPage()
   local fxNum = tonumber(settings["fxNum"])
   local fxName = settings["fxName"]
   local midiChannel = tonumber(settings["midiChannel"])
+  local editMode = root:findByName('edit_mode', true)
+  editMode.values.x = 1
+  local busGroupName = 'bus' .. tostring(midiChannel + 1) .. '_group'
+  editMode.tag = busGroupName
 
   local performGroup = root:findByName('perform_group', true)
   performGroup:notify('hide')
 
   local currentValues = collectCurrentValues()
   root:notify('edit_page', {fxNum, midiChannel, currentValues, fxName})
+
+  if fxNum == 37 then
+    local compressorSidechain = self.parent.parent:findByName('compressor_sidechain', true)
+    compressorSidechain:notify('switch_mode')
+  end
 end
 
 function onValueChanged(key, value)
@@ -205,8 +214,16 @@ function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
     local settings = json.toTable(self.tag)
     local fxNum = tonumber(settings["fxNum"])
+    local midiChannel = tonumber(settings["midiChannel"])
 
     root:findByName('recall_proxy', true):notify('return_values_to_perform', fxNum)
+
+    local editMode = root:findByName('edit_mode', true)
+    editMode.values.x = 0
+    local busGroupName = 'bus' .. tostring(midiChannel + 1) .. '_group'
+    local busGroup = root:findByName(busGroupName, true)
+    local compressorSidechain = busGroup:findByName('compressor_sidechain', true)
+    compressorSidechain:notify('switch_mode')
   end
 end
 
@@ -286,7 +303,7 @@ end
 ]]
 
 function init()
-  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
     local onOffButtonGroups = root:findAllByName('on_off_button_group', true)
 

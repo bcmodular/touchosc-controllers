@@ -66,7 +66,7 @@ end
 ]]
 
 function init()
-  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
     local items = root:findAllByName('_items', true)
     for _, item in ipairs(items) do

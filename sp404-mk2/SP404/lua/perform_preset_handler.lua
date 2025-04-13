@@ -31,7 +31,7 @@ end
 ]]
 
 function init()
-  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
     local performPresetHandlers = root:findAllByName('perform_preset_handler', true)
     for _, performPresetHandler in ipairs(performPresetHandlers) do

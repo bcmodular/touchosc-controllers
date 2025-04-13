@@ -1433,8 +1433,8 @@ local performFaderScriptTemplate = [[
 
   function onReceiveNotify(key, value)
     if key == 'new_value' then
-      print('new_value', value)
-    self.values.x = value
+      --print('new_value', value)
+      self.values.x = value
       updateLabel(value)
       syncMIDI()
     elseif key == 'new_cc_value' then
@@ -1455,7 +1455,7 @@ local performFaderScriptTemplate = [[
 
   function onValueChanged(value)
     if value == 'x' then
-      print('onValueChanged', self.values.x)
+      --print('onValueChanged', self.values.x)
       updateLabel(self.values.x)
       syncMIDI()
     end

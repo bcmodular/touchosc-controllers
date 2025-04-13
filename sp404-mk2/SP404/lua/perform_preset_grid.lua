@@ -72,7 +72,7 @@ function init()
 ]]
 
 function init()
-  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
     local performPresetGrids = root:findAllByName('perform_preset_grid', true)
 

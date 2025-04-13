@@ -1,3 +1,4 @@
+local compressorSidechains = root:findAllByName('compressor_sidechain', true)
 local function setChannelTagsForChildren(parentControl, channel)
   local faders = parentControl:findAllByType(ControlType.FADER, true)
 
@@ -30,6 +31,14 @@ local function goToEditPage(fxNum, midiChannel, currentValues)
 
   local fxPresetHandler = root:findByName('fx_preset_handler', true)
   fxPresetHandler:notify('set_settings', {fxNum, midiChannel})
+end
+
+function onReceiveMIDI(message)
+  print('root onReceiveMIDI:', message)
+
+  for i = 1, #compressorSidechains do
+    compressorSidechains[i]:notify('midi_message', message)
+  end
 end
 
 function onReceiveNotify(key, value)

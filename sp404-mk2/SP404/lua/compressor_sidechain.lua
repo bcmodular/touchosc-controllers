@@ -1,44 +1,61 @@
+-- Are we in edit mode or perform mode?
+local editMode = false
+
 -- Envelope settings
-local ATTACK_TIME_MS = 10      -- How quickly parameters rise when triggered
-local RELEASE_TIME_MS = 500    -- How slowly parameters fall when released
-local CURVE_TYPE = "exponential"  -- "linear", "exponential", or "logarithmic"
+local attackTimeMs = 10
+local releaseTimeMs = 500
+local curveType = "exponential"
 
 -- Internal state variables
-local current_envelope_value = 0
-local is_triggered = false
-local is_enabled = false
-local last_time = 0
-local trigger_note = 36  -- MIDI note that triggers sidechain (e.g., kick drum)
+local currentEnvelopeValue = 0
+local isTriggered = false
+local isEnabled = false
+local lastTime = 0
+local triggerMidiChannel = 0
+local triggerNote = 36
 
--- Configuration for parameter modulation (0-1)
--- How much of the available headroom to use for each parameter
-local modulation_strength = {
-  ratio = 0.7,    -- Use up to 70% of available ratio headroom
-  level = 0.3,    -- Use up to 30% of available level headroom
-  sustain = 0.2   -- Use up to 20% of available sustain headroom
-}
+-- Modulation strength values
+local ratioMod = 0.7
+local levelMod = 0.3
+local sustainMod = 0.2
 
 -- Store base values for parameters
-local base_values = {
+local baseValues = {
   ratio = 0,
   level = 0,
   sustain = 0
 }
 
--- Function to read current widget values as base values
+local ratioFader = nil
+local levelFader = nil
+local sustainFader = nil
+
+local function configureMidiMessage()
+  local midiMessage = self.messages.MIDI[1]
+  midiMessage.channel = triggerMidiChannel
+  midiMessage.note = triggerNote
+end
+
+local function usePerformModeControls()
+  local faders = self.parent:findByName('faders', true)
+  ratioFader = faders:findByName('3'):findByName('control_fader')
+  levelFader = faders:findByName('4'):findByName('control_fader')
+  sustainFader = faders:findByName('1'):findByName('control_fader')
+end
+
 local function updateBaseValues()
-  base_values.ratio = self.parent.children.ratio_fader.values.x
-  base_values.level = self.parent.children.level_fader.values.x
-  base_values.sustain = self.parent.children.sustain_fader.values.x
+  baseValues.ratio = ratioFader.values.x
+  baseValues.level = levelFader.values.x
+  baseValues.sustain = sustainFader.values.x
 end
 
 -- Apply curve shaping to a linear progress value (0-1)
-local function applyCurve(progress, curve_type)
-    if curve_type == "linear" then
+local function applyCurve(progress, curveType)
+    if curveType == "linear" then
         return progress
-    elseif curve_type == "exponential" then
+    elseif curveType == "exponential" then
         return 1 - ((1 - progress) * (1 - progress))  -- Exponential curve
-    elseif curve_type == "logarithmic" then
+    elseif curveType == "logarithmic" then
         return progress * progress  -- Logarithmic curve
     else
         return progress  -- Default to linear if unknown
@@ -46,87 +63,62 @@ local function applyCurve(progress, curve_type)
 end
 
 -- Calculate modulated value based on envelope and headroom
-local function calculateModulatedValue(base_value, modulation_strength_value, envelope_value, should_reduce)
-    -- Calculate available range (0-1 range in TouchOSC)
-    local range = should_reduce and base_value or (1 - base_value)
-
-    -- Calculate modulation based on envelope value with curve applied
-    local shaped_envelope = applyCurve(envelope_value, CURVE_TYPE)
-
-    -- Apply modulation based on available range
-    local modulation = range * modulation_strength_value * shaped_envelope
-
-    -- Return base value plus or minus modulation depending on should_reduce
-    return should_reduce and (base_value - modulation) or (base_value + modulation)
+local function calculateModulatedValue(baseValue, modStrength, envelopeValue, shouldReduce)
+    local range = shouldReduce and baseValue or (1 - baseValue)
+    local shapedEnvelope = applyCurve(envelopeValue, curveType)
+    local modulation = range * modStrength * shapedEnvelope
+    return shouldReduce and (baseValue - modulation) or (baseValue + modulation)
 end
 
 -- Update parameters based on current envelope value
 local function updateParameters()
-  -- Calculate and set new values for each parameter
-  local ratio_value = calculateModulatedValue(
-    base_values.ratio,
-    modulation_strength.ratio,
-    current_envelope_value,
+  local ratioValue = calculateModulatedValue(
+    baseValues.ratio,
+    ratioMod,
+    currentEnvelopeValue,
     false  -- increase ratio when triggered
   )
-  self.parent.children.ratio_fader.values.x = ratio_value
+  ratioFader.values.x = ratioValue
 
-  local level_value = calculateModulatedValue(
-    base_values.level,
-    modulation_strength.level,
-    current_envelope_value,
+  local levelValue = calculateModulatedValue(
+    baseValues.level,
+    levelMod,
+    currentEnvelopeValue,
     true   -- decrease level when triggered
   )
-  self.parent.children.level_fader.values.x = level_value
+  levelFader.values.x = levelValue
 
-  local sustain_value = calculateModulatedValue(
-    base_values.sustain,
-    modulation_strength.sustain,
-    current_envelope_value,
+  local sustainValue = calculateModulatedValue(
+    baseValues.sustain,
+    sustainMod,
+    currentEnvelopeValue,
     false  -- increase sustain when triggered
   )
-  self.parent.children.sustain_fader.values.x = sustain_value
-end
-
--- Handle MIDI note on event
-local function onMidiNoteOn(message)
-  if message[2] == trigger_note then
-    is_triggered = true
-  end
-end
-
--- Handle MIDI note off event
-local function onMidiNoteOff(message)
-  if message[2] == trigger_note then
-     is_triggered = false
-  end
+  sustainFader.values.x = sustainValue
 end
 
 local function returnToBaseValues()
-  self.parent.children.ratio_fader.values.x = base_values.ratio
-  self.parent.children.level_fader.values.x = base_values.level
-  self.parent.children.sustain_fader.values.x = base_values.sustain
+  ratioFader.values.x = baseValues.ratio
+  levelFader.values.x = baseValues.level
+  sustainFader.values.x = baseValues.sustain
 end
 
 -- Update function called every frame
 function update()
-  if is_enabled then
-    local current_time = getMillis()
-    local time_delta = current_time - last_time
-    last_time = current_time
-    --print('update')
-    --print('\t is_triggered =', is_triggered)
-    --print('\t current_envelope_value =', current_envelope_value)
+  if isEnabled then
+    local currentTime = getMillis()
+    local timeDelta = currentTime - lastTime
+    lastTime = currentTime
     -- Update envelope value based on trigger state
-    if is_triggered and current_envelope_value < 1 then
+    if isTriggered and currentEnvelopeValue < 1 then
       -- Attack phase - envelope is rising
-      local attack_speed = time_delta / ATTACK_TIME_MS
-      current_envelope_value = math.min(1, current_envelope_value + attack_speed)
-    elseif not is_triggered and current_envelope_value > 0 then
+      local attackSpeed = timeDelta / attackTimeMs
+      currentEnvelopeValue = math.min(1, currentEnvelopeValue + attackSpeed)
+    elseif not isTriggered and currentEnvelopeValue > 0 then
       -- Release phase - envelope is falling
-      local release_speed = time_delta / RELEASE_TIME_MS
-      current_envelope_value = math.max(0, current_envelope_value - release_speed)
-    elseif not is_triggered and current_envelope_value == 0 then
+      local releaseSpeed = timeDelta / releaseTimeMs
+      currentEnvelopeValue = math.max(0, currentEnvelopeValue - releaseSpeed)
+    elseif not isTriggered and currentEnvelopeValue == 0 then
       returnToBaseValues()
     end
 
@@ -135,56 +127,348 @@ function update()
   end
 end
 
-function onReceiveMIDI(message, connections)
-  --print('onReceiveMIDI')
-  --print('\t message     =', unpack(message))
-  --print('\t connections =', unpack(connections))
+local function handleMidiMessage(message)
+  print('handleMidiMessage:', unpack(message))
 
-  if message[1] >= 144 and message[1] <= 159 and message[3] > 0 then
-    onMidiNoteOn(message)
-  -- Note Off (status byte: 128-143 or Note On with velocity 0)
-  elseif (message[1] >= 128 and message[1] <= 143) or
-        (message[1] >= 144 and message[1] <= 159 and message[3] == 0) then
-    onMidiNoteOff(message)
+  if message[1] - triggerMidiChannel == 144 then
+    if message[2] == triggerNote then
+      print('trigger note on')
+      isTriggered = true
+    end
+  end
+
+  if message[1] - triggerMidiChannel == 128 then
+    if message[2] == triggerNote then
+      print('trigger note off')
+      isTriggered = false
+    end
   end
 end
 
--- Manual trigger function - can be connected to a button in TouchOSC
-local function triggerSidechain(value)
-    if value > 0 then
-        is_triggered = true
-    else
-        is_triggered = false
-    end
+local function toggleSidechain(value)
+  isEnabled = value > 0
+  if isEnabled then
+    updateBaseValues()  -- Capture current state of faders
+  else
+    returnToBaseValues()
+  end
 end
 
-local function enableSidechain()
-  is_enabled = true
-  updateBaseValues()  -- Capture current state of faders
+local function createSidechainConfig(
+  newTriggerNote,
+  newTriggerMidiChannel,
+  newSustainMod,
+  newRatioMod,
+  newLevelMod,
+  newAttackMs,
+  newReleaseMs,
+  newCurve,
+  newEnabled
+)
+  return {
+    triggerNote = newTriggerNote or 36,
+    triggerMidiChannel = newTriggerMidiChannel or 0,
+    modulationStrength = {
+      sustain = newSustainMod or 0.2,
+      ratio = newRatioMod or 0.7,
+      level = newLevelMod or 0.3
+    },
+    attackTimeMs = newAttackMs or 10,
+    releaseTimeMs = newReleaseMs or 500,
+    curveType = newCurve or "exponential",
+    enabled = newEnabled or false
+  }
 end
 
-local function disableSidechain()
-  is_enabled = false
-  returnToBaseValues()
+-- Structure for storing all sidechain data
+local function createSidechainStorage()
+  return {
+    defaults = createSidechainConfig(),  -- Global defaults
+    presets = {},                        -- Global presets (string keys)
+    recent = {}                          -- Recent values per bus (string keys)
+  }
 end
 
+-- Function to save all sidechain data to the control's tag
+local function saveSidechainData(data)
+  self.tag = json.fromTable(data)
+end
+
+-- Function to load all sidechain data from the control's tag
+local function loadSidechainData()
+  local storedData = json.toTable(self.tag)
+  if not storedData then
+    -- Initialize with just defaults if no data exists
+    storedData = createSidechainStorage()
+    saveSidechainData(storedData)
+  end
+  return storedData
+end
+
+-- Function to update recent values for current bus
+local function updateRecentValues(busNumber)
+  local data = loadSidechainData()
+  data.recent[tostring(busNumber)] = createSidechainConfig(
+    triggerNote,
+    triggerMidiChannel,
+    sustainMod,
+    ratioMod,
+    levelMod,
+    attackTimeMs,
+    releaseTimeMs,
+    curveType,
+    isEnabled
+  )
+  saveSidechainData(data)
+end
+
+-- Function to store global defaults
+local function storeDefaults()
+  local data = loadSidechainData()
+  data.defaults = createSidechainConfig(
+    triggerNote,
+    triggerMidiChannel,
+    sustainMod,
+    ratioMod,
+    levelMod,
+    attackTimeMs,
+    releaseTimeMs,
+    curveType,
+    isEnabled
+  )
+  saveSidechainData(data)
+end
+
+-- Function to store a preset
+local function storePreset(presetNumber)
+  local data = loadSidechainData()
+  data.presets[tostring(presetNumber)] = createSidechainConfig(
+    triggerNote,
+    triggerMidiChannel,
+    sustainMod,
+    ratioMod,
+    levelMod,
+    attackTimeMs,
+    releaseTimeMs,
+    curveType,
+    isEnabled
+  )
+  saveSidechainData(data)
+end
+
+-- Function to recall a preset
+local function recallPreset(presetNumber)
+  local data = loadSidechainData()
+  local preset = data.presets[tostring(presetNumber)]
+  if not preset then
+    return
+  end
+
+  -- Apply the preset values
+  triggerNote = preset.triggerNote
+  triggerMidiChannel = preset.triggerMidiChannel
+  sustainMod = preset.modulationStrength.sustain
+  ratioMod = preset.modulationStrength.ratio
+  levelMod = preset.modulationStrength.level
+  attackTimeMs = preset.attackTimeMs
+  releaseTimeMs = preset.releaseTimeMs
+  curveType = preset.curveType
+  isEnabled = preset.enabled
+
+  -- Update recent values after recall
+  local currentBus = tonumber(self.parent.parent.name) or 1
+  updateRecentValues(currentBus)
+end
+
+-- Function to recall recent values for a bus
+local function recallRecent(busNumber)
+  local data = loadSidechainData()
+  local recent = data.recent[tostring(busNumber)]
+  if not recent then
+    return
+  end
+
+  -- Apply the recent values
+  triggerNote = recent.triggerNote
+  triggerMidiChannel = recent.triggerMidiChannel
+  sustainMod = recent.modulationStrength.sustain
+  ratioMod = recent.modulationStrength.ratio
+  levelMod = recent.modulationStrength.level
+  attackTimeMs = recent.attackTimeMs
+  releaseTimeMs = recent.releaseTimeMs
+  curveType = recent.curveType
+  isEnabled = recent.enabled
+end
+
+-- Function to recall defaults
+local function recallDefaults()
+  local data = loadSidechainData()
+  local defaults = data.defaults
+
+  -- Apply the default values
+  triggerNote = defaults.triggerNote
+  triggerMidiChannel = defaults.triggerMidiChannel
+  sustainMod = defaults.modulationStrength.sustain
+  ratioMod = defaults.modulationStrength.ratio
+  levelMod = defaults.modulationStrength.level
+  attackTimeMs = defaults.attackTimeMs
+  releaseTimeMs = defaults.releaseTimeMs
+  curveType = defaults.curveType
+  isEnabled = defaults.enabled
+
+  -- Update recent values after recall
+  local currentBus = tonumber(self.parent.parent.name) or 1
+  updateRecentValues(currentBus)
+end
+
+local function attackRangeToFader(value)
+  return value / 100
+end
+
+local function releaseRangeToFader(value)
+  return value / 2000
+end
+
+local function attackFaderToRange(value)
+  return value * 100
+end
+
+local function releaseFaderToRange(value)
+  return value * 2000
+end
+
+local function curveTypeToFader(value)
+  if value == "linear" then
+    return 0
+  elseif value == "exponential" then
+    return 0.5
+  elseif value == "logarithmic" then
+    return 1
+  end
+end
+
+local function curveFaderToType(value)
+  if value < 0.3 then
+    return 'linear'
+  elseif value < 0.6 then
+    return 'exponential'
+  else
+    return 'logarithmic'
+  end
+end
+
+local function updateEditModeControls(compressorEditPage)
+  local editCompressorSidechain = compressorEditPage:findByName('edit_compressor_sidechain', true)
+  local ratioModFader = editCompressorSidechain:findByName('ratio_fader_group').children.control_fader
+  local levelModFader = editCompressorSidechain:findByName('level_fader_group').children.control_fader
+  local sustainModFader = editCompressorSidechain:findByName('sustain_fader_group').children.control_fader
+  local attackTimeMsFader = editCompressorSidechain:findByName('attack_fader_group').children.control_fader
+  local releaseTimeMsFader = editCompressorSidechain:findByName('release_fader_group').children.control_fader
+  local curveTypeFader = editCompressorSidechain:findByName('curve_fader_group').children.control_fader
+  local noteLabel = editCompressorSidechain:findByName('note_label', true)
+  local bankSelect = editCompressorSidechain:findByName('bank_select', true)
+  local enableSidechainButton = editCompressorSidechain:findByName('enable_sidechain_button', true)
+
+  print('found edit mode controls: ', ratioModFader.name, levelModFader.name, sustainModFader.name, attackTimeMsFader.name, releaseTimeMsFader.name, curveTypeFader.name, noteLabel.name, bankSelect.name)
+
+  ratioModFader.values.x = ratioMod
+  levelModFader.values.x = levelMod
+  sustainModFader.values.x = sustainMod
+  attackTimeMsFader.values.x = attackRangeToFader(attackTimeMs)
+  releaseTimeMsFader.values.x = releaseRangeToFader(releaseTimeMs)
+  curveTypeFader.values.x = curveTypeToFader(curveType)
+
+  noteLabel.values.text = tostring(triggerNote)
+  bankSelect:notify('set', triggerMidiChannel + 1)
+  enableSidechainButton.values.x = isEnabled and 1 or 0
+end
+
+local function useEditModeControls()
+  local compressorEditPage = root.children.control_pager.children[37]
+  print('compressorEditPage:', compressorEditPage.name)
+
+  ratioFader = compressorEditPage:findByName('ratio_fader', true)
+  levelFader = compressorEditPage:findByName('level_fader', true)
+  sustainFader = compressorEditPage:findByName('sustain_fader', true)
+
+  print('found edit mode controls: ', ratioFader.name, levelFader.name, sustainFader.name)
+
+  updateEditModeControls(compressorEditPage)
+end
+
+local function switchMode()
+  if editMode then
+    useEditModeControls()
+  else
+    usePerformModeControls()
+  end
+end
+
+local function updateValue(key, value)
+  print('updateValue:', key, value)
+  if key == 'ratio_mod' then
+    ratioMod = value
+  elseif key == 'level_mod' then
+    levelMod = value
+  elseif key == 'sustain_mod' then
+    sustainMod = value
+  elseif key == 'attack_time_ms' then
+    attackTimeMs = attackFaderToRange(value)
+  elseif key == 'release_time_ms' then
+    releaseTimeMs = releaseFaderToRange(value)
+  elseif key == 'curve_type' then
+    curveType = curveFaderToType(value)
+  elseif key == 'trigger_note' then
+    triggerNote = value
+  elseif key == 'trigger_midi_channel' then
+    triggerMidiChannel = value
+  end
+end
+
+-- Modify onReceiveNotify to handle the new storage system
 function onReceiveNotify(key, value)
-  if key == 'enable_sidechain' then
-    print('enable_sidechain', value)
-    enableSidechain()
-  elseif key == 'disable_sidechain' then
-    print('disable_sidechain', value)
-    disableSidechain()
+  local currentBus = tonumber(self.parent.parent.name) or 1
+
+  if key == 'store_preset' then
+    local presetNumber = tonumber(value)
+    storePreset(presetNumber)
+  elseif key == 'recall_preset' then
+    local presetNumber = tonumber(value)
+    recallPreset(presetNumber)
+  elseif key == 'store_defaults' then
+    storeDefaults()
+  elseif key == 'recall_defaults' then
+    recallDefaults()
+  elseif key == 'bus_changed' then
+    -- Store recent values for previous bus before switching
+    updateRecentValues(currentBus)
+    -- Load recent values for new bus
+    local newBus = tonumber(value)
+    recallRecent(newBus)
+  elseif key == 'toggle_sidechain' then
+    toggleSidechain(value)
   elseif key == 'trigger_sidechain' then
-    print('trigger_sidechain', value)
-    triggerSidechain(value)
+    isTriggered = value > 0
+  elseif key == 'switch_mode' then
+    editMode = root:findByName('edit_mode').values.x > 0
+    switchMode()
+  elseif key == 'update_value' then
+    updateValue(value[1], value[2])
+  elseif key == 'midi_message' then
+    handleMidiMessage(value)
   end
 end
 
 function init()
-  is_triggered = false
-  is_enabled = false
+  isTriggered = false
+  isEnabled = false
+  usePerformModeControls()
   updateBaseValues()
-  last_time = getMillis()
-  print("Sidechain controller initialized")
+  lastTime = getMillis()
+
+  -- Initialize storage if it doesn't exist
+  if self.tag == '' then
+    local initialData = createSidechainStorage()
+    saveSidechainData(initialData)
+  end
 end

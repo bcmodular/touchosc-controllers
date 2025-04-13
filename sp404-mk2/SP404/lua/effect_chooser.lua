@@ -189,7 +189,7 @@ local function clearBus()
 
   -- Store current values
   local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
-  print('store_current_values from clearBus')
+  --print('store_current_values from clearBus')
   performRecallProxy:notify('store_current_values')
   self.children.selected_item.tag = json.fromTable(selected_menu_item_data)
   self.children.selected_item.children.label.values.text = "Choose FX..."
@@ -220,7 +220,7 @@ local function closeMenu()
 end
 
 local function initPresetList()
-  print('initPresetList', selected_menu_index)
+  --print('initPresetList', selected_menu_index)
 
   if selected_menu_index == 0 then
     return
@@ -259,7 +259,7 @@ local function showBus()
   local performRecallProxy = self.parent:findByName('perform_recall_proxy', true)
 
   if fxNum ~= nil and fxNum ~= tonumber(selected_menu_item_data["id"]) then
-    print('store_current_values from showBus')
+    --print('store_current_values from showBus')
     performRecallProxy:notify('store_current_values')
   end
 
@@ -269,7 +269,7 @@ local function showBus()
   updateMenuItemsData()
 
   fxNum = tonumber(selected_menu_item_data["id"])
-  print("showBus [id: " .. tostring(fxNum) .. "][label: " .. selected_menu_item_data["label"] .. "][value: " .. selected_menu_item_data["value"] .. "]")
+  --print("showBus [id: " .. tostring(fxNum) .. "][label: " .. selected_menu_item_data["label"] .. "][value: " .. selected_menu_item_data["value"] .. "]")
 
   closeMenu()
   performRecallProxy:notify('set_fx_num', fxNum)
@@ -301,7 +301,7 @@ end
 
 local function setUpBus()
   self.tag = selected_menu_index
-  print('setUpBus', selected_menu_index)
+  --print('setUpBus', selected_menu_index)
   if(selected_menu_index ~= 0) then
     showBus()
   else
@@ -317,7 +317,7 @@ function onReceiveNotify(key, value)
   if(key == "set_menu_items") then
     menu_items = value
     onMenuItemsChanged()
-    print('setUpBus after set_menu_items')
+    --print('setUpBus after set_menu_items')
     setUpBus()
     return
   end
@@ -361,7 +361,7 @@ function onReceiveNotify(key, value)
       else
         selected_menu_index = 1
       end
-      print('setUpBus after select_index')
+      --print('setUpBus after select_index')
       setUpBus()
     else
       -- empty
@@ -374,13 +374,13 @@ function onReceiveNotify(key, value)
 
   if(key == "btn_pressed") then
     selected_menu_index = tonumber(value) or 0
-    print('setUpBus after btn_pressed')
+    --print('setUpBus after btn_pressed')
     setUpBus()
     return
   end
 
   if(key == "init_effect_chooser") then
-    print('setUpBus after init_effect_chooser')
+    --print('setUpBus after init_effect_chooser')
     setUpBus()
     return
   end
@@ -413,7 +413,7 @@ end
 ]]
 
 function init()
-  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
     local effectChoosers = root:findAllByName('effect_chooser', true)
 

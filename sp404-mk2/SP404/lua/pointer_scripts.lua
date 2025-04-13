@@ -120,7 +120,7 @@ local function initialisePointers()
 end
 
 function init()
-  local debugMode = tonumber(root:findByName('debug_mode').tag)
+  local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
     initialisePointers()
   end
