@@ -30,6 +30,41 @@ local ratioFader = nil
 local levelFader = nil
 local sustainFader = nil
 
+local function padNumberToMidiNote(padNumber)
+  -- The SP404 mk2 pads are arranged in a 4x4 grid
+  -- Pad numbers run 1-16 from top to bottom
+  -- MIDI notes run left to right, bottom to top
+  -- Pad layout (numbers show pad ordering):
+  -- 1  2  3  4
+  -- 5  6  7  8
+  -- 9  10 11 12
+  -- 13 14 15 16
+
+  -- MIDI note layout (notes show MIDI note numbers):
+  -- 48 49 50 51
+  -- 44 45 46 47
+  -- 40 41 42 43
+  -- 36 37 38 39
+
+  -- Convert pad number to MIDI note
+  local row = math.floor((padNumber - 1) / 4)  -- 0-3
+  local col = (padNumber - 1) % 4              -- 0-3
+  return 36 + col + (3 - row) * 4  -- 3-row because we need to count from bottom
+end
+
+local function midiNoteToPadNumber(note)
+  -- Convert MIDI note to pad number
+  -- Note range is 36-51
+  if note < 36 or note > 51 then
+    return 1  -- Default to first pad if invalid note
+  end
+
+  local baseNote = note - 36  -- Convert to 0-15 range
+  local row = 3 - math.floor(baseNote / 4)  -- 0-3 from top to bottom
+  local col = baseNote % 4                   -- 0-3 from left to right
+  return row * 4 + col + 1  -- Convert to 1-16 range
+end
+
 local function configureMidiMessage()
   local midiMessage = self.messages.MIDI[1]
   midiMessage.channel = triggerMidiChannel
@@ -378,7 +413,7 @@ local function updateEditModeControls(compressorEditPage)
   releaseTimeMsFader.values.x = releaseRangeToFader(releaseTimeMs)
   curveTypeFader.values.x = curveTypeToFader(curveType)
 
-  noteLabel.values.text = tostring(triggerNote)
+  noteLabel.values.text = tostring(midiNoteToPadNumber(triggerNote))
   bankSelect:notify('set', triggerMidiChannel + 1)
   enableSidechainButton.values.x = isEnabled and 1 or 0
 end
@@ -419,9 +454,11 @@ local function updateValue(key, value)
   elseif key == 'curve_type' then
     curveType = curveFaderToType(value)
   elseif key == 'trigger_note' then
-    triggerNote = value
+    triggerNote = padNumberToMidiNote(value)
+    print('new triggerNote:', triggerNote)
   elseif key == 'trigger_midi_channel' then
     triggerMidiChannel = value
+    print('new triggerMidiChannel:', triggerMidiChannel)
   end
 end
 
