@@ -182,6 +182,9 @@ local function goToEditPage()
   if fxNum == 37 then
     local compressorSidechain = self.parent.parent:findByName('compressor_sidechain', true)
     compressorSidechain:notify('switch_mode')
+
+    local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
+    editCompressorSidechain:notify('update_bus')
   end
 end
 

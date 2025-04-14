@@ -1,5 +1,7 @@
+local sidechainScript = [[
 -- Are we in edit mode or perform mode?
 local editMode = false
+local busNum = tonumber(self.parent.parent.tag) + 1
 
 -- Envelope settings
 local attackTimeMs = 10
@@ -8,6 +10,7 @@ local curveType = "exponential"
 
 -- Internal state variables
 local currentEnvelopeValue = 0
+local compressorSelected = false
 local isTriggered = false
 local isEnabled = false
 local lastTime = 0
@@ -65,12 +68,6 @@ local function midiNoteToPadNumber(note)
   return row * 4 + col + 1  -- Convert to 1-16 range
 end
 
-local function configureMidiMessage()
-  local midiMessage = self.messages.MIDI[1]
-  midiMessage.channel = triggerMidiChannel
-  midiMessage.note = triggerNote
-end
-
 local function usePerformModeControls()
   local faders = self.parent:findByName('faders', true)
   ratioFader = faders:findByName('3'):findByName('control_fader')
@@ -79,9 +76,15 @@ local function usePerformModeControls()
 end
 
 local function updateBaseValues()
-  baseValues.ratio = ratioFader.values.x
-  baseValues.level = levelFader.values.x
-  baseValues.sustain = sustainFader.values.x
+  if ratioFader then
+    baseValues.ratio = ratioFader.values.x
+  end
+  if levelFader then
+    baseValues.level = levelFader.values.x
+  end
+  if sustainFader then
+    baseValues.sustain = sustainFader.values.x
+  end
 end
 
 -- Apply curve shaping to a linear progress value (0-1)
@@ -113,7 +116,9 @@ local function updateParameters()
     currentEnvelopeValue,
     false  -- increase ratio when triggered
   )
-  ratioFader.values.x = ratioValue
+  if ratioFader then
+    ratioFader.values.x = ratioValue
+  end
 
   local levelValue = calculateModulatedValue(
     baseValues.level,
@@ -121,7 +126,9 @@ local function updateParameters()
     currentEnvelopeValue,
     true   -- decrease level when triggered
   )
-  levelFader.values.x = levelValue
+  if levelFader then
+    levelFader.values.x = levelValue
+  end
 
   local sustainValue = calculateModulatedValue(
     baseValues.sustain,
@@ -129,13 +136,21 @@ local function updateParameters()
     currentEnvelopeValue,
     false  -- increase sustain when triggered
   )
-  sustainFader.values.x = sustainValue
+  if sustainFader then
+    sustainFader.values.x = sustainValue
+  end
 end
 
 local function returnToBaseValues()
-  ratioFader.values.x = baseValues.ratio
-  levelFader.values.x = baseValues.level
-  sustainFader.values.x = baseValues.sustain
+  if ratioFader then
+    ratioFader.values.x = baseValues.ratio
+  end
+  if levelFader then
+    levelFader.values.x = baseValues.level
+  end
+  if sustainFader then
+    sustainFader.values.x = baseValues.sustain
+  end
 end
 
 -- Update function called every frame
@@ -181,7 +196,8 @@ local function handleMidiMessage(message)
 end
 
 local function toggleSidechain(value)
-  isEnabled = value > 0
+  isEnabled = value
+  self.children.enable_sidechain_button.values.x = isEnabled and 1 or 0
   if isEnabled then
     updateBaseValues()  -- Capture current state of faders
   else
@@ -240,10 +256,9 @@ local function loadSidechainData()
   return storedData
 end
 
--- Function to update recent values for current bus
-local function updateRecentValues(busNumber)
+local function updateRecentValues()
   local data = loadSidechainData()
-  data.recent[tostring(busNumber)] = createSidechainConfig(
+  data.recent[tostring(busNum)] = createSidechainConfig(
     triggerNote,
     triggerMidiChannel,
     sustainMod,
@@ -311,14 +326,13 @@ local function recallPreset(presetNumber)
   isEnabled = preset.enabled
 
   -- Update recent values after recall
-  local currentBus = tonumber(self.parent.parent.name) or 1
-  updateRecentValues(currentBus)
+  updateRecentValues()
 end
 
 -- Function to recall recent values for a bus
-local function recallRecent(busNumber)
+local function recallRecent()
   local data = loadSidechainData()
-  local recent = data.recent[tostring(busNumber)]
+  local recent = data.recent[tostring(busNum)]
   if not recent then
     return
   end
@@ -353,7 +367,7 @@ local function recallDefaults()
 
   -- Update recent values after recall
   local currentBus = tonumber(self.parent.parent.name) or 1
-  updateRecentValues(currentBus)
+  updateRecentValues()
 end
 
 local function attackRangeToFader(value)
@@ -462,10 +476,11 @@ local function updateValue(key, value)
   end
 end
 
--- Modify onReceiveNotify to handle the new storage system
-function onReceiveNotify(key, value)
-  local currentBus = tonumber(self.parent.parent.name) or 1
+local function toggleButtons(show)
+    self.visible = show
+end
 
+function onReceiveNotify(key, value)
   if key == 'store_preset' then
     local presetNumber = tonumber(value)
     storePreset(presetNumber)
@@ -476,14 +491,16 @@ function onReceiveNotify(key, value)
     storeDefaults()
   elseif key == 'recall_defaults' then
     recallDefaults()
-  elseif key == 'bus_changed' then
-    -- Store recent values for previous bus before switching
-    updateRecentValues(currentBus)
-    -- Load recent values for new bus
-    local newBus = tonumber(value)
-    recallRecent(newBus)
+  elseif key == 'toggle_compressor' then
+    compressorSelected = value
+    if compressorSelected then
+      recallRecent()
+    else
+      toggleSidechain(false)
+    end
+    toggleButtons(compressorSelected)
   elseif key == 'toggle_sidechain' then
-    toggleSidechain(value)
+    toggleSidechain(value > 0)
   elseif key == 'trigger_sidechain' then
     isTriggered = value > 0
   elseif key == 'switch_mode' then
@@ -498,14 +515,22 @@ end
 
 function init()
   isTriggered = false
-  isEnabled = false
   usePerformModeControls()
-  updateBaseValues()
+  toggleSidechain(false)
   lastTime = getMillis()
 
   -- Initialize storage if it doesn't exist
   if self.tag == '' then
     local initialData = createSidechainStorage()
     saveSidechainData(initialData)
+  end
+end
+]]
+
+function init()
+  local debugMode = root:findByName('debug_mode').values.x
+  if debugMode == 1 then
+    local sidechain = root:findByName('compressor_sidechain', true)
+    sidechain.script = sidechainScript
   end
 end

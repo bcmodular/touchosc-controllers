@@ -284,6 +284,9 @@ local function showBus()
 
   initPresetList()
 
+  local compressorSidechain = self.parent:findByName('compressor_sidechain', true)
+  compressorSidechain:notify('toggle_compressor', fxNum == 37)
+
   local controlMapper = root:findByName('control_mapper', true)
   local faderGroups = self.parent:findByName('faders', true)
   local potGroups = self.parent:findByName('pots', true)
