@@ -46,6 +46,11 @@ local function recallPreset(presetNum)
     end
   end
   print('Recalled MIDI values:', unpack(presetValues))
+
+  if fxNum == 37 then
+    local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
+    editCompressorSidechain:notify('recall_preset', presetNum)
+  end
 end
 
 local function recallDefaults()
@@ -81,6 +86,11 @@ local function recallDefaults()
     end
   end
   print('Recalled MIDI values:', unpack(defaultValues))
+
+  if fxNum == 37 then
+    local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
+    editCompressorSidechain:notify('recall_defaults')
+  end
 end
 
 local function setCurrentValues(values)

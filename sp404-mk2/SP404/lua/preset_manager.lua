@@ -29,12 +29,20 @@ local function storePreset(fxNum, presetNum, presetValue)
   self.children[tostring(fxNum)].tag = jsonPresets
   print('Updated presets array (json):', jsonPresets)
 
+  if fxNum == 37 then
+    local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
+    editCompressorSidechain:notify('store_preset', presetNum)
+  end
 end
 
 local function deletePreset(fxNum, presetNum)
   print('Preset manager deleting preset:', fxNum, presetNum)
   storePreset(fxNum, presetNum, nil)
 
+  if fxNum == 37 then
+    local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
+    editCompressorSidechain:notify('delete_preset', presetNum)
+  end
 end
 
 local function deleteAllPresets(fxNum)

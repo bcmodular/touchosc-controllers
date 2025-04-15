@@ -11,6 +11,14 @@ function onReceiveNotify(key, value)
     busCompressorSidechain = busGroup:findByName('compressor_sidechain', true)
   elseif key == 'update_value' then
     busCompressorSidechain:notify('update_value', value)
+  elseif key == 'store_defaults' then
+    busCompressorSidechain:notify('store_defaults', value)
+  elseif key == 'recall_defaults' then
+    busCompressorSidechain:notify('recall_defaults')
+  elseif key == 'store_preset' then
+    busCompressorSidechain:notify('store_preset', value)
+  elseif key == 'recall_preset' then
+    busCompressorSidechain:notify('recall_preset', value)
   else
     busCompressorSidechain:notify(key, value)
   end
