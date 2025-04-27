@@ -54,6 +54,11 @@ local function recallPreset(presetNum)
     end
   end
   print('Recalled MIDI values:', unpack(presetValues))
+
+  if fxNum == 37 then
+    local compressorSidechain = self.parent:findByName('compressor_sidechain', true)
+    compressorSidechain:notify('recall_preset', presetNum)
+  end
 end
 
 

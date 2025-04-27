@@ -34,8 +34,6 @@ local function goToEditPage(fxNum, midiChannel, currentValues)
 end
 
 function onReceiveMIDI(message)
-  print('root onReceiveMIDI:', message)
-
   for i = 1, #compressorSidechains do
     compressorSidechains[i]:notify('midi_message', message)
   end

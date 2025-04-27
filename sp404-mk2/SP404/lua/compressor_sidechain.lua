@@ -4,6 +4,8 @@ local editMode = false
 local busNum = tonumber(self.parent.parent.tag) + 1
 local compressorEditPage = root.children.control_pager.children[37]
 
+print('Initializing compressor sidechain for bus:', busNum)
+
 -- Envelope settings
 local attackTimeMs = 10
 local releaseTimeMs = 500
@@ -17,6 +19,8 @@ local isEnabled = false
 local lastTime = 0
 local triggerMidiChannel = 0
 local triggerNote = 36
+
+print('Initial state - Envelope:', currentEnvelopeValue, 'Triggered:', isTriggered, 'Enabled:', isEnabled)
 
 -- Modulation strength values
 local ratioMod = 0.7
@@ -86,8 +90,6 @@ local function updateBaseValues()
   if sustainFader then
     baseValues.sustain = sustainFader.values.x
   end
-
-  print('updateBaseValues:', unpack(baseValues))
 end
 
 -- Apply curve shaping to a linear progress value (0-1)
@@ -154,8 +156,6 @@ local function returnToBaseValues()
   if sustainFader then
     sustainFader.values.x = baseValues.sustain
   end
-
-  print('returnToBaseValues:', unpack(baseValues))
 end
 
 local function attackRangeToFader(value)
@@ -233,33 +233,66 @@ local function useEditModeControls()
 end
 
 local function handleMidiMessage(message)
-  print('handleMidiMessage:', unpack(message))
+  --print('Received MIDI message:', unpack(message))
 
   if message[1] - triggerMidiChannel == 144 then
     if message[2] == triggerNote then
-      print('trigger note on')
+      --print('Trigger note ON - Note:', message[2], 'Channel:', triggerMidiChannel)
       isTriggered = true
     end
   end
 
   if message[1] - triggerMidiChannel == 128 then
     if message[2] == triggerNote then
-      print('trigger note off')
+      --print('Trigger note OFF - Note:', message[2], 'Channel:', triggerMidiChannel)
       isTriggered = false
     end
   end
 end
 
-local function toggleSidechain(isEnabled, ignoreBaseValues)
-  self.children.enable_sidechain_button.values.x = isEnabled and 1 or 0
-  print('toggleSidechain:', isEnabled, ignoreBaseValues)
-  if isEnabled then
-    updateBaseValues()  -- Capture current state of faders
+local function toggleFaderColours(sideChainOn)
+  local faders = self.parent:findByName('faders', true)
+  ratioFader = faders:findByName('3'):findByName('control_fader')
+  levelFader = faders:findByName('4'):findByName('control_fader')
+  sustainFader = faders:findByName('1'):findByName('control_fader')
+
+  local pots = self.parent:findByName('pots', true)
+  ratioPot = pots:findByName('3'):findByName('value')
+  levelPot = pots:findByName('4'):findByName('value')
+  sustainPot = pots:findByName('1'):findByName('value')
+
+  if sideChainOn then
+    print('Sidechain is on')
+    sustainFader.color = Color.fromHexString("2486FFFF")
+    ratioFader.color = Color.fromHexString("2486FFFF")
+    levelFader.color = Color.fromHexString("2486FFFF")
+    ratioPot.color = Color.fromHexString("2486FFFF")
+    levelPot.color = Color.fromHexString("2486FFFF")
+    sustainPot.color = Color.fromHexString("2486FFFF")
+  else
+    print('Sidechain is off')
+    sustainFader.color = Color.fromHexString("FFA61AFF")
+    ratioFader.color = Color.fromHexString("FFA61AFF")
+    levelFader.color = Color.fromHexString("FFA61AFF")
+    ratioPot.color = Color.fromHexString("FFA61AFF")
+    levelPot.color = Color.fromHexString("FFA61AFF")
+    sustainPot.color = Color.fromHexString("FFA61AFF")
+  end
+end
+
+local function toggleSidechain(newEnabledState, ignoreBaseValues)
+  print('ToggleSidechain - Bus:', busNum, 'New state:', newEnabledState)
+  self.children.enable_sidechain_button.values.x = newEnabledState and 1 or 0
+  toggleFaderColours(newEnabledState)
+
+  if newEnabledState then
+    updateBaseValues()
   else
     if not ignoreBaseValues then
       returnToBaseValues()
     end
   end
+  isEnabled = newEnabledState
 end
 
 local function createSidechainConfig(
@@ -346,6 +379,7 @@ end
 
 -- Function to store a preset
 local function storePreset(presetNumber)
+  print('Storing preset:', presetNumber)
   local data = loadSidechainData()
   data.presets[tostring(presetNumber)] = createSidechainConfig(
     triggerNote,
@@ -359,7 +393,17 @@ local function storePreset(presetNumber)
     isEnabled
   )
 
-  print('storePreset:', unpack(data.presets[tostring(presetNumber)]))
+  print('Stored preset values:')
+  print('  Trigger Note:', triggerNote)
+  print('  MIDI Channel:', triggerMidiChannel)
+  print('  Sustain Mod:', sustainMod)
+  print('  Ratio Mod:', ratioMod)
+  print('  Level Mod:', levelMod)
+  print('  Attack Time:', attackTimeMs)
+  print('  Release Time:', releaseTimeMs)
+  print('  Curve Type:', curveType)
+  print('  Enabled:', isEnabled)
+
   saveSidechainData(data)
 end
 
@@ -372,8 +416,7 @@ end
 
 -- Function to recall a preset
 local function recallPreset(presetNumber)
-  -- Disable sidechain before recalling preset
-  -- so that the faders are not affected by the preset
+  print('Recalling preset:', presetNumber, 'Bus:', busNum)
   toggleSidechain(false, true)
 
   local data = loadSidechainData()
@@ -382,7 +425,6 @@ local function recallPreset(presetNumber)
     return
   end
 
-  -- Apply the preset values
   triggerNote = preset[1]
   triggerMidiChannel = preset[2]
   sustainMod = preset[3]
@@ -393,7 +435,6 @@ local function recallPreset(presetNumber)
   curveType = preset[8]
   isEnabled = preset[9]
 
-  print('recallPreset:', unpack(preset))
   toggleSidechain(isEnabled, true)
   updateEditModeControls()
 end
@@ -454,25 +495,31 @@ local function switchMode()
 end
 
 local function updateValue(key, value)
-  print('updateValue:', key, value)
+  print('Updating parameter:', key, 'New value:', value)
   if key == 'ratio_mod' then
     ratioMod = value
+    print('Ratio modulation set to:', ratioMod)
   elseif key == 'level_mod' then
     levelMod = value
+    print('Level modulation set to:', levelMod)
   elseif key == 'sustain_mod' then
     sustainMod = value
+    print('Sustain modulation set to:', sustainMod)
   elseif key == 'attack_time_ms' then
     attackTimeMs = attackFaderToRange(value)
+    print('Attack time set to:', attackTimeMs, 'ms')
   elseif key == 'release_time_ms' then
     releaseTimeMs = releaseFaderToRange(value)
+    print('Release time set to:', releaseTimeMs, 'ms')
   elseif key == 'curve_type' then
     curveType = curveFaderToType(value)
+    print('Curve type set to:', curveType)
   elseif key == 'trigger_note' then
     triggerNote = padNumberToMidiNote(value)
-    print('new triggerNote:', triggerNote)
+    print('Trigger note set to:', triggerNote, '(Pad:', value, ')')
   elseif key == 'trigger_midi_channel' then
     triggerMidiChannel = value
-    print('new triggerMidiChannel:', triggerMidiChannel)
+    print('Trigger MIDI channel set to:', triggerMidiChannel)
   end
 end
 
@@ -509,7 +556,6 @@ function onReceiveNotify(key, value)
   elseif key == 'toggle_sidechain' then
     toggleSidechain(value > 0, false)
   elseif key == 'trigger_sidechain' then
-    print('trigger_sidechain:', value)
     isTriggered = value > 0
   elseif key == 'switch_mode' then
     editMode = root:findByName('edit_mode').values.x > 0
@@ -527,31 +573,29 @@ function update()
     local currentTime = getMillis()
     local timeDelta = currentTime - lastTime
     lastTime = currentTime
-    -- Update envelope value based on trigger state
+
     if isTriggered and currentEnvelopeValue < 1 then
-      -- Attack phase - envelope is rising
       local attackSpeed = timeDelta / attackTimeMs
       currentEnvelopeValue = math.min(1, currentEnvelopeValue + attackSpeed)
     elseif not isTriggered and currentEnvelopeValue > 0 then
-      -- Release phase - envelope is falling
       local releaseSpeed = timeDelta / releaseTimeMs
       currentEnvelopeValue = math.max(0, currentEnvelopeValue - releaseSpeed)
     elseif not isTriggered and currentEnvelopeValue == 0 then
       returnToBaseValues()
     end
 
-    -- Update parameters if envelope value changed
     updateParameters()
   end
 end
 
 function init()
+  print('Initializing compressor sidechain for bus:', busNum)
   isTriggered = false
+  isEnabled = false
   usePerformModeControls()
   toggleSidechain(false, false)
   lastTime = getMillis()
 
-  -- Initialize storage if it doesn't exist
   if self.tag == '' then
     local initialData = createSidechainStorage()
     saveSidechainData(initialData)
@@ -562,9 +606,10 @@ end
 function init()
   local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
+    print('Debug mode enabled - Loading sidechain scripts')
     local sidechains = root:findAllByName('compressor_sidechain', true)
     for _, sidechain in ipairs(sidechains) do
-      print('sidechain:', sidechain.name)
+      print('Loading sidechain:', sidechain.name)
       sidechain.script = sidechainScript
     end
   end
