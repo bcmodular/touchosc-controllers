@@ -34,9 +34,55 @@ local baseValues = {
   sustain = 0
 }
 
+-- Control references
+local settingsControls = nil
 local ratioFader = nil
 local levelFader = nil
 local sustainFader = nil
+local ratioPot = nil
+local levelPot = nil
+local sustainPot = nil
+local ratioPotPointer = nil
+local levelPotPointer = nil
+local sustainPotPointer = nil
+local toggleSidechainButton = nil
+
+-- Utility functions for value conversions
+local function attackRangeToFader(value)
+  return value / 100
+end
+
+local function releaseRangeToFader(value)
+  return value / 2000
+end
+
+local function attackFaderToRange(value)
+  return value * 100
+end
+
+local function releaseFaderToRange(value)
+  return value * 2000
+end
+
+local function curveTypeToFader(value)
+  if value == "linear" then
+    return 0
+  elseif value == "exponential" then
+    return 0.5
+  elseif value == "logarithmic" then
+    return 1
+  end
+end
+
+local function curveFaderToType(value)
+  if value < 0.3 then
+    return 'linear'
+  elseif value < 0.6 then
+    return 'exponential'
+  else
+    return 'logarithmic'
+  end
+end
 
 local function padNumberToMidiNote(padNumber)
   -- The SP404 mk2 pads are arranged in a 4x4 grid
@@ -73,13 +119,99 @@ local function midiNoteToPadNumber(note)
   return row * 4 + col + 1  -- Convert to 1-16 range
 end
 
-local function usePerformModeControls()
-  local faders = self.parent:findByName('faders', true)
-  ratioFader = faders:findByName('3'):findByName('control_fader')
-  levelFader = faders:findByName('4'):findByName('control_fader')
-  sustainFader = faders:findByName('1'):findByName('control_fader')
+local function getSettingsControls()
+  if not settingsControls then
+    settingsControls = self:findByName('compressor_sidechain_settings', true)
+  end
+  return settingsControls
 end
 
+local function getControlValue(controlName)
+  local controls = getSettingsControls()
+  if not controls then return nil end
+
+  local control = nil
+  if controlName:find('_fader$') then
+    -- For faders, we need to get the control_fader from within the group
+    local group = controls:findByName(controlName .. '_group', true)
+    if group then
+      control = group:findByName('control_fader', true)
+    end
+  elseif controlName == 'trigger_note' then
+    -- For note, we need to get the text from the label
+    control = controls:findByName('note_label', true)
+    if control then
+      return tonumber(control.values.text) or 1
+    end
+  elseif controlName == 'midi_channel' then
+    -- For bank select, we get the MIDI channel directly from the tag
+    control = controls:findByName('bank_label', true)
+    if control then
+      return tonumber(control.tag) or 0
+    end
+  end
+
+  if not control then return nil end
+  return control.values.x
+end
+
+local function setControlValue(controlName, value)
+  local controls = getSettingsControls()
+  if not controls then return end
+
+  local control = nil
+  if controlName:find('_fader$') then
+    -- For faders, we need to set the control_fader within the group
+    local group = controls:findByName(controlName .. '_group', true)
+    if group then
+      control = group:findByName('control_fader', true)
+    end
+  elseif controlName == 'trigger_note' then
+    -- For note, we need to set the text in the label
+    control = controls:findByName('note_label', true)
+    if control then
+      control.values.text = tostring(value)
+      return
+    end
+  elseif controlName == 'midi_channel' then
+    -- For bank select, we set the MIDI channel directly in the tag
+    control = controls:findByName('bank_label', true)
+    if control then
+      control:notify('update_midi_channel', value)
+      return
+    end
+  end
+
+  if not control then return end
+  control.values.x = value
+end
+
+-- Update internal variables from controls
+local function updateFromControls()
+  local controls = getSettingsControls()
+  if not controls then return end
+
+  attackTimeMs = attackFaderToRange(getControlValue('attack_fader') or 0)
+  releaseTimeMs = releaseFaderToRange(getControlValue('release_fader') or 0)
+  curveType = curveFaderToType(getControlValue('curve_fader') or 0)
+  ratioMod = getControlValue('ratio_fader') or 0
+  levelMod = getControlValue('level_fader') or 0
+  sustainMod = getControlValue('sustain_fader') or 0
+  triggerNote = padNumberToMidiNote(getControlValue('trigger_note') or 1)
+  triggerMidiChannel = getControlValue('midi_channel') or 0
+
+  print('Attack time:', attackTimeMs, 'Release time:', releaseTimeMs, 'Curve type:', curveType, 'Ratio mod:', ratioMod, 'Level mod:', levelMod, 'Sustain mod:', sustainMod, 'Trigger note:', triggerNote, 'Trigger MIDI channel:', triggerMidiChannel)
+end
+
+local function usePerformModeControls()
+  print('Using perform mode controls')
+  -- In perform mode, we'll use the settings component as source of truth
+  updateFromControls()
+end
+
+-- Update the base values for the sidechain
+-- This should happen when the sidechain is enabled,
+-- so we know what to return to when the sidechain is disabled
 local function updateBaseValues()
   if ratioFader then
     baseValues.ratio = ratioFader.values.x
@@ -158,42 +290,6 @@ local function returnToBaseValues()
   end
 end
 
-local function attackRangeToFader(value)
-  return value / 100
-end
-
-local function releaseRangeToFader(value)
-  return value / 2000
-end
-
-local function attackFaderToRange(value)
-  return value * 100
-end
-
-local function releaseFaderToRange(value)
-  return value * 2000
-end
-
-local function curveTypeToFader(value)
-  if value == "linear" then
-    return 0
-  elseif value == "exponential" then
-    return 0.5
-  elseif value == "logarithmic" then
-    return 1
-  end
-end
-
-local function curveFaderToType(value)
-  if value < 0.3 then
-    return 'linear'
-  elseif value < 0.6 then
-    return 'exponential'
-  else
-    return 'logarithmic'
-  end
-end
-
 local function updateEditModeControls()
   local editCompressorSidechain = compressorEditPage:findByName('edit_compressor_sidechain', true)
   local ratioModFader = editCompressorSidechain:findByName('ratio_fader_group').children.control_fader
@@ -204,7 +300,7 @@ local function updateEditModeControls()
   local curveTypeFader = editCompressorSidechain:findByName('curve_fader_group').children.control_fader
   local noteLabel = editCompressorSidechain:findByName('note_label', true)
   local bankSelect = editCompressorSidechain:findByName('bank_select', true)
-  local enableSidechainButton = editCompressorSidechain:findByName('enable_sidechain_button', true)
+  toggleSidechainButton = editCompressorSidechain:findByName('toggle_sidechain_button', true)
 
   print('found edit mode controls: ', ratioModFader.name, levelModFader.name, sustainModFader.name, attackTimeMsFader.name, releaseTimeMsFader.name, curveTypeFader.name, noteLabel.name, bankSelect.name)
 
@@ -217,19 +313,14 @@ local function updateEditModeControls()
 
   noteLabel.values.text = tostring(midiNoteToPadNumber(triggerNote))
   bankSelect:notify('set', triggerMidiChannel + 1)
-  enableSidechainButton.values.x = isEnabled and 1 or 0
+  toggleSidechainButton.values.x = isEnabled and 1 or 0
 end
 
 local function useEditModeControls()
-  print('compressorEditPage:', compressorEditPage.name)
-
-  ratioFader = compressorEditPage:findByName('ratio_fader', true)
-  levelFader = compressorEditPage:findByName('level_fader', true)
-  sustainFader = compressorEditPage:findByName('sustain_fader', true)
-
-  print('found edit mode controls: ', ratioFader.name, levelFader.name, sustainFader.name)
-
-  updateEditModeControls()
+  print('Using edit mode controls')
+  -- This will be implemented when we add the edit mode UI
+  -- For now, we'll still use the settings component as source of truth
+  updateFromControls()
 end
 
 local function handleMidiMessage(message)
@@ -280,17 +371,50 @@ local function toggleFaderColours(sideChainOn)
   end
 end
 
-local function toggleSidechain(newEnabledState, ignoreBaseValues)
+local function toggleFaderInteractivity(sideChainOn)
+  local faders = self.parent:findByName('faders', true)
+  ratioFader = faders:findByName('3'):findByName('control_fader')
+  levelFader = faders:findByName('4'):findByName('control_fader')
+  sustainFader = faders:findByName('1'):findByName('control_fader')
+
+  local pots = self.parent:findByName('pots', true)
+  ratioPotPointer = pots:findByName('3'):findByName('pointer')
+  levelPotPointer = pots:findByName('4'):findByName('pointer')
+  sustainPotPointer = pots:findByName('1'):findByName('pointer')
+
+  if sideChainOn then
+    print('Sidechain is on')
+    sustainFader.interactive = false
+    ratioFader.interactive = false
+    levelFader.interactive = false
+    ratioPotPointer.interactive = false
+    levelPotPointer.interactive = false
+    sustainPotPointer.interactive = false
+  else
+    print('Sidechain is off')
+    sustainFader.interactive = true
+    ratioFader.interactive = true
+    levelFader.interactive = true
+    ratioPotPointer.interactive = true
+    levelPotPointer.interactive = true
+    sustainPotPointer.interactive = true
+  end
+end
+
+local function toggleSidechain(newEnabledState)
   print('ToggleSidechain - Bus:', busNum, 'New state:', newEnabledState)
-  self.children.enable_sidechain_button.values.x = newEnabledState and 1 or 0
+  if toggleSidechainButton then
+    toggleSidechainButton.values.x = newEnabledState and 1 or 0
+  end
   toggleFaderColours(newEnabledState)
+  toggleFaderInteractivity(newEnabledState)
 
   if newEnabledState then
+    -- We're enabling the sidechain, so we need to update the base values
     updateBaseValues()
   else
-    if not ignoreBaseValues then
-      returnToBaseValues()
-    end
+    -- We're disabling the sidechain, so we need to return to the base values
+    returnToBaseValues()
   end
   isEnabled = newEnabledState
 end
@@ -344,80 +468,65 @@ local function loadSidechainData()
   return storedData
 end
 
+local function getCurrentConfig()
+  return createSidechainConfig(
+    padNumberToMidiNote(getControlValue('trigger_note') or 1),
+    getControlValue('midi_channel') or 0,
+    getControlValue('sustain_mod_fader') or 0,
+    getControlValue('ratio_mod_fader') or 0,
+    getControlValue('level_mod_fader') or 0,
+    attackFaderToRange(getControlValue('attack_fader') or 0),
+    releaseFaderToRange(getControlValue('release_fader') or 0),
+    curveFaderToType(getControlValue('curve_fader') or 0),
+    isEnabled
+  )
+end
+
 local function storeRecentValues()
   local data = loadSidechainData()
-  data.recent[tostring(busNum)] = createSidechainConfig(
-    triggerNote,
-    triggerMidiChannel,
-    sustainMod,
-    ratioMod,
-    levelMod,
-    attackTimeMs,
-    releaseTimeMs,
-    curveType,
-    isEnabled
-  )
+  data.recent[tostring(busNum)] = getCurrentConfig()
   saveSidechainData(data)
 end
 
--- Function to store global defaults
 local function storeDefaults()
   local data = loadSidechainData()
-  data.defaults = createSidechainConfig(
-    triggerNote,
-    triggerMidiChannel,
-    sustainMod,
-    ratioMod,
-    levelMod,
-    attackTimeMs,
-    releaseTimeMs,
-    curveType,
-    isEnabled
-  )
+  data.defaults = getCurrentConfig()
   saveSidechainData(data)
 end
 
--- Function to store a preset
 local function storePreset(presetNumber)
   print('Storing preset:', presetNumber)
   local data = loadSidechainData()
-  data.presets[tostring(presetNumber)] = createSidechainConfig(
-    triggerNote,
-    triggerMidiChannel,
-    sustainMod,
-    ratioMod,
-    levelMod,
-    attackTimeMs,
-    releaseTimeMs,
-    curveType,
-    isEnabled
-  )
-
-  print('Stored preset values:')
-  print('  Trigger Note:', triggerNote)
-  print('  MIDI Channel:', triggerMidiChannel)
-  print('  Sustain Mod:', sustainMod)
-  print('  Ratio Mod:', ratioMod)
-  print('  Level Mod:', levelMod)
-  print('  Attack Time:', attackTimeMs)
-  print('  Release Time:', releaseTimeMs)
-  print('  Curve Type:', curveType)
-  print('  Enabled:', isEnabled)
-
+  data.presets[tostring(presetNumber)] = getCurrentConfig()
   saveSidechainData(data)
 end
 
--- Function to delete a preset
-local function deletePreset(presetNumber)
-  local data = loadSidechainData()
-  data.presets[tostring(presetNumber)] = nil
-  saveSidechainData(data)
+local function applyConfig(config)
+  -- Update controls with config values
+  setControlValue('trigger_note', midiNoteToPadNumber(config[1]))
+  setControlValue('midi_channel', config[2] + 1)
+  setControlValue('sustain_mod_fader', config[3])
+  setControlValue('ratio_mod_fader', config[4])
+  setControlValue('level_mod_fader', config[5])
+  setControlValue('attack_fader', attackRangeToFader(config[6]))
+  setControlValue('release_fader', releaseRangeToFader(config[7]))
+  setControlValue('curve_fader', curveTypeToFader(config[8]))
+
+  -- Update internal variables from controls
+  updateFromControls()
+
+  -- Then switch on the sidechain if that's the setting of the config
+  toggleSidechain(config[9])
+
+  if editMode then
+    updateEditModeControls()
+  end
 end
 
--- Function to recall a preset
 local function recallPreset(presetNumber)
   print('Recalling preset:', presetNumber, 'Bus:', busNum)
-  toggleSidechain(false, true)
+  -- First disable the sidechain
+  toggleSidechain(false)
 
   local data = loadSidechainData()
   local preset = data.presets[tostring(presetNumber)]
@@ -425,23 +534,12 @@ local function recallPreset(presetNumber)
     return
   end
 
-  triggerNote = preset[1]
-  triggerMidiChannel = preset[2]
-  sustainMod = preset[3]
-  ratioMod = preset[4]
-  levelMod = preset[5]
-  attackTimeMs = preset[6]
-  releaseTimeMs = preset[7]
-  curveType = preset[8]
-  isEnabled = preset[9]
-
-  toggleSidechain(isEnabled, true)
-  updateEditModeControls()
+  applyConfig(preset)
 end
 
--- Function to recall recent values for a bus
 local function recallRecentValues()
-  toggleSidechain(false, true)
+  -- First disable the sidechain
+  toggleSidechain(false)
 
   local data = loadSidechainData()
   local recent = data.recent[tostring(busNum)]
@@ -449,41 +547,20 @@ local function recallRecentValues()
     return
   end
 
-  -- Apply the recent values
-  triggerNote = recent[1]
-  triggerMidiChannel = recent[2]
-  sustainMod = recent[3]
-  ratioMod = recent[4]
-  levelMod = recent[5]
-  attackTimeMs = recent[6]
-  releaseTimeMs = recent[7]
-  curveType = recent[8]
-  isEnabled = recent[9]
-
-  toggleSidechain(isEnabled, true)
-  updateEditModeControls()
+  applyConfig(recent)
 end
 
--- Function to recall defaults
 local function recallDefaults()
-  toggleSidechain(false, true)
+  -- First disable the sidechain
+  toggleSidechain(false)
 
   local data = loadSidechainData()
   local defaults = data.defaults
+  if not defaults then
+    return
+  end
 
-  -- Apply the default values
-  triggerNote = defaults[1]
-  triggerMidiChannel = defaults[2]
-  sustainMod = defaults[3]
-  ratioMod = defaults[4]
-  levelMod = defaults[5]
-  attackTimeMs = defaults[6]
-  releaseTimeMs = defaults[7]
-  curveType = defaults[8]
-  isEnabled = defaults[9]
-
-  toggleSidechain(isEnabled, true)
-  updateEditModeControls()
+  applyConfig(defaults)
 end
 
 local function switchMode()
@@ -492,39 +569,6 @@ local function switchMode()
   else
     usePerformModeControls()
   end
-end
-
-local function updateValue(key, value)
-  print('Updating parameter:', key, 'New value:', value)
-  if key == 'ratio_mod' then
-    ratioMod = value
-    print('Ratio modulation set to:', ratioMod)
-  elseif key == 'level_mod' then
-    levelMod = value
-    print('Level modulation set to:', levelMod)
-  elseif key == 'sustain_mod' then
-    sustainMod = value
-    print('Sustain modulation set to:', sustainMod)
-  elseif key == 'attack_time_ms' then
-    attackTimeMs = attackFaderToRange(value)
-    print('Attack time set to:', attackTimeMs, 'ms')
-  elseif key == 'release_time_ms' then
-    releaseTimeMs = releaseFaderToRange(value)
-    print('Release time set to:', releaseTimeMs, 'ms')
-  elseif key == 'curve_type' then
-    curveType = curveFaderToType(value)
-    print('Curve type set to:', curveType)
-  elseif key == 'trigger_note' then
-    triggerNote = padNumberToMidiNote(value)
-    print('Trigger note set to:', triggerNote, '(Pad:', value, ')')
-  elseif key == 'trigger_midi_channel' then
-    triggerMidiChannel = value
-    print('Trigger MIDI channel set to:', triggerMidiChannel)
-  end
-end
-
-local function toggleButtons(show)
-    self.visible = show
 end
 
 function onReceiveNotify(key, value)
@@ -550,20 +594,25 @@ function onReceiveNotify(key, value)
     if compressorSelected then
       recallRecentValues()
     else
-      toggleSidechain(false, false)
+      toggleSidechain(false)
     end
-    toggleButtons(compressorSelected)
+    self.visible = compressorSelected
   elseif key == 'toggle_sidechain' then
-    toggleSidechain(value > 0, false)
+    toggleSidechain(value > 0)
   elseif key == 'trigger_sidechain' then
     isTriggered = value > 0
   elseif key == 'switch_mode' then
     editMode = root:findByName('edit_mode').values.x > 0
     switchMode()
-  elseif key == 'update_value' then
-    updateValue(value[1], value[2])
   elseif key == 'midi_message' then
     handleMidiMessage(value)
+  elseif key == 'control_changed' then
+    -- Handle control changes from the settings component
+    if isEnabled then
+      print('Disabling sidechain to apply new settings')
+      toggleSidechain(false)
+    end
+    updateFromControls()
   end
 end
 
@@ -588,18 +637,39 @@ function update()
   end
 end
 
+local function initializeFaderReferences()
+  local faders = self.parent:findByName('faders', true)
+  ratioFader = faders:findByName('3'):findByName('control_fader')
+  levelFader = faders:findByName('4'):findByName('control_fader')
+  sustainFader = faders:findByName('1'):findByName('control_fader')
+
+  local pots = self.parent:findByName('pots', true)
+  ratioPot = pots:findByName('3'):findByName('value')
+  levelPot = pots:findByName('4'):findByName('value')
+  sustainPot = pots:findByName('1'):findByName('value')
+  ratioPotPointer = pots:findByName('3'):findByName('pointer')
+  levelPotPointer = pots:findByName('4'):findByName('pointer')
+  sustainPotPointer = pots:findByName('1'):findByName('pointer')
+
+  toggleSidechainButton = self.children.toggle_sidechain_button
+end
+
 function init()
   print('Initializing compressor sidechain for bus:', busNum)
   isTriggered = false
   isEnabled = false
-  usePerformModeControls()
-  toggleSidechain(false, false)
+  initializeFaderReferences()
+  usePerformModeControls()  -- Start in perform mode
+  toggleSidechain(false)
   lastTime = getMillis()
 
   if self.tag == '' then
     local initialData = createSidechainStorage()
     saveSidechainData(initialData)
   end
+
+  -- Initial update from controls
+  updateFromControls()
 end
 ]]
 

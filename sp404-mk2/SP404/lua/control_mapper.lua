@@ -1333,6 +1333,8 @@ local function mapControls()
 end
 
 local performFaderScriptTemplate = [[
+  local faderNum = %s
+  local syncedPot = self.parent.parent.parent.children.pots.children[tostring(faderNum)].children.value
   local amSyncedFader = %s
   local syncedFaderNum = %s
   local syncedFader = nil
@@ -1437,11 +1439,14 @@ local performFaderScriptTemplate = [[
       self.values.x = value
       updateLabel(value)
       syncMIDI()
+      syncedPot.values.x = value
     elseif key == 'new_cc_value' then
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
       syncMIDI()
+      print('triggering local message')
+      syncedPot.values.x = floatValue
     elseif key == 'sync_toggle' then
       local parent = self.parent
       syncOn = value
@@ -1501,7 +1506,7 @@ local function setUpPerformValueLabel(valueLabel, labelFormat)
   end
 end
 
-local function setUpPerformFader(controlFader, channel, controlInfo, syncedFaderNum)
+local function setUpPerformFader(faderNum, controlFader, channel, controlInfo, syncedFaderNum)
   local ccNumber, _, _, _, _, labelMapping, _, _, _, _, startValues, amSyncedFader, _, _, _, _ = unpack(controlInfo)
 
   if not startValues or startValues == '' then
@@ -1514,6 +1519,7 @@ local function setUpPerformFader(controlFader, channel, controlInfo, syncedFader
   end
 
   local faderScript = string.format(performFaderScriptTemplate,
+    faderNum,
     amSyncedFader,
     syncedFaderNum,
     mappingScripts[labelMapping],
@@ -1558,10 +1564,10 @@ local function setUpPerformFaders(fxNum, channel, faderGroups)
 
       if faderName == 'sync_fader' then
         -- Set up the sync fader
-        setUpPerformFader(controlFader, channel, control, tostring(syncedFaderNum))
+        setUpPerformFader(index, controlFader, channel, control, tostring(syncedFaderNum))
       else
         -- Set up the other faders
-        setUpPerformFader(controlFader, channel, control, '0')
+        setUpPerformFader(index, controlFader, channel, control, '0')
       end
 
       setUpPerformValueLabel(valueLabel, labelFormat)
