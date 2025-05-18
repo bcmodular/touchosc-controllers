@@ -936,6 +936,7 @@ local faderScriptTemplate = [[
   %s  -- Include the mapping function definition here
   local startValues = %s
   local syncOn = false
+  local linkedPerformFader = nil
 
   local function midiToFloat(midiValue)
     local floatValue = midiValue / 127
@@ -1019,28 +1020,36 @@ local faderScriptTemplate = [[
     gridControl:notify('new_index', rangeIndex)
   end
 
-  local midiCC = %s
+  local controlIndex = '%s'
 
-  local function syncMIDI()
-    sendMIDI({ MIDIMessageType.CONTROLCHANGE + tonumber(self.tag), midiCC, floatToMIDI(self.values.x)})
-  end
-
-  local function findMIDICCIndex(midiCCToFind)
-    local midiCCs = {16, 17, 18, 80, 81, 82}
-    for i, midiCC in ipairs(midiCCs) do
-      if midiCCToFind == midiCC then
-        return i
-      end
-    end
-  end
-
-  function updateDefault()
+  local function updateDefault()
     local fullDefaults = json.toTable(root.children.default_manager.tag)
     local valuesToRecall = fullDefaults[tostring(%s)] or {0, 0, 0, 0, 0, 0}
 
-    local index = findMIDICCIndex(midiCC)
-    print('updateDefault', midiCC, index, valuesToRecall[index])
-    self:setValueField("x", ValueField.DEFAULT, midiToFloat(valuesToRecall[index]))
+    print('updateDefault', midiCC, controlIndex, valuesToRecall[controlIndex])
+    self:setValueField("x", ValueField.DEFAULT, midiToFloat(valuesToRecall[controlIndex]))
+  end
+
+  local function initialise(midiChannel)
+    self.properties.response = Response.RELATIVE
+    press_time = 0
+
+    self.tag = tostring(midiChannel)
+
+    -- Find the perform fader
+    -- First navigate to the relevant bus group
+    local busNum = tostring(midiChannel + 1)
+    local busGroup = root:findByName('bus' .. busNum .. '_group', true)
+
+    -- Then the faders group
+    local fadersGroup = busGroup:findByName('faders', true)
+    linkedPerformFader = fadersGroup:findByName(tostring(controlIndex)).children.control_fader
+
+    print('linkedPerformFader', linkedPerformFader.name)
+  end
+
+  local function notifyPerformFader(value)
+    linkedPerformFader:notify('new_value', value)
   end
 
   function onReceiveNotify(key, value)
@@ -1052,13 +1061,13 @@ local faderScriptTemplate = [[
         local gridIndex = floatToRange(self.values.x)
         notifyGrid(gridIndex)
       end
-      syncMIDI()
+      notifyPerformFader(self.values.x)
     elseif key == 'new_cc_value' then
       -- print('New cc value:', value)
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
-      syncMIDI()
+      notifyPerformFader(floatValue)
     elseif key == 'sync_toggle' then
       -- print('Toggling fader sync:', value)
       syncOn = value
@@ -1066,7 +1075,9 @@ local faderScriptTemplate = [[
     elseif key == 'update_default' then
       updateDefault()
     elseif key == 'sync_midi' then
-      syncMIDI()
+      -- Need to call the perform fader's syncMIDI function
+    elseif key == 'initialise' then
+      initialise(value)
     end
   end
 
@@ -1079,7 +1090,7 @@ local faderScriptTemplate = [[
         notifyGrid(gridIndex)
       end
 
-      syncMIDI()
+      notifyPerformFader(self.values.x)
     end
   end
 
@@ -1103,11 +1114,6 @@ local faderScriptTemplate = [[
         press_time = new_press_time
       end
     end
-  end
-
-  function init()
-    self.properties.response = Response.RELATIVE
-    press_time = 0
   end
 ]]
 
@@ -1209,8 +1215,8 @@ local gridLabelScriptTemplate = [[
   end
 ]]
 
-local function generateAndAssignFaderScript(controlGroup, controlInfo, fxNum)
-  local ccNumber, faderName, _, _, labelName, labelMapping, _, gridName, _, _, startValues, amSyncFader, _, _, _, _ = unpack(controlInfo)
+local function generateAndAssignFaderScript(controlGroup, controlInfo, fxNum, controlIndex)
+  local _, faderName, _, _, labelName, labelMapping, _, gridName, _, _, startValues, amSyncFader, _, _, _, _ = unpack(controlInfo)
 
   if not startValues or startValues == '' then
     -- Just so we don't break the script
@@ -1231,7 +1237,7 @@ local function generateAndAssignFaderScript(controlGroup, controlInfo, fxNum)
     labelMapping,
     labelMapping,
     gridName,
-    ccNumber,
+    controlIndex,
     fxNum)
 
   -- Find the fader object
@@ -1315,11 +1321,11 @@ local function mapControls()
     local controlInfo = json.toTable(controlsInfo.children[tostring(i)].tag)
     if controlInfo then
       --print('Successfully loaded controlInfo for page:', i)
-      for _, control in ipairs(controlInfo) do
+      for index, control in ipairs(controlInfo) do
         --print(string.format('controlInfo[%d]:', i), unpack(control))
         local _, _, _, _, _, _, _, syncedGrid = unpack(control)
 
-        generateAndAssignFaderScript(controlGroup, control, i)
+        generateAndAssignFaderScript(controlGroup, control, i, index)
         generateAndAssignLabelScript(controlGroup, control)
 
         if syncedGrid ~= '' then
@@ -1341,6 +1347,7 @@ local performFaderScriptTemplate = [[
   %s -- Include the mapping function definition here
   local startValues = %s
   local syncOn = false
+  local press_time = 0
 
   local function midiToFloat(midiValue)
     local floatValue = midiValue / 127
@@ -1433,6 +1440,18 @@ local performFaderScriptTemplate = [[
     sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, floatToMIDI(self.values.x)})
   end
 
+  local function initialise()
+    print('initialise', self.name)
+    self.properties.response = Response.RELATIVE
+    if syncedFaderNum ~= 0 then
+      syncedFader = self.parent.parent.children[syncedFaderNum].children.control_fader
+    end
+    updateLabel(self.values.x)
+    self.messages.LOCAL[1]:trigger()
+    press_time = 0
+    print('press_time', press_time)
+  end
+
   function onReceiveNotify(key, value)
     if key == 'new_value' then
       --print('new_value', value)
@@ -1453,6 +1472,8 @@ local performFaderScriptTemplate = [[
       updateLabel(self.values.x)
     elseif key == 'update_label' then
       updateLabel(self.values.x)
+    elseif key == 'initialise' then
+      initialise()
     elseif key == 'sync_midi' then
       syncMIDI()
     end
@@ -1486,16 +1507,6 @@ local performFaderScriptTemplate = [[
         press_time = new_press_time
       end
     end
-  end
-
-  function init()
-    self.properties.response = Response.RELATIVE
-    if syncedFaderNum ~= 0 then
-      syncedFader = self.parent.parent.children[syncedFaderNum].children.control_fader
-    end
-    updateLabel(self.values.x)
-    self.messages.LOCAL[1]:trigger()
-    press_time = 0
   end
 ]]
 

@@ -277,6 +277,11 @@ local function showBus()
   local controlGroup = self.parent:findByName('control_group', true)
   controlGroup.visible = true
 
+  local faders = controlGroup:findAllByName('control_fader', true)
+  for _, fader in ipairs(faders) do
+    fader:notify('initialise')
+  end
+
   setDefaultValues(controlGroup, fxNum)
 
   local performPresetHandler = self.parent:findByName('perform_preset_handler', true)

@@ -1,9 +1,9 @@
 local compressorSidechains = root:findAllByName('compressor_sidechain', true)
-local function setChannelTagsForChildren(parentControl, channel)
+local function initialiseFaders(parentControl, channel)
   local faders = parentControl:findAllByType(ControlType.FADER, true)
 
   for _, fader in pairs(faders) do
-    fader.tag = channel
+    fader:notify('initialise', channel)
   end
 end
 
@@ -13,14 +13,9 @@ local function goToEditPage(fxNum, midiChannel, currentValues)
   local controlGroup = fxPage:findByName('control_group')
 
   if controlGroup then
-    print('Setting channel tag for:', fxPage.name, controlGroup.name, 'fxNum:', fxNum)
-    setChannelTagsForChildren(controlGroup, midiChannel)
+    print('Initialising faders for:', fxPage.name, controlGroup.name, 'fxNum:', fxNum)
+    initialiseFaders(controlGroup, midiChannel)
     controlPager.values.page = tonumber(fxNum) - 1
-
-    local faders = controlGroup:findAllByType(ControlType.FADER)
-    for _, fader in pairs(faders) do
-      fader:notify('update_default')
-    end
   end
 
   local onOffButtonGroup = root:findByName('on_off_button_group', true)
