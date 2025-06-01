@@ -34,6 +34,16 @@ local baseValues = {
   sustain = 0
 }
 
+-- Queue for pending parameter changes
+local pendingChanges = {
+  ratio = nil,
+  level = nil,
+  sustain = nil,
+  attack = nil,
+  release = nil,
+  curve = nil
+}
+
 -- Control references
 local settingsControls = nil
 local ratioFader = nil
@@ -186,44 +196,6 @@ local function setControlValue(controlName, value)
   control.values.x = value
 end
 
--- Update internal variables from controls
-local function updateFromControls()
-  local controls = getSettingsControls()
-  if not controls then return end
-
-  attackTimeMs = attackFaderToRange(getControlValue('attack_fader') or 0)
-  releaseTimeMs = releaseFaderToRange(getControlValue('release_fader') or 0)
-  curveType = curveFaderToType(getControlValue('curve_fader') or 0)
-  ratioMod = getControlValue('ratio_fader') or 0
-  levelMod = getControlValue('level_fader') or 0
-  sustainMod = getControlValue('sustain_fader') or 0
-  triggerNote = padNumberToMidiNote(getControlValue('trigger_note') or 1)
-  triggerMidiChannel = getControlValue('midi_channel') or 0
-
-  print('Attack time:', attackTimeMs, 'Release time:', releaseTimeMs, 'Curve type:', curveType, 'Ratio mod:', ratioMod, 'Level mod:', levelMod, 'Sustain mod:', sustainMod, 'Trigger note:', triggerNote, 'Trigger MIDI channel:', triggerMidiChannel)
-end
-
-local function usePerformModeControls()
-  print('Using perform mode controls')
-  -- In perform mode, we'll use the settings component as source of truth
-  updateFromControls()
-end
-
--- Update the base values for the sidechain
--- This should happen when the sidechain is enabled,
--- so we know what to return to when the sidechain is disabled
-local function updateBaseValues()
-  if ratioFader then
-    baseValues.ratio = ratioFader.values.x
-  end
-  if levelFader then
-    baseValues.level = levelFader.values.x
-  end
-  if sustainFader then
-    baseValues.sustain = sustainFader.values.x
-  end
-end
-
 -- Apply curve shaping to a linear progress value (0-1)
 local function applyCurve(progress, curveType)
     if curveType == "linear" then
@@ -247,6 +219,34 @@ end
 
 -- Update parameters based on current envelope value
 local function updateParameters()
+  -- Apply any pending changes if we're at the start of a new cycle
+  if isTriggered and currentEnvelopeValue == 0 then
+    if pendingChanges.ratio ~= nil then
+      ratioMod = pendingChanges.ratio
+      pendingChanges.ratio = nil
+    end
+    if pendingChanges.level ~= nil then
+      levelMod = pendingChanges.level
+      pendingChanges.level = nil
+    end
+    if pendingChanges.sustain ~= nil then
+      sustainMod = pendingChanges.sustain
+      pendingChanges.sustain = nil
+    end
+    if pendingChanges.attack ~= nil then
+      attackTimeMs = pendingChanges.attack
+      pendingChanges.attack = nil
+    end
+    if pendingChanges.release ~= nil then
+      releaseTimeMs = pendingChanges.release
+      pendingChanges.release = nil
+    end
+    if pendingChanges.curve ~= nil then
+      curveType = pendingChanges.curve
+      pendingChanges.curve = nil
+    end
+  end
+
   local ratioValue = calculateModulatedValue(
     baseValues.ratio,
     ratioMod,
@@ -275,6 +275,57 @@ local function updateParameters()
   )
   if sustainFader then
     sustainFader.values.x = sustainValue
+  end
+end
+
+-- Handle parameter updates from controls
+local function handleParameterUpdates(controls)
+  if not controls then return end
+
+  -- Only update trigger-related parameters immediately
+  triggerNote = padNumberToMidiNote(getControlValue('trigger_note') or 1)
+  triggerMidiChannel = getControlValue('midi_channel') or 0
+
+  -- Queue or apply other parameters based on sidechain state
+  if isEnabled then
+    -- If sidechain is on, apply changes immediately
+    attackTimeMs = attackFaderToRange(getControlValue('attack_fader') or 0)
+    releaseTimeMs = releaseFaderToRange(getControlValue('release_fader') or 0)
+    curveType = curveFaderToType(getControlValue('curve_fader') or 0)
+    ratioMod = getControlValue('ratio_fader') or 0
+    levelMod = getControlValue('level_fader') or 0
+    sustainMod = getControlValue('sustain_fader') or 0
+  else
+    -- If sidechain is off, queue the changes
+    pendingChanges.attack = attackFaderToRange(getControlValue('attack_fader') or 0)
+    pendingChanges.release = releaseFaderToRange(getControlValue('release_fader') or 0)
+    pendingChanges.curve = curveFaderToType(getControlValue('curve_fader') or 0)
+    pendingChanges.ratio = getControlValue('ratio_fader') or 0
+    pendingChanges.level = getControlValue('level_fader') or 0
+    pendingChanges.sustain = getControlValue('sustain_fader') or 0
+  end
+
+  print('Attack time:', attackTimeMs, 'Release time:', releaseTimeMs, 'Curve type:', curveType, 'Ratio mod:', ratioMod, 'Level mod:', levelMod, 'Sustain mod:', sustainMod, 'Trigger note:', triggerNote, 'Trigger MIDI channel:', triggerMidiChannel)
+end
+
+local function usePerformModeControls()
+  print('Using perform mode controls')
+  -- In perform mode, we'll use the settings component as source of truth
+  handleParameterUpdates(getSettingsControls())
+end
+
+-- Update the base values for the sidechain
+-- This should happen when the sidechain is enabled,
+-- so we know what to return to when the sidechain is disabled
+local function updateBaseValues()
+  if ratioFader then
+    baseValues.ratio = ratioFader.values.x
+  end
+  if levelFader then
+    baseValues.level = levelFader.values.x
+  end
+  if sustainFader then
+    baseValues.sustain = sustainFader.values.x
   end
 end
 
@@ -320,7 +371,7 @@ local function useEditModeControls()
   print('Using edit mode controls')
   -- This will be implemented when we add the edit mode UI
   -- For now, we'll still use the settings component as source of truth
-  updateFromControls()
+  handleParameterUpdates(getSettingsControls())
 end
 
 local function handleMidiMessage(message)
@@ -513,7 +564,7 @@ local function applyConfig(config)
   setControlValue('curve_fader', curveTypeToFader(config[8]))
 
   -- Update internal variables from controls
-  updateFromControls()
+  handleParameterUpdates(getSettingsControls())
 
   -- Then switch on the sidechain if that's the setting of the config
   toggleSidechain(config[9])
@@ -608,32 +659,39 @@ function onReceiveNotify(key, value)
     handleMidiMessage(value)
   elseif key == 'control_changed' then
     -- Handle control changes from the settings component
-    if isEnabled then
-      print('Disabling sidechain to apply new settings')
-      toggleSidechain(false)
-    end
-    updateFromControls()
+    handleParameterUpdates(getSettingsControls())
   end
 end
 
--- Update function called every frame
+local lastUpdateTime = 0
+local updateInterval = 1 -- 1ms between updates (approximately 1kHz)
+local lastEnvelopeValue = 0  -- Track last envelope value for change detection
+
 function update()
   if isEnabled then
     local currentTime = getMillis()
     local timeDelta = currentTime - lastTime
     lastTime = currentTime
 
-    if isTriggered and currentEnvelopeValue < 1 then
-      local attackSpeed = timeDelta / attackTimeMs
-      currentEnvelopeValue = math.min(1, currentEnvelopeValue + attackSpeed)
-    elseif not isTriggered and currentEnvelopeValue > 0 then
-      local releaseSpeed = timeDelta / releaseTimeMs
-      currentEnvelopeValue = math.max(0, currentEnvelopeValue - releaseSpeed)
-    elseif not isTriggered and currentEnvelopeValue == 0 then
-      returnToBaseValues()
-    end
+    -- Only process envelope changes every updateInterval milliseconds
+    -- or if the envelope value has changed significantly
+    if currentTime - lastUpdateTime >= updateInterval or
+       math.abs(currentEnvelopeValue - lastEnvelopeValue) > 0.1 then
+      lastUpdateTime = currentTime
+      lastEnvelopeValue = currentEnvelopeValue
 
-    updateParameters()
+      if isTriggered and currentEnvelopeValue < 1 then
+        local attackSpeed = timeDelta / attackTimeMs
+        currentEnvelopeValue = math.min(1, currentEnvelopeValue + attackSpeed)
+      elseif not isTriggered and currentEnvelopeValue > 0 then
+        local releaseSpeed = timeDelta / releaseTimeMs
+        currentEnvelopeValue = math.max(0, currentEnvelopeValue - releaseSpeed)
+      elseif not isTriggered and currentEnvelopeValue == 0 then
+        returnToBaseValues()
+      end
+
+      updateParameters()
+    end
   end
 end
 
@@ -669,7 +727,7 @@ function init()
   end
 
   -- Initial update from controls
-  updateFromControls()
+  handleParameterUpdates(getSettingsControls())
 end
 ]]
 
