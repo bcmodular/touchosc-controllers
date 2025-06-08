@@ -1,7 +1,9 @@
 local offButtonScript = [[
+local conn = { true, false, false } -- only send to connection 1
+
 local function sendOffMIDI()
   local midiChannel = self.tag
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
 end
 
 function onValueChanged(key, value)
@@ -39,6 +41,8 @@ function setSettings(fxNum, midiChannel)
   self.tag = json.fromTable(settings)
 end
 
+local conn = { true, false, false } -- only send to connection 1
+
 function turnEffectOn()
   local settings = json.toTable(self.tag)
   local fxNum = tonumber(settings["fxNum"])
@@ -55,13 +59,13 @@ function turnEffectOn()
     ccValue = midiValues[3]
   end
 
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, ccValue })
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, ccValue }, conn)
 end
 
 function turnEffectOff()
   local settings = json.toTable(self.tag)
   local midiChannel = tonumber(settings["midiChannel"])
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
 end
 
 function onValueChanged(key, value)
@@ -81,6 +85,8 @@ end
 ]]
 
 local grabButtonScript = [[
+local conn = { true, false, false } -- only send to connection 1
+
 local onButtonMidiValues = {
   {1, 10, 0}, {2, 17, 0}, {3, 23, 0}, {4, 8, 0}, {5, 35, 0},
   {6, 36, 0}, {7, 5, 10}, {8, 21, 0}, {9, 25, 0}, {10, 22, 0},
@@ -125,9 +131,9 @@ function onValueChanged(key, value)
       else
         ccValue = midiValues[3]
       end
-      sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, ccValue })
+      sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, ccValue }, conn)
     else
-        sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
+        sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
     end
   end
 end

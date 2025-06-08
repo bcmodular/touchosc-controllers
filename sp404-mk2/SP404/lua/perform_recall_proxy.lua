@@ -25,6 +25,11 @@ local function recallPreset(presetNum)
   print('Perform recall proxy recalling preset:', fxNum, presetNum, unpack(presetArray))
   local presetValues = presetArray[formatPresetNum(presetNum)]
 
+  if presetValues == nil then
+    print('Preset values not found for preset:', fxNum, presetNum)
+    return
+  end
+
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
   print('controlInfoArray:', controlInfoArray)
 

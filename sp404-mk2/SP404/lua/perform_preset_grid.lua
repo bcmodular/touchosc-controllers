@@ -32,9 +32,13 @@ end
 
 function onReceiveNotify(key, value)
 
+  print('onReceiveNotify', key)
   if key == 'init_presets_list' and self.name == 'perform_preset_grid' then
     -- Handle the response to our initialisation request
-    local fxNum = value
+    local fxNum = value[1]
+    local busNum = value[2]
+
+    print('init_presets_list', fxNum, busNum)
 
     if fxNum ~= '0' then
       local presetManager = root.children.preset_manager
@@ -58,17 +62,21 @@ function onReceiveNotify(key, value)
           changeState(self.children[tonumber(index)], 'RECALL')
         end
       end
+
+      print('illuminating presets for bus:', busNum)
+      local abletonPushHandler = root:findByName('ableton_push_handler', true)
+      abletonPushHandler:notify('illuminate_presets', {busNum, presetArray})
     end
   end
 
 end
 
 function init()
-    if self.name == 'perform_preset_grid' then
-      self.outline = true
-      self.outlineStyle = OutlineStyle.FULL
-    end
+  if self.name == 'perform_preset_grid' then
+    self.outline = true
+    self.outlineStyle = OutlineStyle.FULL
   end
+end
 ]]
 
 function init()
@@ -76,7 +84,9 @@ function init()
   if debugMode == 1 then
     local performPresetGrids = root:findAllByName('perform_preset_grid', true)
 
-    for _, performPresetGrid in ipairs(performPresetGrids) do
+    for index, performPresetGrid in ipairs(performPresetGrids) do
+      print('initialising perform preset grid', index)
+
       performPresetGrid.script = performPresetGridScript
     end
   end

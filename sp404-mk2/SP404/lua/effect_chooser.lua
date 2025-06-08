@@ -181,7 +181,8 @@ local function getUIHeight()
 end
 
 local function sendOffMIDI()
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
+  local conn = { true } -- only send to connection 1
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
 end
 
 local function clearBus()
@@ -195,6 +196,10 @@ local function clearBus()
   self.children.selected_item.children.label.values.text = "Choose FX..."
 
   updateMenuItemsData()
+
+  local abletonPushHandler = root:findByName('ableton_push_handler', true)
+  abletonPushHandler:notify('clear_presets', midiChannel + 1)
+
   local controlGroup = self.parent:findByName('control_group', true)
   controlGroup.visible = false
   sendOffMIDI()
@@ -227,7 +232,7 @@ local function initPresetList()
   end
 
   local performPresetGrid = self.parent:findByName('perform_preset_grid', true)
-  performPresetGrid:notify('init_presets_list', fxNum)
+  performPresetGrid:notify('init_presets_list', {fxNum, midiChannel + 1})
 end
 
 local function midiToFloat(midiValue)
