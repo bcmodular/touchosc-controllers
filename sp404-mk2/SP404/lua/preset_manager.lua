@@ -18,16 +18,16 @@ local function storePreset(fxNum, presetNum, presetValue)
   local presetArray = json.toTable(self.children[tostring(fxNum)].tag) or {}
 
   if presetValue == nil then
-    print('Deleting preset:', fxNum, presetNum)
+    --print('Deleting preset:', fxNum, presetNum)
   else
-    print('Storing preset:', fxNum, presetNum, 'with values:', unpack(presetValue))
+    --print('Storing preset:', fxNum, presetNum, 'with values:', unpack(presetValue))
   end
 
   presetArray[formatPresetNum(presetNum)] = presetValue
 
   local jsonPresets = json.fromTable(presetArray)
   self.children[tostring(fxNum)].tag = jsonPresets
-  print('Updated presets array (json):', jsonPresets)
+  --print('Updated presets array (json):', jsonPresets)
 
   if fxNum == 37 then
     local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
@@ -36,7 +36,7 @@ local function storePreset(fxNum, presetNum, presetValue)
 end
 
 local function deletePreset(fxNum, presetNum)
-  print('Preset manager deleting preset:', fxNum, presetNum)
+  --print('Preset manager deleting preset:', fxNum, presetNum)
   storePreset(fxNum, presetNum, nil)
 
   if fxNum == 37 then
@@ -46,7 +46,7 @@ local function deletePreset(fxNum, presetNum)
 end
 
 local function deleteAllPresets(fxNum)
-  print('Preset manager deleting all presets for FX:', fxNum)
+  --print('Preset manager deleting all presets for FX:', fxNum)
   self.children[tostring(fxNum)].tag = ''
 end
 
@@ -57,10 +57,10 @@ local function deleteAllPresetsForAllFX()
 end
 
 local function storedPresetsPerFX(fxNum)
-  print('Preset manager getting stored presets for FX:', fxNum)
+  --print('Preset manager getting stored presets for FX:', fxNum)
   local presetArray = json.toTable(self.children[tostring(fxNum)].tag) or {}
 
-  print('Returning stored presets for FX:', fxNum, unpack(presetArray))
+  --print('Returning stored presets for FX:', fxNum, unpack(presetArray))
   return presetArray
 
 end
@@ -77,14 +77,14 @@ end
 
 function onReceiveNotify(key, value)
 
-  print('preset_manager received notification:', key, value)
+  --print('preset_manager received notification:', key, value)
 
   if key == 'store_preset' then
 
     local fxNum = value[1]
     local presetNum = value[2]
     local ccValues = value[3]
-    print('Storing preset:', fxNum, presetNum, 'with values:', unpack(ccValues))
+    --print('Storing preset:', fxNum, presetNum, 'with values:', unpack(ccValues))
     storePreset(fxNum, presetNum, ccValues)
 
   elseif key == 'delete_preset' then
@@ -110,7 +110,7 @@ function onReceiveNotify(key, value)
 
     local storedPresets = storedPresetsPerFX(fxNum)
 
-    print('Returning stored presets list to:', fxPresetGrid.name, unpack(storedPresets))
+    --print('Returning stored presets list to:', fxPreset
     fxPresetGrid:notify('stored_presets_list', storedPresets)
 
   elseif key == 'export_presets_to_osc' then
@@ -122,7 +122,7 @@ function onReceiveNotify(key, value)
     end
 
     local jsonPresets = json.fromTable(fullPresetArray)
-    print('Full preset array:', jsonPresets)
+    --print('Full preset array:', jsonPresets)
     sendOSC('/presets', jsonPresets)
 
   elseif key == 'import_presets_from_osc' then

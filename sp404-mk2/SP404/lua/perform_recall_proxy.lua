@@ -22,16 +22,16 @@ local function recallPreset(presetNum)
 
   local presetManager = root.children.preset_manager
   local presetArray = json.toTable(presetManager.children[tostring(fxNum)].tag) or {}
-  print('Perform recall proxy recalling preset:', fxNum, presetNum, unpack(presetArray))
+  --print('Perform recall proxy recalling preset:', fxNum, presetNum, unpack(presetArray))
   local presetValues = presetArray[formatPresetNum(presetNum)]
 
   if presetValues == nil then
-    print('Preset values not found for preset:', fxNum, presetNum)
+    --print('Preset values not found for preset:', fxNum, presetNum)
     return
   end
 
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
-  print('controlInfoArray:', controlInfoArray)
+  --print('controlInfoArray:', controlInfoArray)
 
   local fxPage = root.children.control_pager.children[fxNum]
   local controlGroup = fxPage.children.control_group
@@ -39,11 +39,11 @@ local function recallPreset(presetNum)
   local exclude_marked_presets = false
 
   if controlGroup.tag == '1' then
-    print('Excluding marked presets')
+    --print('Excluding marked presets')
     exclude_marked_presets = true
   end
 
-  print('Recalling MIDI values:', unpack(presetValues))
+  --print('Recalling MIDI values:', unpack(presetValues))
   local faders = self.parent:findByName('faders', true)
 
   for i, controlInfo in ipairs(controlInfoArray) do
@@ -52,13 +52,13 @@ local function recallPreset(presetNum)
     local faderGroup = faders:findByName(tostring(i))
     local controlFader = faderGroup:findByName('control_fader')
 
-    print(i, controlFader.name, isExcludable, exclude_marked_presets)
+    --print(i, controlFader.name, isExcludable, exclude_marked_presets)
 
     if not isExcludable or not exclude_marked_presets then
       controlFader:notify('new_value', midiToFloat(presetValues[i]))
     end
   end
-  print('Recalled MIDI values:', unpack(presetValues))
+  --print('Recalled MIDI values:', unpack(presetValues))
 
   if fxNum == 37 then
     local compressorSidechain = self.parent:findByName('compressor_sidechain', true)
@@ -72,7 +72,7 @@ local function getRecentValuesForBus()
   local recentValues = json.toTable(root.children.recent_values.tag) or {}
   local recentValuesForBus = recentValues[busNum] or {}
 
-  print('getRecentValuesForBus - Recent values for bus:', busNum, unpack(recentValuesForBus))
+  --print('getRecentValuesForBus - Recent values for bus:', busNum, unpack(recentValuesForBus))
 
   return recentValuesForBus
 end
@@ -80,9 +80,9 @@ end
 local function getEffectParametersFromBus(fxNum)
   local recentValuesForBus = getRecentValuesForBus()
 
-  print('getEffectParametersFromBus - Recent values for bus:', busNum, unpack(recentValuesForBus))
+  --print('getEffectParametersFromBus - Recent values for bus:', busNum, unpack(recentValuesForBus))
   for _, effect in ipairs(recentValuesForBus) do
-    print('Effect:', effect.fxNum, fxNum, unpack(effect.parameters))
+    --print('Effect:', effect.fxNum, fxNum, unpack(effect.parameters))
     if effect.fxNum == fxNum then
       return effect.parameters
     end
@@ -96,20 +96,20 @@ local function recallValues(useDefaults)
   local fullDefaults = json.toTable(root.children.default_manager.tag)
   local valuesToRecall = fullDefaults[tostring(fxNum)] or {0, 0, 0, 0, 0, 0}
 
-  print('recallValues - useDefaults:', useDefaults, 'fxNum:', fxNum, 'default values:', unpack(valuesToRecall))
+  --print('recallValues - useDefaults:', useDefaults, 'fxNum:', fxNum, 'default values:', unpack(valuesToRecall))
   if not useDefaults then
     local recentValues = getEffectParametersFromBus(fxNum)
 
     if recentValues then
       valuesToRecall = recentValues
-      print('recallValues - recent values:', unpack(valuesToRecall))
+      --print('recallValues - recent values:', unpack(valuesToRecall))
     end
   end
 
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
-  print('controlInfoArray:', controlInfoArray)
+  --print('controlInfoArray:', controlInfoArray)
 
-  print('Recalling MIDI values:', unpack(valuesToRecall))
+  --print('Recalling MIDI values:', unpack(valuesToRecall))
 
   local faders = self.parent:findByName('faders', true)
 
@@ -127,17 +127,17 @@ local function recallValues(useDefaults)
     local faderGroup = faders:findByName(tostring(i))
     local controlFader = faderGroup:findByName('control_fader')
 
-    print(i, controlFader.name, isExcludable, exclude_marked_presets)
+    --print(i, controlFader.name, isExcludable, exclude_marked_presets)
 
     if not isExcludable or not exclude_marked_presets then
       controlFader:notify('new_value', midiToFloat(valuesToRecall[i]))
     end
   end
-  print('Recalled MIDI values:', unpack(valuesToRecall))
+  --print('Recalled MIDI values:', unpack(valuesToRecall))
 end
 
 local function returnValuesToPerform(values)
-  print('Returning values to perform:', unpack(values))
+  --print('Returning values to perform:', unpack(values))
   local faders = self.parent:findByName('faders', true)
   local currentValues = {}
   for i = 1, 6 do

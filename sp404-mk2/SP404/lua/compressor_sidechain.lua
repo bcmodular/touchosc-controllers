@@ -4,7 +4,7 @@ local editMode = false
 local busNum = tonumber(self.parent.parent.tag) + 1
 local compressorEditPage = root.children.control_pager.children[37]
 
-print('Initializing compressor sidechain for bus:', busNum)
+--print('Initializing compressor sidechain for bus:', busNum)
 
 -- Envelope settings
 local attackTimeMs = 10
@@ -20,7 +20,7 @@ local lastTime = 0
 local triggerMidiChannel = 0
 local triggerNote = 36
 
-print('Initial state - Envelope:', currentEnvelopeValue, 'Triggered:', isTriggered, 'Enabled:', isEnabled)
+--print('Initial state - Envelope:', currentEnvelopeValue, 'Triggered:', isTriggered, 'Enabled:', isEnabled)
 
 -- Modulation strength values
 local ratioMod = 0.7
@@ -49,12 +49,6 @@ local settingsControls = nil
 local ratioFader = nil
 local levelFader = nil
 local sustainFader = nil
-local ratioPot = nil
-local levelPot = nil
-local sustainPot = nil
-local ratioPotPointer = nil
-local levelPotPointer = nil
-local sustainPotPointer = nil
 local toggleSidechainButton = nil
 
 -- Utility functions for value conversions
@@ -305,11 +299,11 @@ local function handleParameterUpdates(controls)
     pendingChanges.sustain = getControlValue('sustain_fader') or 0
   end
 
-  print('Attack time:', attackTimeMs, 'Release time:', releaseTimeMs, 'Curve type:', curveType, 'Ratio mod:', ratioMod, 'Level mod:', levelMod, 'Sustain mod:', sustainMod, 'Trigger note:', triggerNote, 'Trigger MIDI channel:', triggerMidiChannel)
+  --print('Attack time:', attackTimeMs, 'Release time:', releaseTimeMs, 'Curve type:', curveType, 'Ratio mod:', ratioMod, 'Level mod:', levelMod, 'Sustain mod:', sustainMod, 'Trigger note:', triggerNote, 'Trigger MIDI channel:', triggerMidiChannel)
 end
 
 local function usePerformModeControls()
-  print('Using perform mode controls')
+  --print('Using perform mode controls')
   -- In perform mode, we'll use the settings component as source of truth
   handleParameterUpdates(getSettingsControls())
 end
@@ -353,7 +347,7 @@ local function updateEditModeControls()
   local bankSelect = editCompressorSidechain:findByName('bank_select', true)
   toggleSidechainButton = editCompressorSidechain:findByName('toggle_sidechain_button', true)
 
-  print('found edit mode controls: ', ratioModFader.name, levelModFader.name, sustainModFader.name, attackTimeMsFader.name, releaseTimeMsFader.name, curveTypeFader.name, noteLabel.name, bankSelect.name)
+  --print('found edit mode controls: ', ratioModFader.name, levelModFader.name, sustainModFader.name, attackTimeMsFader.name, releaseTimeMsFader.name, curveTypeFader.name, noteLabel.name, bankSelect.name)
 
   ratioModFader.values.x = ratioMod
   levelModFader.values.x = levelMod
@@ -368,7 +362,7 @@ local function updateEditModeControls()
 end
 
 local function useEditModeControls()
-  print('Using edit mode controls')
+  --print('Using edit mode controls')
   -- This will be implemented when we add the edit mode UI
   -- For now, we'll still use the settings component as source of truth
   handleParameterUpdates(getSettingsControls())
@@ -398,27 +392,16 @@ local function toggleFaderColours(sideChainOn)
   levelFader = faders:findByName('4'):findByName('control_fader')
   sustainFader = faders:findByName('1'):findByName('control_fader')
 
-  local pots = self.parent:findByName('pots', true)
-  ratioPot = pots:findByName('3'):findByName('value')
-  levelPot = pots:findByName('4'):findByName('value')
-  sustainPot = pots:findByName('1'):findByName('value')
-
   if sideChainOn then
-    print('Sidechain is on')
+    --print('Sidechain is on')
     sustainFader.color = Color.fromHexString("2486FFFF")
     ratioFader.color = Color.fromHexString("2486FFFF")
     levelFader.color = Color.fromHexString("2486FFFF")
-    ratioPot.color = Color.fromHexString("2486FFFF")
-    levelPot.color = Color.fromHexString("2486FFFF")
-    sustainPot.color = Color.fromHexString("2486FFFF")
   else
-    print('Sidechain is off')
+    --print('Sidechain is off')
     sustainFader.color = Color.fromHexString("FFA61AFF")
     ratioFader.color = Color.fromHexString("FFA61AFF")
     levelFader.color = Color.fromHexString("FFA61AFF")
-    ratioPot.color = Color.fromHexString("FFA61AFF")
-    levelPot.color = Color.fromHexString("FFA61AFF")
-    sustainPot.color = Color.fromHexString("FFA61AFF")
   end
 end
 
@@ -428,32 +411,21 @@ local function toggleFaderInteractivity(sideChainOn)
   levelFader = faders:findByName('4'):findByName('control_fader')
   sustainFader = faders:findByName('1'):findByName('control_fader')
 
-  local pots = self.parent:findByName('pots', true)
-  ratioPotPointer = pots:findByName('3'):findByName('pointer')
-  levelPotPointer = pots:findByName('4'):findByName('pointer')
-  sustainPotPointer = pots:findByName('1'):findByName('pointer')
-
   if sideChainOn then
-    print('Sidechain is on')
+    --print('Sidechain is on')
     sustainFader.interactive = false
     ratioFader.interactive = false
     levelFader.interactive = false
-    ratioPotPointer.interactive = false
-    levelPotPointer.interactive = false
-    sustainPotPointer.interactive = false
   else
-    print('Sidechain is off')
+    --print('Sidechain is off')
     sustainFader.interactive = true
     ratioFader.interactive = true
     levelFader.interactive = true
-    ratioPotPointer.interactive = true
-    levelPotPointer.interactive = true
-    sustainPotPointer.interactive = true
   end
 end
 
 local function toggleSidechain(newEnabledState)
-  print('ToggleSidechain - Bus:', busNum, 'New state:', newEnabledState)
+  --print('ToggleSidechain - Bus:', busNum, 'New state:', newEnabledState)
   if toggleSidechainButton then
     toggleSidechainButton.values.x = newEnabledState and 1 or 0
   end
@@ -546,7 +518,7 @@ local function storeDefaults()
 end
 
 local function storePreset(presetNumber)
-  print('Storing preset:', presetNumber)
+  --print('Storing preset:', presetNumber)
   local data = loadSidechainData()
   data.presets[tostring(presetNumber)] = getCurrentConfig()
   saveSidechainData(data)
@@ -575,7 +547,7 @@ local function applyConfig(config)
 end
 
 local function recallPreset(presetNumber)
-  print('Recalling preset:', presetNumber, 'Bus:', busNum)
+  --print('Recalling preset:', presetNumber, 'Bus:', busNum)
   -- First disable the sidechain
   toggleSidechain(false)
 
@@ -701,19 +673,11 @@ local function initializeFaderReferences()
   levelFader = faders:findByName('4'):findByName('control_fader')
   sustainFader = faders:findByName('1'):findByName('control_fader')
 
-  local pots = self.parent:findByName('pots', true)
-  ratioPot = pots:findByName('3'):findByName('value')
-  levelPot = pots:findByName('4'):findByName('value')
-  sustainPot = pots:findByName('1'):findByName('value')
-  ratioPotPointer = pots:findByName('3'):findByName('pointer')
-  levelPotPointer = pots:findByName('4'):findByName('pointer')
-  sustainPotPointer = pots:findByName('1'):findByName('pointer')
-
   toggleSidechainButton = self.children.toggle_sidechain_button
 end
 
 function init()
-  print('Initializing compressor sidechain for bus:', busNum)
+  --print('Initializing compressor sidechain for bus:', busNum)
   isTriggered = false
   isEnabled = false
   initializeFaderReferences()
@@ -734,10 +698,10 @@ end
 function init()
   local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
-    print('Debug mode enabled - Loading sidechain scripts')
+    --print('Debug mode enabled - Loading sidechain scripts')
     local sidechains = root:findAllByName('compressor_sidechain', true)
     for _, sidechain in ipairs(sidechains) do
-      print('Loading sidechain:', sidechain.name)
+      --print('Loading sidechain:', sidechain.name)
       sidechain.script = sidechainScript
     end
   end

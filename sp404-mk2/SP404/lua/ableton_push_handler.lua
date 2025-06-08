@@ -1,5 +1,3 @@
-local step = -1
-local lastTime = 0
 local conn = { false, true, false } -- only send midi messages to connection 2, which we designate as the Push
 local presetStates = {
   [1] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false},
@@ -9,7 +7,7 @@ local presetStates = {
   [5] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
 }
 local busToControl = 1
-
+local fxNums = {1, 1, 1, 1}
 -- Push LED colors
 local pushColors = {
   off = 0,      -- black / off
@@ -68,7 +66,10 @@ local pushColors = {
 
 local inactivePresetVelocity = pushColors.off
 local activePresetVelocity = pushColors.green.normal
+local deletePresetVelocity = pushColors.red.normal
+local pressedDeletePresetVelocity = pushColors.red.bright
 local pressedPresetVelocity = pushColors.green.bright
+local deleteMode = false
 
 local function mapNoteToPreset(note)
   --print('mapNoteToPreset', note)
@@ -113,9 +114,9 @@ end
 
 local function illuminatePreset(busNum, presetNum, state, velocity)
   -- To illuminate a button, we need to send a MIDI note on message to the Push with the correct note number
-  print('illuminating preset:', busNum, presetNum, state)
+  --print('illuminating preset:', busNum, presetNum, state)
   local noteNum = mapPresetToNote(busNum, presetNum)
-  print('noteNum', noteNum)
+  --print('noteNum', noteNum)
   if state then
     sendMIDI({ 144, noteNum, velocity }, conn)
   else
@@ -128,7 +129,11 @@ local function illuminatePresetGrids()
     --print('illuminating preset grid', i)
     for j = 1, 16 do
       if presetStates[i][j] then
-        illuminatePreset(i, j, true, activePresetVelocity)
+        if deleteMode then
+          illuminatePreset(i, j, true, deletePresetVelocity)
+        else
+          illuminatePreset(i, j, true, activePresetVelocity)
+        end
       else
         illuminatePreset(i, j, false, inactivePresetVelocity)
       end
@@ -153,17 +158,17 @@ local function illuminateFeatureButtons()
   ccNums = {102, 104, 106, 108}
   for i = 1, 4 do
     local ccNum = ccNums[i]
-    sendMIDI({ 176, ccNum, pushColors.blue.normal }, conn)
+    sendMIDI({ 176, ccNum, pushColors.blue.bright }, conn)
   end
   -- Turn on the control button for the four effect buses
   ccNums = {103, 105, 107, 109}
   for i = 1, 4 do
     local ccNum = ccNums[i]
-    sendMIDI({ 176, ccNum, pushColors.yellow.normal }, conn)
+    sendMIDI({ 176, ccNum, pushColors.yellow.bright }, conn)
   end
 end
 local function turnOnEffect(busNum, ccValue)
-  print('turning on effect for bus:', busNum)
+  --print('turning on effect for bus:', busNum)
   local busGroupName = 'bus'..tostring(busNum)..'_group'
   local performBusGroup = root:findByName(busGroupName, true)
   local onButton = performBusGroup:findByName('on_button', true)
@@ -171,7 +176,7 @@ local function turnOnEffect(busNum, ccValue)
 end
 
 local function turnOffEffect(busNum, ccValue)
-  print('turning off effect for bus:', busNum)
+  --print('turning off effect for bus:', busNum)
   local busGroupName = 'bus'..tostring(busNum)..'_group'
   local performBusGroup = root:findByName(busGroupName, true)
   local offButton = performBusGroup:findByName('off_button', true)
@@ -179,7 +184,7 @@ local function turnOffEffect(busNum, ccValue)
 end
 
 local function grabEffect(busNum, ccValue)
-  print('grabbing effect for bus:', busNum)
+  --print('grabbing effect for bus:', busNum)
   local busGroupName = 'bus'..tostring(busNum)..'_group'
   local performBusGroup = root:findByName(busGroupName, true)
   local grabButton = performBusGroup:findByName('grab_button', true)
@@ -187,12 +192,19 @@ local function grabEffect(busNum, ccValue)
 end
 
 local function controlEffect(busNum)
-  print('controlling effect for bus:', busNum)
+  --print('controlling effect for bus:', busNum)
   busToControl = busNum
 end
 
+local function toggleDeleteMode(newDeleteMode)
+  deleteMode = newDeleteMode
+  root:findByName('delete_button', true).values.x = deleteMode and 1 or 0
+  illuminatePresetGrids()
+  sendMIDI({ 176, 118, deleteMode and 127 or 1 }, conn)
+end
+
 local function sendIncrementToFader(ccNum, ccValue)
-  print('sending increment to fader for bus:', busToControl)
+  --print('sending increment to fader for bus:', busToControl)
   local busGroupName = 'bus'..tostring(busToControl)..'_group'
   local performBusGroup = root:findByName(busGroupName, true)
   local faders = performBusGroup:findByName('faders', true)
@@ -255,6 +267,35 @@ local function mapCCToFeature(ccNum, ccValue)
     controlEffect(busNum)
   elseif ccNum >= 71 and ccNum <= 76 then
     sendIncrementToFader(ccNum, ccValue)
+  elseif ccNum == 118 then
+    toggleDeleteMode(ccValue == 127)
+  end
+end
+
+local function handlePresetIllumination(busNum)
+  local presetManager = root.children.preset_manager
+  local presetManagerChild = presetManager.children[tostring(fxNums[busNum])]
+  local presetArray = json.toTable(presetManagerChild.tag) or {}
+  print('presetArray', presetArray)
+
+  presetStates[busNum] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
+
+  -- Initialise the entries first
+  for index = 1, 16 do
+    illuminatePreset(busNum, index, false, 0)
+  end
+
+  for index, _ in pairs(presetArray) do
+    local presetNum = tonumber(index)
+    print('Setting state for:', presetNum, 'to:', true)
+    if presetNum ~= nil then
+      presetStates[busNum][presetNum] = true
+      if deleteMode then
+        illuminatePreset(busNum, presetNum, true, deletePresetVelocity)
+      else
+        illuminatePreset(busNum, presetNum, true, activePresetVelocity)
+      end
+    end
   end
 end
 
@@ -271,7 +312,7 @@ function onReceiveNotify(key, value)
       if midiNote >= 36 and midiNote <= 99 then
         local busNum, presetNum = unpack(mapNoteToPreset(midiNote))
         --print('busNum', busNum, 'presetNum', presetNum, presetStates[busNum][presetNum])
-        if not presetStates[busNum][presetNum] then
+        if deleteMode and not presetStates[busNum][presetNum] then
           return
         end
 
@@ -283,38 +324,40 @@ function onReceiveNotify(key, value)
 
         if midiMessage[1] == 144 then
           performPresetGrid.children[presetNum].values.x = 1
-          illuminatePreset(busNum, presetNum, true, pressedPresetVelocity)
+          if deleteMode then
+            illuminatePreset(busNum, presetNum, true, pressedDeletePresetVelocity)
+          else
+            illuminatePreset(busNum, presetNum, true, pressedPresetVelocity)
+          end
         else
           performPresetGrid.children[presetNum].values.x = 0
-          illuminatePreset(busNum, presetNum, true, activePresetVelocity)
+          if deleteMode then
+            handlePresetIllumination(busNum)
+          else
+            handlePresetIllumination(busNum)
+            --illuminatePreset(busNum, presetNum, true, activePresetVelocity)
+          end
         end
       end
     elseif midiMessage[1] == 176 then -- MIDI CC message
       local ccNum = midiMessage[2]
       local ccValue = midiMessage[3]
       -- Handle CC messages here
-      print('CC message:', ccNum, ccValue)
+      --print('CC message:', ccNum, ccValue)
       mapCCToFeature(ccNum, ccValue)
     end
   elseif key == 'illuminate_presets' then
-    --print('illuminate_presets', unpack(value))
+    print('illuminate_presets', unpack(value))
     local busNum = value[1]
-    local presetArray = value[2]
-    presetStates[busNum] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
+    fxNums[busNum] = value[2]
+    deleteMode = value[3]
 
-    -- Initialise the entries first
-    for index = 1, 16 do
-      illuminatePreset(busNum,index, false, 0)
-    end
-
-    for index, _ in pairs(presetArray) do
-      local presetNum = tonumber(index)
-      --print('Setting state for:', presetNum, 'to:', true)
-      if presetNum ~= nil then
-        presetStates[busNum][presetNum] = true
-        illuminatePreset(busNum, presetNum, true, activePresetVelocity)
-      end
-    end
+    handlePresetIllumination(busNum)
+  elseif key == 'toggle_delete_mode' then
+    print('toggle_delete_mode', value)
+    print(unpack(presetStates[1]))
+    deleteMode = value
+    illuminatePresetGrids()
   elseif key == 'clear_presets' then
     local busNum = value
     if busNum == 5 then
@@ -327,39 +370,22 @@ function onReceiveNotify(key, value)
   end
 end
 
-function update()
-  if step < 0 then return end
-
-  local now = getMillis()
-  if now - lastTime < 100 then return end
-  lastTime = now
-
-  if step == 0 then
-    sendMIDI({ 0xF0, 0x47, 0x7F, 0x15, 0x62, 0x00, 0x01, 0x00, 0xF7 }, conn)
-  elseif step == 1 then
-    sendMIDI({
-      0xF0, 0x7E, 0x00, 0x06, 0x02, 0x47, 0x15, 0x00, 0x19, 0x00, 0x01, 0x01, 0x06, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x38, 0x36, 0x38, 0x36, 0x33, 0x2D, 0x31, 0x35, 0x31, 0x31, 0x34, 0x33, 0x35, 0x39,
-      0x00, 0x00, 0xF7
-    }, conn)
-  elseif step == 2 then
-    sendMIDI({
-      0xF0, 0x47, 0x7F, 0x15, 0x51, 0x00, 0x10, 0x0F, 0x04, 0x0E, 0x00, 0x08, 0x04, 0x09, 0x05, 0x03,
-      0x09, 0x06, 0x02, 0x0D, 0x0C, 0x05, 0x0B, 0xF7
-    }, conn)
-  elseif step == 3 then
-    sendMIDI({ 0xF0, 0x47, 0x7F, 0x15, 0x62, 0x00, 0x01, 0x01, 0xF7 }, conn)
-  elseif step == 4 then
-    illuminatePresetGrids()
-    illuminateFeatureButtons()
-    step = -1 -- finished
-    return
+local function reset_push()
+  -- Send Note Offs (Note On with velocity 0) for all MIDI notes 0–127
+  for note = 0, 127 do
+    -- 0x90 = 144 = Note On, channel 1
+    sendMIDI({ 144, note, 0 }, conn)
   end
 
-  step = step + 1
+  -- Send Control Change 0 to all CCs 0–127
+  for cc = 0, 127 do
+    -- 0xB0 = 176 = CC, channel 1
+    sendMIDI({ 176, cc, 0 }, conn)
+  end
 end
 
 function init()
-  step = 0
-  lastTime = getMillis()
+  reset_push()
+  illuminatePresetGrids()
+  illuminateFeatureButtons()
 end

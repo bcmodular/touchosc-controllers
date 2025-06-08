@@ -1340,7 +1340,6 @@ end
 
 local performFaderScriptTemplate = [[
   local faderNum = %s
-  local syncedPot = self.parent.parent.parent.children.pots.children[tostring(faderNum)].children.value
   local amSyncedFader = %s
   local syncedFaderNum = %s
   local syncedFader = nil
@@ -1443,7 +1442,7 @@ local performFaderScriptTemplate = [[
   end
 
   local function initialise()
-    print('initialise', self.name)
+    --print('initialise', self.name)
     self.properties.response = Response.RELATIVE
     if syncedFaderNum ~= 0 then
       syncedFader = self.parent.parent.children[syncedFaderNum].children.control_fader
@@ -1451,7 +1450,7 @@ local performFaderScriptTemplate = [[
     updateLabel(self.values.x)
     self.messages.LOCAL[1]:trigger()
     press_time = 0
-    print('press_time', press_time)
+    --print('press_time', press_time)
   end
 
   function onReceiveNotify(key, value)
@@ -1460,14 +1459,12 @@ local performFaderScriptTemplate = [[
       self.values.x = value
       updateLabel(value)
       syncMIDI()
-      syncedPot.values.x = value
     elseif key == 'new_cc_value' then
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
       syncMIDI()
-      print('triggering local message')
-      syncedPot.values.x = floatValue
+      --print('triggering local message')
     elseif key == 'sync_toggle' then
       local parent = self.parent
       syncOn = value
@@ -1589,22 +1586,6 @@ local function setUpPerformFaders(fxNum, channel, faderGroups)
   end
 end
 
-local function setUpPerformPots(fxNum, potGroups)
-  -- print('Initialising perform pots')
-  local controlInfo = json.toTable(controlsInfo.children[tostring(fxNum)].tag)
-
-  for index = 1, 6 do
-    local potGroup = potGroups.children[tostring(index)]
-
-    local control = controlInfo[index]
-
-    if control == nil then
-      potGroup.visible = false
-    else
-      potGroup.visible = true
-    end
-  end
-end
 function onReceiveNotify(key, value)
   if key == 'init_control_mapper' then
     mapControls()
@@ -1612,9 +1593,7 @@ function onReceiveNotify(key, value)
     local fxNum = value[1]
     local channel = value[2]
     local faderGroups = value[3]
-    local potGroups = value[4]
 
     setUpPerformFaders(fxNum, channel, faderGroups)
-    setUpPerformPots(fxNum, potGroups)
   end
 end

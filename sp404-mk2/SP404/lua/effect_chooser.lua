@@ -232,7 +232,7 @@ local function initPresetList()
   end
 
   local performPresetGrid = self.parent:findByName('perform_preset_grid', true)
-  performPresetGrid:notify('init_presets_list', {fxNum, midiChannel + 1})
+  performPresetGrid:notify('init_presets_list', fxNum)
 end
 
 local function midiToFloat(midiValue)
@@ -241,19 +241,15 @@ local function midiToFloat(midiValue)
 end
 
 local function setDefaultValues(controlGroup, fxNum)
-  local potGroup = controlGroup:findByName('pots', true)
   local faderGroup = controlGroup:findByName('faders', true)
 
   local fullDefaults = json.toTable(root.children.default_manager.tag)
   local valuesToRecall = fullDefaults[tostring(fxNum)] or {0, 0, 0, 0, 0, 0}
 
   for i = 1, 6 do
-    local pot = potGroup:findByName(tostring(i))
     local fader = faderGroup:findByName(tostring(i))
 
-    local potValue = pot:findByName('value')
     local faderControl = fader:findByName('control_fader')
-    potValue:setValueField("x", ValueField.DEFAULT, midiToFloat(valuesToRecall[i]))
     faderControl:setValueField("x", ValueField.DEFAULT, midiToFloat(valuesToRecall[i]))
   end
 end
@@ -299,8 +295,7 @@ local function showBus()
 
   local controlMapper = root:findByName('control_mapper', true)
   local faderGroups = self.parent:findByName('faders', true)
-  local potGroups = self.parent:findByName('pots', true)
-  controlMapper:notify('init_perform', {fxNum, midiChannel, faderGroups, potGroups})
+  controlMapper:notify('init_perform', {fxNum, midiChannel, faderGroups})
 
   local onOffButtonGroup = self.parent:findByName('on_off_button_group', true)
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel, selected_menu_item_data["label"]})

@@ -1,8 +1,8 @@
 local function saveEffectBuses(buses)
   local busesString = json.fromTable(buses)
-  print('busesString', busesString)
+  --print('busesString', busesString)
   self.tag = busesString
-  print('saved buses', busesString)
+  --print('saved buses', busesString)
 end
 
 local function loadEffectBuses()
@@ -25,14 +25,14 @@ local function pushEffectToBus(busNum, fxNum, parameters)
   local buses = loadEffectBuses()
   local stack = buses[busNum] or {}
 
-  print('current buses', unpack(buses))
-  print('current stack', unpack(stack))
+  --print('current buses', unpack(buses))
+  --print('current stack', unpack(stack))
 
   local existingIndex = nil
 
   for i, effect in ipairs(stack) do
     if effect.fxNum == fxNum then
-      print('found existing effect', effect.fxNum)
+      --print('found existing effect', effect.fxNum)
       existingIndex = i
       break
     end
@@ -43,7 +43,7 @@ local function pushEffectToBus(busNum, fxNum, parameters)
     effect.parameters = parameters
     table.insert(stack, 1, effect)
   else
-    print('no existing effect found for fxNum', fxNum, 'on bus', busNum)
+    --print('no existing effect found for fxNum', fxNum, 'on bus', busNum)
     local newEffect = {
       fxNum = fxNum,
       parameters = parameters
@@ -51,17 +51,17 @@ local function pushEffectToBus(busNum, fxNum, parameters)
 
     table.insert(stack, 1, newEffect)
 
-    print('new stack', unpack(stack))
+    --print('new stack', unpack(stack))
 
     if #stack > 16 then
       table.remove(stack)
-      print('stack after removing', unpack(stack))
+      --print('stack after removing', unpack(stack))
     end
   end
 
   buses[busNum] = stack
 
-  print('buses after saving', unpack(buses))
+  --print('buses after saving', unpack(buses))
 
   saveEffectBuses(buses)
 end
@@ -71,7 +71,7 @@ function onReceiveNotify(key, value)
     local busNum = value[1]
     local fxNum = value[2]
     local parameters = value[3]
-    print('update_recent_values', busNum, fxNum, unpack(parameters))
+    --print('update_recent_values', busNum, fxNum, unpack(parameters))
     pushEffectToBus(busNum, fxNum, parameters)
   end
 end
