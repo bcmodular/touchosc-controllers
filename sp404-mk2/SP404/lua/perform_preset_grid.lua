@@ -45,7 +45,7 @@ end
 
 local function storeFXPreset(presetNum)
   local ccValues = {unpack(defaultCCValues)}
-  local faderGroup = self.parent.parent.parent:findByName('faders')
+  local faderGroup = self.parent.parent.parent:findByName('faders', true)
 
   for i = 1, 6 do
     local fader = faderGroup:findByName(tostring(i))
@@ -62,7 +62,7 @@ end
 
 local function storeFXDefaults()
   local ccValues = {unpack(defaultCCValues)}
-  local faderGroup = self.parent.parent.parent:findByName('faders')
+  local faderGroup = self.parent.parent.parent:findByName('faders', true)
 
   for i = 1, 6 do
     local fader = faderGroup:findByName(tostring(i))
@@ -70,7 +70,7 @@ local function storeFXDefaults()
     ccValues[i] = floatToMIDI(controlFader.values.x)
   end
 
-  --print('Current MIDI values:', unpack(ccValues))
+  print('Current MIDI values:', unpack(ccValues))
 
   local defaultManager = root.children.default_manager
   defaultManager:notify('store_defaults', {fxNum, ccValues})
@@ -156,6 +156,7 @@ local function refreshPresets()
 end
 
 function onReceiveNotify(key, value)
+  --print('onReceiveNotify called:', key, value)
   if key == 'init_presets_list' then
     fxNum = value
     for i = 1, #self.children do
@@ -168,6 +169,8 @@ function onReceiveNotify(key, value)
     fxNum = value
   elseif key == 'toggle_delete_mode' then
     toggleDeleteMode(value)
+  elseif key == 'store_defaults' then
+    storeFXDefaults()
   end
 end
 

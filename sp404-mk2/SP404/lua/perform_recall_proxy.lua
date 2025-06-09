@@ -33,15 +33,16 @@ local function recallPreset(presetNum)
   local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
   --print('controlInfoArray:', controlInfoArray)
 
-  local fxPage = root.children.control_pager.children[fxNum]
-  local controlGroup = fxPage.children.control_group
+  -- TODO: Need to replace this handling, as we don't have a control pager anymore
+  --local fxPage = root.children.control_pager.children[fxNum]
+  --local controlGroup = fxPage.children.control_group
 
   local exclude_marked_presets = false
 
-  if controlGroup.tag == '1' then
+  --if controlGroup.tag == '1' then
     --print('Excluding marked presets')
-    exclude_marked_presets = true
-  end
+    --exclude_marked_presets = true
+  --end
 
   --print('Recalling MIDI values:', unpack(presetValues))
   local faders = self.parent:findByName('faders', true)

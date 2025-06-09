@@ -1,17 +1,17 @@
 local controlsInfoArray = {
   -- Array structure:
-  -- 1) MIDI CC number
-  -- 2) Fader name
-  -- 3) Is excludable (true/false)
-  -- 4) Label text
+  -- 1) *MIDI CC number
+  -- 2) *Fader name
+  -- 3) *Is excludable (true/false)
+  -- 4) *Label text
   -- 5) Label name
-  -- 6) Label mapping function
-  -- 7) Label format string
+  -- 6) *Label mapping function
+  -- 7) *Label format string
   -- 8) Synced grid (optional)
   -- 9) Synced label grid (optional)
   -- 10) Synced label grid mapping function (optional)
-  -- 11) Start values of ranges (optional, used for grids)
-  -- 12) Am synced fader (optional, used for sync grids)
+  -- 11) *Start values of ranges (optional, used for grids)
+  -- 12) *Am synced fader (optional, used for sync grids)
   -- 13) Show/hide fader name (optional, used for sync grids)
   -- 14) Show/hide fader label name (optional, used for sync grids)
   -- 15) Show/hide grid name (optional, used for sync grids)

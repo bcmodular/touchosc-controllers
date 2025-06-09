@@ -1,8 +1,5 @@
 local sidechainScript = [[
--- Are we in edit mode or perform mode?
-local editMode = false
 local busNum = tonumber(self.parent.parent.tag) + 1
-local compressorEditPage = root.children.control_pager.children[37]
 
 --print('Initializing compressor sidechain for bus:', busNum)
 
@@ -335,39 +332,6 @@ local function returnToBaseValues()
   end
 end
 
-local function updateEditModeControls()
-  local editCompressorSidechain = compressorEditPage:findByName('edit_compressor_sidechain', true)
-  local ratioModFader = editCompressorSidechain:findByName('ratio_fader_group').children.control_fader
-  local levelModFader = editCompressorSidechain:findByName('level_fader_group').children.control_fader
-  local sustainModFader = editCompressorSidechain:findByName('sustain_fader_group').children.control_fader
-  local attackTimeMsFader = editCompressorSidechain:findByName('attack_fader_group').children.control_fader
-  local releaseTimeMsFader = editCompressorSidechain:findByName('release_fader_group').children.control_fader
-  local curveTypeFader = editCompressorSidechain:findByName('curve_fader_group').children.control_fader
-  local noteLabel = editCompressorSidechain:findByName('note_label', true)
-  local bankSelect = editCompressorSidechain:findByName('bank_select', true)
-  toggleSidechainButton = editCompressorSidechain:findByName('toggle_sidechain_button', true)
-
-  --print('found edit mode controls: ', ratioModFader.name, levelModFader.name, sustainModFader.name, attackTimeMsFader.name, releaseTimeMsFader.name, curveTypeFader.name, noteLabel.name, bankSelect.name)
-
-  ratioModFader.values.x = ratioMod
-  levelModFader.values.x = levelMod
-  sustainModFader.values.x = sustainMod
-  attackTimeMsFader.values.x = attackRangeToFader(attackTimeMs)
-  releaseTimeMsFader.values.x = releaseRangeToFader(releaseTimeMs)
-  curveTypeFader.values.x = curveTypeToFader(curveType)
-
-  noteLabel.values.text = tostring(midiNoteToPadNumber(triggerNote))
-  bankSelect:notify('set', triggerMidiChannel + 1)
-  toggleSidechainButton.values.x = isEnabled and 1 or 0
-end
-
-local function useEditModeControls()
-  --print('Using edit mode controls')
-  -- This will be implemented when we add the edit mode UI
-  -- For now, we'll still use the settings component as source of truth
-  handleParameterUpdates(getSettingsControls())
-end
-
 local function handleMidiMessage(message)
   --print('Received MIDI message:', unpack(message))
 
@@ -540,10 +504,6 @@ local function applyConfig(config)
 
   -- Then switch on the sidechain if that's the setting of the config
   toggleSidechain(config[9])
-
-  if editMode then
-    updateEditModeControls()
-  end
 end
 
 local function recallPreset(presetNumber)
@@ -586,14 +546,6 @@ local function recallDefaults()
   applyConfig(defaults)
 end
 
-local function switchMode()
-  if editMode then
-    useEditModeControls()
-  else
-    usePerformModeControls()
-  end
-end
-
 function onReceiveNotify(key, value)
   if key == 'store_preset' then
     local presetNumber = tonumber(value)
@@ -603,7 +555,7 @@ function onReceiveNotify(key, value)
     recallPreset(presetNumber)
   elseif key == 'delete_preset' then
     local presetNumber = tonumber(value)
-    deletePreset(presetNumber)
+    --deletePreset(presetNumber)
   elseif key == 'store_defaults' then
     storeDefaults()
   elseif key == 'recall_defaults' then
@@ -624,9 +576,6 @@ function onReceiveNotify(key, value)
     toggleSidechain(value > 0)
   elseif key == 'trigger_sidechain' then
     isTriggered = value > 0
-  elseif key == 'switch_mode' then
-    editMode = root:findByName('edit_mode').values.x > 0
-    switchMode()
   elseif key == 'midi_message' then
     handleMidiMessage(value)
   elseif key == 'control_changed' then

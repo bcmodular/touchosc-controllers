@@ -145,104 +145,6 @@ function onReceiveNotify(key, value)
 end
 ]]
 
-local editButtonScript = [[
-
-local function setSettings(fxNum, midiChannel, fxName)
-  local settings = json.toTable(self.tag) or {}
-  settings['fxNum'] = fxNum
-  settings['midiChannel'] = midiChannel
-  settings['fxName'] = fxName
-  self.tag = json.fromTable(settings)
-end
-
-local function collectCurrentValues()
-  local values = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
-  local faders = self.parent.parent:findByName('faders', true)
-
-  for i = 1, 6 do
-    local faderGroup = faders.children[i]
-    local fader = faderGroup:findByName('control_fader', true)
-    if fader then
-      values[i] = fader.values.x
-    end
-  end
-  return values
-end
-
-local function goToEditPage()
-  local settings = json.toTable(self.tag)
-  local fxNum = tonumber(settings["fxNum"])
-  local fxName = settings["fxName"]
-  local midiChannel = tonumber(settings["midiChannel"])
-  local editMode = root:findByName('edit_mode', true)
-  editMode.values.x = 1
-  local busGroupName = 'bus' .. tostring(midiChannel + 1) .. '_group'
-  editMode.tag = busGroupName
-
-  local performGroup = root:findByName('perform_group', true)
-  performGroup:notify('hide')
-
-  local currentValues = collectCurrentValues()
-  root:notify('edit_page', {fxNum, midiChannel, currentValues, fxName})
-
-  if fxNum == 37 then
-    local compressorSidechain = self.parent.parent:findByName('compressor_sidechain', true)
-    compressorSidechain:notify('switch_mode')
-
-    local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
-    editCompressorSidechain:notify('update_bus')
-  end
-end
-
-function onValueChanged(key, value)
-  if key == 'x' and self.values.x == 0 then
-    goToEditPage()
-  end
-end
-
-function onReceiveNotify(key, value)
-  if key == 'set_settings' then
-    local fxNum = value[1]
-    local midiChannel = value[2]
-    local fxName = value[3]
-    setSettings(fxNum, midiChannel, fxName)
-  end
-end
-]]
-
-local performButtonScript = [[
-
-local function setSettings(fxNum, midiChannel)
-  local settings = json.toTable(self.tag) or {}
-  settings['fxNum'] = fxNum
-  settings['midiChannel'] = midiChannel
-  self.tag = json.fromTable(settings)
-end
-
-function onValueChanged(key, value)
-  if key == 'x' and self.values.x == 0 then
-    local settings = json.toTable(self.tag)
-    local fxNum = tonumber(settings["fxNum"])
-    local midiChannel = tonumber(settings["midiChannel"])
-
-    root:findByName('recall_proxy', true):notify('return_values_to_perform', fxNum)
-
-    local editMode = root:findByName('edit_mode', true)
-    editMode.values.x = 0
-    local busGroupName = 'bus' .. tostring(midiChannel + 1) .. '_group'
-    local busGroup = root:findByName(busGroupName, true)
-    local compressorSidechain = busGroup:findByName('compressor_sidechain', true)
-    compressorSidechain:notify('switch_mode')
-  end
-end
-
-function onReceiveNotify(key, value)
-  if key == 'set_settings' then
-    setSettings(value[1], value[2])
-  end
-end
-]]
-
 local onOffButtonGroupScript = [[
 function onReceiveNotify(key, value)
   if key == 'set_settings' then
@@ -256,48 +158,6 @@ function onReceiveNotify(key, value)
         onOffButton:notify('set_settings', {fxNum, midiChannel, fxName})
       end
     end
-  end
-end
-]]
-
-local syncButtonScript = [[
-function onValueChanged(key, value)
-  if key == 'x' and self.values.x == 0 then
-    local controlFaders = self.parent.parent.parent:findAllByName('control_fader', true)
-    for _, controlFader in ipairs(controlFaders) do
-      controlFader:notify('sync_midi')
-    end
-  end
-end
-]]
-
-local editPageSyncButtonScript = [[
-local function setFXNum(fxNum)
-  local settings = json.toTable(self.tag) or {}
-  settings['fxNum'] = fxNum
-  self.tag = json.fromTable(settings)
-end
-
-local function getFXNum()
-  local settings = json.toTable(self.tag)
-  return settings["fxNum"]
-end
-
-function onValueChanged(key, value)
-  if key == 'x' and self.values.x == 0 then
-    local controlPager = root:findByName('control_pager')
-    local fxPage = controlPager.children[getFXNum()]
-    local controlGroup = fxPage:findByName('control_group', true)
-    local faders = controlGroup:findAllByType(ControlType.FADER)
-    for _, fader in pairs(faders) do
-      fader:notify('sync_midi')
-    end
-  end
-end
-
-function onReceiveNotify(key, value)
-  if key == 'set_settings' then
-    setFXNum(value[1])
   end
 end
 ]]
@@ -322,31 +182,11 @@ function init()
       local onButton = onOffButtonGroup:findByName('on_button')
       local offButton = onOffButtonGroup:findByName('off_button')
       local grabButton = onOffButtonGroup:findByName('grab_button')
-      local editButton = onOffButtonGroup:findByName('edit_button')
-      local performButton = onOffButtonGroup:findByName('perform_button')
-      local syncButton = onOffButtonGroup:findByName('sync_button')
-      local editPageSyncButton = onOffButtonGroup:findByName('edit_page_sync_button')
       local defaultsButton = onOffButtonGroup:findByName('defaults_button')
 
       onButton.script = onButtonScript
       offButton.script = offButtonScript
       grabButton.script = grabButtonScript
-
-      if editButton then
-        editButton.script = editButtonScript
-      end
-
-      if performButton then
-        performButton.script = performButtonScript
-      end
-
-      if syncButton then
-        syncButton.script = syncButtonScript
-      end
-
-      if editPageSyncButton then
-        editPageSyncButton.script = editPageSyncButtonScript
-      end
 
       if defaultsButton then
         defaultsButton.script = defaultsButtonScript
