@@ -1495,10 +1495,10 @@ local performFaderScriptTemplate = [[
         -- Get the current time in milliseconds
         local new_press_time = getMillis()
         -- Check if the press duration was short (a tap)
-        print('new_press_time', new_press_time, 'press_time', press_time)
+        --print('new_press_time', new_press_time, 'press_time', press_time)
         if (new_press_time - press_time < 200) then
           local defaultValue = self:getValueField("x", ValueField.DEFAULT)
-          print('resetting to default', self.values.x, defaultValue)
+          --print('resetting to default', self.values.x, defaultValue)
           self.values.x = defaultValue
           return
         end

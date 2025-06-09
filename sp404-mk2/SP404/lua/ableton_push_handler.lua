@@ -7,7 +7,7 @@ local presetStates = {
   [5] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
 }
 local busToControl = 1
-local fxNums = {1, 1, 1, 1}
+local fxNums = {1, 1, 1, 1, 1}
 -- Push LED colors
 local pushColors = {
   off = 0,      -- black / off
@@ -65,12 +65,27 @@ local pushColors = {
 }
 
 local inactivePresetVelocity = pushColors.off
-local activePresetVelocity = pushColors.green.normal
 local deletePresetVelocity = pushColors.red.normal
 local pressedDeletePresetVelocity = pushColors.red.bright
-local pressedPresetVelocity = pushColors.green.bright
 local deleteMode = false
 
+local function getPresetVelocity(pressed, busNum)
+  local colorBase = pushColors.green
+  if busNum == 1 then
+    colorBase = pushColors.cyan
+  elseif busNum == 2 then
+    colorBase = pushColors.yellow
+  elseif busNum == 3 then
+    colorBase = pushColors.pink
+  elseif busNum == 4 then
+    colorBase = pushColors.blue
+  end
+  if pressed then
+    return colorBase.bright
+  else
+    return colorBase.normal
+  end
+end
 local function mapNoteToPreset(note)
   --print('mapNoteToPreset', note)
   -- Map from Push 8x8 grid (notes 36-99) to four 4x4 preset grids
@@ -132,7 +147,7 @@ local function illuminatePresetGrids()
         if deleteMode then
           illuminatePreset(i, j, true, deletePresetVelocity)
         else
-          illuminatePreset(i, j, true, activePresetVelocity)
+          illuminatePreset(i, j, true, getPresetVelocity(false, i))
         end
       else
         illuminatePreset(i, j, false, inactivePresetVelocity)
@@ -276,7 +291,7 @@ local function handlePresetIllumination(busNum)
   local presetManager = root.children.preset_manager
   local presetManagerChild = presetManager.children[tostring(fxNums[busNum])]
   local presetArray = json.toTable(presetManagerChild.tag) or {}
-  print('presetArray', presetArray)
+  --print('presetArray', unpack(presetArray))
 
   presetStates[busNum] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
 
@@ -287,13 +302,13 @@ local function handlePresetIllumination(busNum)
 
   for index, _ in pairs(presetArray) do
     local presetNum = tonumber(index)
-    print('Setting state for:', presetNum, 'to:', true)
+    --print('Setting state for:', presetNum, 'to:', true)
     if presetNum ~= nil then
       presetStates[busNum][presetNum] = true
       if deleteMode then
         illuminatePreset(busNum, presetNum, true, deletePresetVelocity)
       else
-        illuminatePreset(busNum, presetNum, true, activePresetVelocity)
+        illuminatePreset(busNum, presetNum, true, getPresetVelocity(false, busNum))
       end
     end
   end
@@ -327,7 +342,7 @@ function onReceiveNotify(key, value)
           if deleteMode then
             illuminatePreset(busNum, presetNum, true, pressedDeletePresetVelocity)
           else
-            illuminatePreset(busNum, presetNum, true, pressedPresetVelocity)
+            illuminatePreset(busNum, presetNum, true, getPresetVelocity(true, busNum))
           end
         else
           performPresetGrid.children[presetNum].values.x = 0
@@ -347,15 +362,15 @@ function onReceiveNotify(key, value)
       mapCCToFeature(ccNum, ccValue)
     end
   elseif key == 'illuminate_presets' then
-    print('illuminate_presets', unpack(value))
+    --print('illuminate_presets', unpack(value))
     local busNum = value[1]
     fxNums[busNum] = value[2]
     deleteMode = value[3]
 
     handlePresetIllumination(busNum)
   elseif key == 'toggle_delete_mode' then
-    print('toggle_delete_mode', value)
-    print(unpack(presetStates[1]))
+    --print('toggle_delete_mode', value)
+    --print(unpack(presetStates[1]))
     deleteMode = value
     illuminatePresetGrids()
   elseif key == 'clear_presets' then

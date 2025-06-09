@@ -54,6 +54,11 @@ local function deleteAllPresetsForAllFX()
   for fxNum = 1, 46 do
     deleteAllPresets(fxNum)
   end
+
+  local performPresetGrids = root:findAllByName('perform_preset_grid', true)
+  for _, presetGrid in ipairs(performPresetGrids) do
+    presetGrid:notify('refresh_presets_list')
+  end
 end
 
 local function storedPresetsPerFX(fxNum)
