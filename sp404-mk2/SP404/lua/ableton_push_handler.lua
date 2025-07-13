@@ -8,6 +8,7 @@ local presetStates = {
 }
 local busToControl = 1
 local fxNums = {1, 1, 1, 1, 1}
+local controlBusStates = {false, false, false, false} -- Track which bus is being controlled
 -- Push LED colors
 local pushColors = {
   off = 0,      -- black / off
@@ -61,6 +62,163 @@ local pushColors = {
     bright = 57,
     normal = 58,
     dim = 59
+  }
+}
+
+-- Push LED colors for the first row of buttons
+local pushFirstRowCCColors = {
+  off = 0,
+
+  red = {
+    dim = 1,
+    dim_flashing = 2,
+    dim_fast_flashing = 3,
+    bright = 4,
+    bright_flashing = 5,
+    bright_fast_flashing = 6
+  },
+
+  orange = {
+    dim = 7,
+    dim_flashing = 8,
+    dim_fast_flashing = 9,
+    bright = 10,
+    bright_flashing = 11,
+    bright_fast_flashing = 12
+  },
+
+  yellow = {
+    dim = 13,
+    dim_flashing = 14,
+    dim_fast_flashing = 15,
+    bright = 16,
+    bright_flashing = 17,
+    bright_fast_flashing = 18
+  },
+
+  green = {
+    dim = 19,
+    dim_flashing = 20,
+    dim_fast_flashing = 21,
+    bright = 22,
+    bright_flashing = 23,
+    bright_fast_flashing = 24
+  }
+}
+
+-- Push LED colors for the second row of buttons
+local pushSecondRowCCColors = {
+  off = 0,
+
+  white = {
+    dim = 1,
+    normal = 2,
+    bright = 3,
+    pink = 4
+  },
+
+  red = {
+    bright = 5,
+    normal = 6,
+    dim = 7,
+    white = 8
+  },
+
+  orange = {
+    bright = 9,
+    normal = 10,
+    dim = 11,
+    white = 12
+  },
+
+  yellow = {
+    bright = 13,
+    normal = 14,
+    dim = 15,
+    white = 16
+  },
+
+  lime_green = {
+    bright = 17,
+    normal = 18,
+    dim = 19,
+    white = 20
+  },
+
+  green = {
+    bright = 21,
+    normal = 22,
+    dim = 23,
+    white = 24
+  },
+
+  light_green = {
+    bright = 25,
+    normal = 26,
+    dim = 27,
+    white = 28
+  },
+
+  blue_green = {
+    bright = 29,
+    normal = 30,
+    dim = 31,
+    white = 32
+  },
+
+  cyan = {
+    bright = 33,
+    normal = 34,
+    dim = 35,
+    white = 36
+  },
+
+  baby_blue = {
+    bright = 37,
+    normal = 38,
+    dim = 39,
+    white = 40
+  },
+
+  light_blue = {
+    bright = 41,
+    normal = 42,
+    dim = 43,
+    white = 44
+  },
+
+  blue = {
+    bright = 45,
+    normal = 46,
+    dim = 47,
+    white = 48
+  },
+
+  magenta = {
+    bright = 49,
+    normal = 50,
+    dim = 51,
+    white = 52
+  },
+
+  purple = {
+    bright = 53,
+    normal = 54,
+    dim = 55,
+    white = 56
+  },
+
+  bright_purple = {
+    bright = 57,
+    normal = 58,
+    dim = 59
+  },
+
+  orange_red = {
+    bright = 60,
+    normal = 61,
+    dim = 62,
+    white = 63
   }
 }
 
@@ -156,46 +314,44 @@ local function illuminatePresetGrids()
   end
 end
 
-local function illuminateFeatureButtons()
-  -- Turn on the on button feature buttons for the four effect buses
-  local ccNums = {20, 22, 24, 26}
-  for i = 1, 4 do
-    local ccNum = ccNums[i]
-    sendMIDI({ 176, ccNum, 22 }, conn)
-  end
-  -- Turn on the off button feature buttons for the four effect buses
-  ccNums = {21, 23, 25, 27}
-  for i = 1, 4 do
-    local ccNum = ccNums[i]
-    sendMIDI({ 176, ccNum, 4 }, conn)
-  end
-  -- Turn on the grab button feature buttons for the four effect buses
-  ccNums = {102, 104, 106, 108}
-  for i = 1, 4 do
-    local ccNum = ccNums[i]
-    sendMIDI({ 176, ccNum, pushColors.blue.bright }, conn)
-  end
-  -- Turn on the control button for the four effect buses
-  ccNums = {103, 105, 107, 109}
-  for i = 1, 4 do
-    local ccNum = ccNums[i]
-    sendMIDI({ 176, ccNum, pushColors.yellow.bright }, conn)
-  end
-end
-local function turnOnEffect(busNum, ccValue)
-  --print('turning on effect for bus:', busNum)
-  local busGroupName = 'bus'..tostring(busNum)..'_group'
-  local performBusGroup = root:findByName(busGroupName, true)
-  local onButton = performBusGroup:findByName('on_button', true)
-  onButton.values.x = ccValue == 127 and 1 or 0
-end
 
-local function turnOffEffect(busNum, ccValue)
-  --print('turning off effect for bus:', busNum)
+local function toggleEffect(busNum, ccValue)
+  print('toggle effect for bus:', busNum, 'ccValue:', ccValue)
   local busGroupName = 'bus'..tostring(busNum)..'_group'
   local performBusGroup = root:findByName(busGroupName, true)
-  local offButton = performBusGroup:findByName('off_button', true)
-  offButton.values.x = ccValue == 127 and 1 or 0
+  local onOffButtonGroup = performBusGroup:findByName('on_off_button_group', true)
+  if onOffButtonGroup then
+    local toggleButton = onOffButtonGroup:findByName('toggle_button', true)
+    local currentState = toggleButton and toggleButton.values.x or 0
+
+    if ccValue == 0 then
+      -- Button release - perform the actual toggle
+      local newState = currentState == 1 and 0 or 1
+      print('button release - toggling from', currentState, 'to', newState)
+
+      -- Set the new state (this will trigger the TouchOSC button to update)
+      onOffButtonGroup:notify('set_state', newState == 1)
+
+      -- Update Push button lighting immediately
+      local toggleButtonCCs = {20, 22, 24, 26}
+      local toggleCCNum = toggleButtonCCs[busNum]
+
+      if newState == 1 then
+        -- Effect turned on - bright green
+        local brightGreenValue = pushFirstRowCCColors.green.bright
+        print('Push toggle ON - using bright green value:', brightGreenValue)
+        sendMIDI({ 176, toggleCCNum, brightGreenValue }, conn)
+      else
+        -- Effect turned off - dim green
+        local dimGreenValue = pushFirstRowCCColors.green.dim
+        print('Push toggle OFF - using dim green value:', dimGreenValue)
+        sendMIDI({ 176, toggleCCNum, dimGreenValue }, conn)
+      end
+    else
+      -- Button press - do nothing, just return
+      print('button press - no visual feedback, current state:', currentState)
+    end
+  end
 end
 
 local function grabEffect(busNum, ccValue)
@@ -203,12 +359,160 @@ local function grabEffect(busNum, ccValue)
   local busGroupName = 'bus'..tostring(busNum)..'_group'
   local performBusGroup = root:findByName(busGroupName, true)
   local grabButton = performBusGroup:findByName('grab_button', true)
-  grabButton.values.x = ccValue == 127 and 1 or 0
+  local onOffButtonGroup = performBusGroup:findByName('on_off_button_group', true)
+  local toggleButton = onOffButtonGroup and onOffButtonGroup:findByName('toggle_button', true)
+
+  -- Get the grab button CC number for this bus
+  local grabButtonCCs = {102, 104, 106, 108}
+  local grabCCNum = grabButtonCCs[busNum]
+
+  if grabButton then
+        if ccValue == 127 then
+      -- Button press - bright blue and turn effect on
+      print('grab button press - bright blue, turning effect ON')
+      sendMIDI({ 176, grabCCNum, pushSecondRowCCColors.blue.bright }, conn)
+      grabButton.values.x = 1
+
+      -- Turn effect on
+      if toggleButton then
+        toggleButton.values.x = 1
+
+        -- Update Push toggle button lighting
+        local toggleButtonCCs = {20, 22, 24, 26}
+        local toggleCCNum = toggleButtonCCs[busNum]
+
+        -- Effect turned on - bright green
+        local brightGreenValue = pushFirstRowCCColors.green.bright
+        print('Push grab: toggle ON - bright green')
+        sendMIDI({ 176, toggleCCNum, brightGreenValue }, conn)
+      end
+    elseif ccValue == 0 then
+      -- Button release - dim blue and turn effect off
+      print('grab button release - dim blue, turning effect OFF')
+      sendMIDI({ 176, grabCCNum, pushSecondRowCCColors.blue.dim }, conn)
+      grabButton.values.x = 0
+
+      -- Turn effect off
+      if toggleButton then
+        toggleButton.values.x = 0
+
+        -- Update Push toggle button lighting
+        local toggleButtonCCs = {20, 22, 24, 26}
+        local toggleCCNum = toggleButtonCCs[busNum]
+
+        -- Effect turned off - dim green
+        local dimGreenValue = pushFirstRowCCColors.green.dim
+        print('Push grab: toggle OFF - dim green')
+        sendMIDI({ 176, toggleCCNum, dimGreenValue }, conn)
+      end
+    end
+  end
+end
+
+local function triggerSyncButton(busNum, ccValue)
+  print('trigger sync button for bus:', busNum, 'ccValue:', ccValue)
+  local busGroupName = 'bus'..tostring(busNum)..'_group'
+  local performBusGroup = root:findByName(busGroupName, true)
+
+  -- Find the sync button directly
+  local syncButton = performBusGroup:findByName('sync_button', true)
+
+  -- Get the sync button CC number for this bus
+  local syncButtonCCs = {21, 23, 25, 27}
+  local syncCCNum = syncButtonCCs[busNum]
+
+  if syncButton then
+    if ccValue == 127 then
+      -- Button press - bright orange and set button to pressed state
+      print('sync button press - bright orange')
+      sendMIDI({ 176, syncCCNum, pushFirstRowCCColors.orange.bright }, conn)
+      syncButton.values.x = 1
+    elseif ccValue == 0 then
+      -- Button release - dim orange and set button to released state
+      print('sync button release - dim orange')
+      sendMIDI({ 176, syncCCNum, pushFirstRowCCColors.orange.dim }, conn)
+      syncButton.values.x = 0
+    end
+  end
+end
+
+local function updateControlButtonLighting()
+  -- Update lighting for all control buttons based on their states
+  local controlCCs = {103, 105, 107, 109}
+  for busNum = 1, 4 do
+    local ccNum = controlCCs[busNum]
+    if controlBusStates[busNum] then
+      -- This bus is being controlled - bright yellow
+      sendMIDI({ 176, ccNum, pushSecondRowCCColors.yellow.bright }, conn)
+    else
+      -- This bus is not being controlled - dim yellow
+      sendMIDI({ 176, ccNum, pushSecondRowCCColors.yellow.dim }, conn)
+    end
+  end
+end
+
+local function updateBusVisualIndicators(newBusToControl)
+  print('ableton_push_handler: updateBusVisualIndicators called with newBusToControl =', newBusToControl)
+
+  -- Reset all bus highlights first
+  for busNum = 1, 4 do
+    local busGroupName = 'bus'..tostring(busNum)..'_group'
+    local performBusGroup = root:findByName(busGroupName, true)
+    if performBusGroup then
+      local effectChooser = performBusGroup:findByName('effect_chooser', true)
+      if effectChooser then
+        print('ableton_push_handler: resetting highlight for bus', busNum)
+        effectChooser:notify('reset_bus_highlight')
+      else
+        print('ableton_push_handler: ERROR - could not find effect_chooser for bus', busNum)
+      end
+    else
+      print('ableton_push_handler: ERROR - could not find performBusGroup for bus', busNum)
+    end
+  end
+
+  -- Update control bus states based on newBusToControl
+  for i = 1, 4 do
+    controlBusStates[i] = (i == newBusToControl)
+  end
+
+  -- Update control button lighting
+  updateControlButtonLighting()
+
+  -- Highlight the newly selected bus (if any)
+  if newBusToControl >= 1 and newBusToControl <= 4 then
+    local busGroupName = 'bus'..tostring(newBusToControl)..'_group'
+    local performBusGroup = root:findByName(busGroupName, true)
+    if performBusGroup then
+      local effectChooser = performBusGroup:findByName('effect_chooser', true)
+      if effectChooser then
+        print('ableton_push_handler: setting highlight for bus', newBusToControl)
+        effectChooser:notify('set_bus_highlight', true)
+      else
+        print('ableton_push_handler: ERROR - could not find effect_chooser for bus', newBusToControl)
+      end
+    else
+      print('ableton_push_handler: ERROR - could not find performBusGroup for bus', newBusToControl)
+    end
+  end
+  -- If newBusToControl is 0, all highlighting is turned off (no additional action needed)
 end
 
 local function controlEffect(busNum)
   --print('controlling effect for bus:', busNum)
+  local oldBusToControl = busToControl
   busToControl = busNum
+
+  -- Update control bus states
+  for i = 1, 4 do
+    controlBusStates[i] = (i == busNum)
+  end
+
+  -- Update control button lighting
+  updateControlButtonLighting()
+
+  -- Always update visual indicators when controlEffect is called
+  updateBusVisualIndicators(busToControl)
 end
 
 local function toggleDeleteMode(newDeleteMode)
@@ -240,7 +544,7 @@ local function sendIncrementToFader(ccNum, ccValue)
 end
 
 local function mapCCToFeature(ccNum, ccValue)
-  -- On button: 20, 22, 24, 26 are the cc numbers to turn on each of the four effect buses
+  -- Toggle button: 20, 22, 24, 26 are the cc numbers to toggle each of the four effect buses
   if ccNum == 20 or ccNum == 22 or ccNum == 24 or ccNum == 26 then
     local ccToBus = {
       [20] = 1,
@@ -249,17 +553,7 @@ local function mapCCToFeature(ccNum, ccValue)
       [26] = 4
     }
     local busNum = ccToBus[ccNum]
-    turnOnEffect(busNum, ccValue)
-  -- Off button: 21, 23, 25, 27 are the cc numbers to turn off each of the four effect buses
-  elseif ccNum == 21 or ccNum == 23 or ccNum == 25 or ccNum == 27 then
-    local ccToBus = {
-      [21] = 1,
-      [23] = 2,
-      [25] = 3,
-      [27] = 4
-    }
-    local busNum = ccToBus[ccNum]
-    turnOffEffect(busNum, ccValue)
+    toggleEffect(busNum, ccValue)
   -- Grab button: 102, 104, 106, 108 are the cc numbers to grab each of the four effect buses
   elseif ccNum == 102 or ccNum == 104 or ccNum == 106 or ccNum == 108 then
     local ccToBus = {
@@ -280,6 +574,16 @@ local function mapCCToFeature(ccNum, ccValue)
     }
     local busNum = ccToBus[ccNum]
     controlEffect(busNum)
+  -- Sync button: 21, 23, 25, 27 are the cc numbers to sync each of the four effect buses
+  elseif ccNum == 21 or ccNum == 23 or ccNum == 25 or ccNum == 27 then
+    local ccToBus = {
+      [21] = 1,
+      [23] = 2,
+      [25] = 3,
+      [27] = 4
+    }
+    local busNum = ccToBus[ccNum]
+    triggerSyncButton(busNum, ccValue)
   elseif ccNum >= 71 and ccNum <= 76 then
     sendIncrementToFader(ccNum, ccValue)
   elseif ccNum == 118 then
@@ -382,6 +686,135 @@ function onReceiveNotify(key, value)
     for index = 1, 16 do
       illuminatePreset(busNum,index, false, inactivePresetVelocity)
     end
+  elseif key == 'set_controlled_bus' then
+    -- Set which bus is being controlled by Touch UI or Push
+    print('ableton_push_handler: set_controlled_bus called with value =', value)
+    local busNum = value
+    if busNum == 0 then
+      -- Clear control - reset all buses
+      print('ableton_push_handler: clearing control, resetting all buses')
+      updateBusVisualIndicators(0)
+    else
+      -- Set this bus as the controlled bus
+      print('ableton_push_handler: setting controlled bus to', busNum)
+      controlEffect(busNum)
+    end
+        elseif key == 'toggle_button_state_changed' then
+    -- Handle TouchOSC toggle button state changes
+    local busNum = value[1]
+    local newState = value[2]
+
+    print('TouchOSC toggle state changed - bus:', busNum, 'new state:', newState)
+
+    -- Update Push button lighting for this bus
+    local toggleButtonCCs = {20, 22, 24, 26}
+    local toggleCCNum = toggleButtonCCs[busNum]
+
+    if newState == 1 then
+      -- Effect turned on - bright green
+      local brightGreenValue = pushFirstRowCCColors.green.bright
+      print('TouchOSC toggle ON - using bright green value:', brightGreenValue)
+      sendMIDI({ 176, toggleCCNum, brightGreenValue }, conn)
+    else
+      -- Effect turned off - dim green
+      local dimGreenValue = pushFirstRowCCColors.green.dim
+      print('TouchOSC toggle OFF - using dim green value:', dimGreenValue)
+      sendMIDI({ 176, toggleCCNum, dimGreenValue }, conn)
+    end
+      elseif key == 'sync_button_state_changed' then
+    -- Handle TouchOSC sync button state changes
+    local busNum = value[1]
+    local buttonState = value[2]
+    print('TouchOSC sync button state changed - bus:', busNum, 'state:', buttonState)
+
+    -- Get the sync button CC number for this bus
+    local syncButtonCCs = {21, 23, 25, 27}
+    local syncCCNum = syncButtonCCs[busNum]
+
+    if buttonState == 1 then
+      -- Button pressed - bright orange
+      print('Sync button pressed - bright orange')
+      sendMIDI({ 176, syncCCNum, pushFirstRowCCColors.orange.bright }, conn)
+    else
+      -- Button released - dim orange
+      print('Sync button released - dim orange')
+      sendMIDI({ 176, syncCCNum, pushFirstRowCCColors.orange.dim }, conn)
+    end
+  elseif key == 'grab_button_state_changed' then
+    -- Handle TouchOSC grab button state changes
+    local busNum = value[1]
+    local buttonState = value[2]
+    print('TouchOSC grab button state changed - bus:', busNum, 'state:', buttonState)
+
+    -- Get the grab button CC number for this bus
+    local grabButtonCCs = {102, 104, 106, 108}
+    local grabCCNum = grabButtonCCs[busNum]
+
+    if buttonState == 1 then
+      -- Button pressed - bright blue
+      print('Grab button pressed - bright blue')
+      sendMIDI({ 176, grabCCNum, pushSecondRowCCColors.blue.bright }, conn)
+    else
+      -- Button released - dim blue
+      print('Grab button released - dim blue')
+      sendMIDI({ 176, grabCCNum, pushSecondRowCCColors.blue.dim }, conn)
+    end
+  elseif key == 'control_bus_button_state_changed' then
+    -- Handle TouchOSC control bus button state changes
+    local busNum = value[1]
+    local buttonState = value[2]
+    print('TouchOSC control bus button state changed - bus:', busNum, 'state:', buttonState)
+
+    -- Get the control button CC number for this bus
+    local controlButtonCCs = {103, 105, 107, 109}
+    local controlCCNum = controlButtonCCs[busNum]
+
+    if buttonState == 1 then
+      -- Button pressed - bright yellow
+      print('Control bus button pressed - bright yellow')
+      sendMIDI({ 176, controlCCNum, pushSecondRowCCColors.yellow.bright }, conn)
+    else
+      -- Button released - dim yellow
+      print('Control bus button released - dim yellow')
+      sendMIDI({ 176, controlCCNum, pushSecondRowCCColors.yellow.dim }, conn)
+    end
+  elseif key == 'sync_push_lighting' then
+    -- Sync all Push button lighting with current TouchOSC states
+    for busNum = 1, 4 do
+      local busGroupName = 'bus'..tostring(busNum)..'_group'
+      local performBusGroup = root:findByName(busGroupName, true)
+      local onOffButtonGroup = performBusGroup:findByName('on_off_button_group', true)
+      local toggleButton = onOffButtonGroup:findByName('toggle_button', true)
+      local controlBusButton = onOffButtonGroup:findByName('control_bus_button', true)
+
+      local effectState = toggleButton and toggleButton.values.x or 0
+      local controlState = controlBusButton and controlBusButton.values.x or 0
+      local toggleButtonCCs = {20, 22, 24, 26}
+      local controlButtonCCs = {103, 105, 107, 109}
+      local toggleCCNum = toggleButtonCCs[busNum]
+      local controlCCNum = controlButtonCCs[busNum]
+
+      if effectState == 1 then
+        local brightGreenValue = pushFirstRowCCColors.green.bright
+        print('Sync lighting ON - using bright green value:', brightGreenValue)
+        sendMIDI({ 176, toggleCCNum, brightGreenValue }, conn)
+      else
+        local dimGreenValue = pushFirstRowCCColors.green.dim
+        print('Sync lighting OFF - using dim green value:', dimGreenValue)
+        sendMIDI({ 176, toggleCCNum, dimGreenValue }, conn)
+      end
+
+      -- Sync control button lighting
+      if controlState == 1 then
+        local brightYellowValue = pushSecondRowCCColors.yellow.bright
+        print('Sync control lighting ON - using bright yellow value:', brightYellowValue)
+        sendMIDI({ 176, controlCCNum, brightYellowValue }, conn)
+      else
+        local dimYellowValue = pushSecondRowCCColors.yellow.dim
+        print('Sync control lighting OFF - using dim yellow value:', dimYellowValue)
+        sendMIDI({ 176, controlCCNum, dimYellowValue }, conn)
+      end
+    end
   end
 end
 
@@ -402,5 +835,62 @@ end
 function init()
   reset_push()
   illuminatePresetGrids()
-  illuminateFeatureButtons()
+
+  -- Sync Push lighting with current TouchOSC states
+  for busNum = 1, 4 do
+    local busGroupName = 'bus'..tostring(busNum)..'_group'
+    local performBusGroup = root:findByName(busGroupName, true)
+    local onOffButtonGroup = performBusGroup:findByName('on_off_button_group', true)
+    local toggleButton = onOffButtonGroup:findByName('toggle_button', true)
+    local controlBusButton = onOffButtonGroup:findByName('control_bus_button', true)
+
+    local effectState = toggleButton and toggleButton.values.x or 0
+    local controlState = controlBusButton and controlBusButton.values.x or 0
+    local toggleButtonCCs = {20, 22, 24, 26}
+    local controlButtonCCs = {103, 105, 107, 109}
+    local toggleCCNum = toggleButtonCCs[busNum]
+    local controlCCNum = controlButtonCCs[busNum]
+
+    if effectState == 1 then
+      local brightGreenValue = pushFirstRowCCColors.green.bright
+      print('Init lighting ON - using bright green value:', brightGreenValue)
+      sendMIDI({ 176, toggleCCNum, brightGreenValue }, conn)
+    else
+      local dimGreenValue = pushFirstRowCCColors.green.dim
+      print('Init lighting OFF - using dim green value:', dimGreenValue)
+      sendMIDI({ 176, toggleCCNum, dimGreenValue }, conn)
+    end
+
+    -- Initialize control button lighting
+    if controlState == 1 then
+      local brightYellowValue = pushSecondRowCCColors.yellow.bright
+      print('Init control lighting ON - using bright yellow value:', brightYellowValue)
+      sendMIDI({ 176, controlCCNum, brightYellowValue }, conn)
+    else
+      local dimYellowValue = pushSecondRowCCColors.yellow.dim
+      print('Init control lighting OFF - using dim yellow value:', dimYellowValue)
+      sendMIDI({ 176, controlCCNum, dimYellowValue }, conn)
+    end
+  end
+
+  -- Illuminate other feature buttons
+  local grabCCs = {102, 104, 106, 108}
+  for i = 1, 4 do
+    local ccNum = grabCCs[i]
+    sendMIDI({ 176, ccNum, pushSecondRowCCColors.blue.dim }, conn)
+  end
+  local controlCCs = {103, 105, 107, 109}
+  for i = 1, 4 do
+    local ccNum = controlCCs[i]
+    sendMIDI({ 176, ccNum, pushSecondRowCCColors.yellow.dim }, conn)
+  end
+  -- Illuminate sync buttons with dim orange
+  local syncCCs = {21, 23, 25, 27}
+  for i = 1, 4 do
+    local ccNum = syncCCs[i]
+    sendMIDI({ 176, ccNum, pushFirstRowCCColors.orange.dim }, conn)
+  end
+
+  -- Initialize visual indicators for the default bus (bus 1)
+  updateBusVisualIndicators(busToControl)
 end

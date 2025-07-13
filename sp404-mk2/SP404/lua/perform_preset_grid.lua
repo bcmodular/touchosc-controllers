@@ -43,6 +43,14 @@ local function floatToMIDI(floatValue)
   return midiValue
 end
 
+local function refreshAllBusesWithSameFX()
+  -- Notify all preset grids to refresh - they will only update if they have the same FX
+  local performPresetGrids = root:findAllByName('perform_preset_grid', true)
+  for _, performPresetGrid in ipairs(performPresetGrids) do
+    performPresetGrid:notify('refresh_presets_list')
+  end
+end
+
 local function storeFXPreset(presetNum)
   local ccValues = {unpack(defaultCCValues)}
   local faderGroup = self.parent.parent.parent:findByName('faders', true)
@@ -57,7 +65,9 @@ local function storeFXPreset(presetNum)
 
   local presetManager = root.children.preset_manager
   presetManager:notify('store_preset', {fxNum, presetNum, ccValues})
-  self.parent:notify('refresh_presets_list')
+
+  -- Refresh all buses that have the same FX
+  refreshAllBusesWithSameFX()
 end
 
 local function storeFXDefaults()
@@ -79,7 +89,9 @@ end
 local function handleDelete(value)
   local presetManager = root.children.preset_manager
   presetManager:notify('delete_preset', {fxNum, value})
-  self.parent:notify('refresh_presets_list')
+
+  -- Refresh all buses that have the same FX
+  refreshAllBusesWithSameFX()
 end
 
 function onValueChanged(key, value)

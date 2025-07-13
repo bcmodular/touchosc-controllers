@@ -1,27 +1,4 @@
-local offButtonScript = [[
-local conn = { true, false, false } -- only send to connection 1
-
-local function sendOffMIDI()
-  local midiChannel = self.tag
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
-end
-
-function onValueChanged(key, value)
-  if key == 'x' and self.values.x == 0 then
-    sendOffMIDI()
-  end
-end
-
-function onReceiveNotify(key, value)
-  if key == 'set_settings' then
-    self.tag = value[2]
-  elseif key == 'fx_off' then
-    sendOffMIDI()
-  end
-end
-]]
-
-local onButtonScript = [[
+local toggleButtonScript = [[
 local onButtonMidiValues = {
   {1, 10, 0}, {2, 17, 0}, {3, 23, 0}, {4, 8, 0}, {5, 35, 0},
   {6, 36, 0}, {7, 5, 10}, {8, 21, 0}, {9, 25, 0}, {10, 22, 0},
@@ -35,51 +12,82 @@ local onButtonMidiValues = {
 }
 
 function setSettings(fxNum, midiChannel)
-  local settings = json.toTable(self.tag) or {}
-  settings['fxNum'] = fxNum
-  settings['midiChannel'] = midiChannel
-  self.tag = json.fromTable(settings)
+  self.tag = json.fromTable({fxNum = fxNum, midiChannel = midiChannel})
 end
 
 local conn = { true, false, false } -- only send to connection 1
 
-function turnEffectOn()
+function sendEffectState()
   local settings = json.toTable(self.tag)
-  local fxNum = tonumber(settings["fxNum"])
-  local midiChannel = tonumber(settings["midiChannel"])
-  local midiValues = onButtonMidiValues[fxNum]
+  local fxNum = tonumber(settings.fxNum)
+  local midiChannel = tonumber(settings.midiChannel)
 
-  local ccValue = onButtonMidiValues[1]
-
-  if midiChannel <= 1 then
-    ccValue = midiValues[1]
-  elseif midiChannel <= 3 then
-    ccValue = midiValues[2]
+  if self.values.x == 1 then
+    -- Turn effect on
+    local midiValues = onButtonMidiValues[fxNum]
+    local ccValue = midiValues[1]
+    if midiChannel <= 1 then
+      ccValue = midiValues[1]
+    elseif midiChannel <= 3 then
+      ccValue = midiValues[2]
+    else
+      ccValue = midiValues[3]
+    end
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, ccValue }, conn)
   else
-    ccValue = midiValues[3]
+    -- Turn effect off
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
   end
-
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, ccValue }, conn)
-end
-
-function turnEffectOff()
-  local settings = json.toTable(self.tag)
-  local midiChannel = tonumber(settings["midiChannel"])
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
 end
 
 function onValueChanged(key, value)
-  if key == 'x' and self.values.x == 0 then
-    turnEffectOn()
+  if key == 'x' then
+    sendEffectState()
+
+    -- Notify Ableton Push handler of state change
+    local settings = json.toTable(self.tag)
+    local midiChannel = tonumber(settings.midiChannel)
+    local busNum = midiChannel + 1
+    local abletonPushHandler = root:findByName('ableton_push_handler', true)
+    if abletonPushHandler then
+      abletonPushHandler:notify('toggle_button_state_changed', {busNum, self.values.x})
+    end
   end
 end
 
 function onReceiveNotify(key, value)
   if key == 'set_settings' then
     setSettings(value[1], value[2])
+  elseif key == 'set_state' then
+    -- Set the button state (used by Ableton Push handler)
+    self.values.x = value and 1 or 0
+
+    -- Notify Ableton Push handler of state change
+    local settings = json.toTable(self.tag)
+    local midiChannel = tonumber(settings.midiChannel)
+    local busNum = midiChannel + 1
+    local abletonPushHandler = root:findByName('ableton_push_handler', true)
+    if abletonPushHandler then
+      abletonPushHandler:notify('toggle_button_state_changed', {busNum, self.values.x})
+    end
+  elseif key == 'sync_to_device' then
+    sendEffectState()
   elseif key == 'switch_to_effect' then
-    turnEffectOn()
-    turnEffectOff()
+    -- Turn on and off quickly to switch to the effect
+    local settings = json.toTable(self.tag)
+    local fxNum = tonumber(settings.fxNum)
+    local midiChannel = tonumber(settings.midiChannel)
+    local midiValues = onButtonMidiValues[fxNum]
+    local ccValue = midiValues[1]
+    if midiChannel <= 1 then
+      ccValue = midiValues[1]
+    elseif midiChannel <= 3 then
+      ccValue = midiValues[2]
+    else
+      ccValue = midiValues[3]
+    end
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, ccValue }, conn)
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
   end
 end
 ]]
@@ -116,6 +124,13 @@ function onValueChanged(key, value)
       buttonDown = false
     end
 
+    -- Notify Ableton Push handler for visual feedback
+    local currentBus = tonumber(self.parent.parent.parent.tag ~= "" and self.parent.parent.parent.tag or 0) + 1
+    local abletonPushHandler = root:findByName('ableton_push_handler', true)
+    if abletonPushHandler then
+      abletonPushHandler:notify('grab_button_state_changed', {currentBus, self.values.x})
+    end
+
     local settings = json.toTable(self.tag)
     local fxNum = tonumber(settings["fxNum"])
     local midiChannel = tonumber(settings["midiChannel"])
@@ -135,6 +150,12 @@ function onValueChanged(key, value)
     else
         sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
     end
+
+    -- Also toggle the toggle button to provide visual feedback
+    local toggleButton = self.parent:findByName('toggle_button')
+    if toggleButton then
+      toggleButton.values.x = buttonDown and 1 or 0
+    end
   end
 end
 
@@ -146,6 +167,30 @@ end
 ]]
 
 local onOffButtonGroupScript = [[
+local function syncCurrentBusToDevice()
+  -- Sync current bus to device
+  local toggleButton = self:findByName('toggle_button')
+  if toggleButton then
+    toggleButton:notify('sync_to_device')
+  end
+
+  -- Also sync all control faders for this bus
+  local faders = self.parent:findByName('faders', true)
+  if faders then
+    for i = 1, 6 do
+      local faderGroup = faders:findByName(tostring(i))
+      if faderGroup then
+        local controlFader = faderGroup:findByName('control_fader')
+        if controlFader then
+          controlFader:notify('sync_midi')
+        end
+      end
+    end
+  end
+
+
+end
+
 function onReceiveNotify(key, value)
   if key == 'set_settings' then
     local fxNum = value[1]
@@ -153,11 +198,21 @@ function onReceiveNotify(key, value)
     local fxName = value[3]
 
     for i = 1, #self.children do
-      local onOffButton = self.children[i]
-      if onOffButton.type == ControlType.BUTTON then
-        onOffButton:notify('set_settings', {fxNum, midiChannel, fxName})
+      local button = self.children[i]
+      if button.type == ControlType.BUTTON then
+        button:notify('set_settings', {fxNum, midiChannel, fxName})
       end
     end
+  elseif key == 'sync_current_bus' then
+    syncCurrentBusToDevice()
+  elseif key == 'set_state' then
+    -- Set the state of the toggle button (used by Ableton Push handler)
+    local toggleButton = self:findByName('toggle_button')
+    if toggleButton then
+      toggleButton:notify('set_state', value)
+    end
+  elseif key == 'sync_button_pressed' then
+    syncCurrentBusToDevice()
   end
 end
 ]]
@@ -171,6 +226,83 @@ function onValueChanged(key, value)
 end
 ]]
 
+local syncButtonScript = [[
+function onValueChanged(key, value)
+  if key == 'x' then
+    -- Get the current bus number
+    local currentBus = tonumber(self.parent.parent.parent.tag ~= "" and self.parent.parent.parent.tag or 0) + 1
+
+    -- Notify Ableton Push handler for visual feedback
+    local abletonPushHandler = root:findByName('ableton_push_handler', true)
+    if abletonPushHandler then
+      abletonPushHandler:notify('sync_button_state_changed', {currentBus, self.values.x})
+    end
+
+    -- Trigger sync when button is released
+    if self.values.x == 0 then
+      local busGroupName = 'bus'..tostring(currentBus)..'_group'
+      local performBusGroup = root:findByName(busGroupName, true)
+
+      if performBusGroup then
+        local onOffButtonGroup = performBusGroup:findByName('on_off_button_group', true)
+        if onOffButtonGroup then
+          onOffButtonGroup:notify('sync_current_bus')
+        end
+      end
+    end
+  end
+end
+]]
+
+local syncAllButtonScript = [[
+function onValueChanged(key, value)
+  if key == 'x' and self.values.x == 0 then
+    -- Sync all control faders to device (existing pattern)
+    local controlFaders = root:findAllByName('control_fader', true)
+    for _, controlFader in ipairs(controlFaders) do
+      controlFader:notify('sync_midi')
+    end
+
+    -- Also sync all toggle buttons to device
+    local toggleButtons = root:findAllByName('toggle_button', true)
+    for _, toggleButton in ipairs(toggleButtons) do
+      toggleButton:notify('sync_to_device')
+    end
+  end
+end
+]]
+
+local controlBusButtonScript = [[
+function onValueChanged(key, value)
+  if key == 'x' then
+    print('controlBusButton: onValueChanged called, x =', self.values.x)
+
+    -- Get the current bus number for this button
+    local currentBus = tonumber(self.parent.parent.parent.tag ~= "" and self.parent.parent.parent.tag or 0) + 1
+    print('controlBusButton: currentBus =', currentBus)
+
+    -- Notify Ableton Push handler for visual feedback
+    local abletonPushHandler = root:findByName('ableton_push_handler', true)
+    if abletonPushHandler then
+      print('controlBusButton: found ableton_push_handler')
+      abletonPushHandler:notify('control_bus_button_state_changed', {currentBus, self.values.x})
+
+      if self.values.x == 1 then
+        -- Set this bus as the controlled bus
+        print('controlBusButton: setting controlled bus to', currentBus)
+        abletonPushHandler:notify('set_controlled_bus', currentBus)
+      else
+        -- Clear control (optional - could keep last selection)
+        print('controlBusButton: clearing controlled bus')
+        abletonPushHandler:notify('set_controlled_bus', 0)
+      end
+    else
+      print('controlBusButton: ERROR - could not find ableton_push_handler')
+    end
+  end
+end
+]]
+
 function init()
   local debugMode = root:findByName('debug_mode').values.x
   if debugMode == 1 then
@@ -179,18 +311,37 @@ function init()
     for _, onOffButtonGroup in ipairs(onOffButtonGroups) do
       onOffButtonGroup.script = onOffButtonGroupScript
 
-      local onButton = onOffButtonGroup:findByName('on_button')
-      local offButton = onOffButtonGroup:findByName('off_button')
-      local grabButton = onOffButtonGroup:findByName('grab_button')
-      local defaultsButton = onOffButtonGroup:findByName('defaults_button')
+    local toggleButton = onOffButtonGroup:findByName('toggle_button')
+    local grabButton = onOffButtonGroup:findByName('grab_button')
+    local defaultsButton = onOffButtonGroup:findByName('defaults_button')
+    local controlBusButton = onOffButtonGroup:findByName('control_bus_button')
 
-      onButton.script = onButtonScript
-      offButton.script = offButtonScript
+    if toggleButton then
+      toggleButton.script = toggleButtonScript
+    end
+
+    if grabButton then
       grabButton.script = grabButtonScript
+    end
 
-      if defaultsButton then
-        defaultsButton.script = defaultsButtonScript
-      end
+    if defaultsButton then
+      defaultsButton.script = defaultsButtonScript
+    end
+
+    if controlBusButton then
+      controlBusButton.script = controlBusButtonScript
+    end
+    end
+
+    -- Initialize sync buttons
+    local syncButtons = root:findAllByName('sync_button', true)
+    for _, syncButton in ipairs(syncButtons) do
+      syncButton.script = syncButtonScript
+    end
+
+    local syncAllButton = root:findByName('sync_all_button', true)
+    if syncAllButton then
+      syncAllButton.script = syncAllButtonScript
     end
   end
 end

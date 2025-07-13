@@ -301,10 +301,40 @@ local function showBus()
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel, selected_menu_item_data["label"]})
 
   -- Flip the effect on and off, so it switches to the effect
-  local onButton = onOffButtonGroup:findByName('on_button')
-  onButton:notify('switch_to_effect')
+  local toggleButton = onOffButtonGroup:findByName('toggle_button')
+  if toggleButton then
+    toggleButton:notify('switch_to_effect')
+  end
 
   performRecallProxy:notify('recall_recent_values')
+end
+
+local function setSelectedBusHighlight(isSelected)
+  print('effect_chooser: setSelectedBusHighlight called with isSelected =', isSelected)
+
+  if isSelected then
+    -- Highlight when this bus is controlled by Push
+    print('effect_chooser: setting white background and black text')
+    self.children.selected_item.children.background.color = Color.fromHexString("FFA61AFF") -- White
+  else
+    -- Reset to default colors
+    print('effect_chooser: resetting to default colors')
+    if(SETTINGS["use_default_colors"] == true) then
+      self.children.selected_item.children.background.color = SETTINGS["selected_item_default_color"]
+    else
+      -- Use the menu item color or default
+      local selected_menu_item_data = menu_items[tonumber(selected_menu_index)]
+      if selected_menu_item_data and selected_menu_item_data["color"] then
+        self.children.selected_item.children.background.color = selected_menu_item_data["color"]
+      else
+        self.children.selected_item.children.background.color = Color.fromHexString("FFA61AAA")
+      end
+    end
+  end
+end
+
+local function resetBusHighlight()
+  setSelectedBusHighlight(false)
 end
 
 local function setUpBus()
@@ -395,6 +425,19 @@ function onReceiveNotify(key, value)
 
   if(key == "init_preset_list") then
     initPresetList()
+    return
+  end
+
+  if(key == "set_bus_highlight") then
+    local isSelected = value
+    print('effect_chooser: set_bus_highlight called with isSelected =', isSelected)
+    setSelectedBusHighlight(isSelected)
+    return
+  end
+
+  if(key == "reset_bus_highlight") then
+    print('effect_chooser: reset_bus_highlight called')
+    resetBusHighlight()
     return
   end
 end
