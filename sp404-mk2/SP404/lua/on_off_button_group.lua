@@ -275,29 +275,65 @@ end
 local controlBusButtonScript = [[
 function onValueChanged(key, value)
   if key == 'x' then
-    print('controlBusButton: onValueChanged called, x =', self.values.x)
-
     -- Get the current bus number for this button
     local currentBus = tonumber(self.parent.parent.parent.tag ~= "" and self.parent.parent.parent.tag or 0) + 1
-    print('controlBusButton: currentBus =', currentBus)
 
-    -- Notify Ableton Push handler for visual feedback
-    local abletonPushHandler = root:findByName('ableton_push_handler', true)
-    if abletonPushHandler then
-      print('controlBusButton: found ableton_push_handler')
-      abletonPushHandler:notify('control_bus_button_state_changed', {currentBus, self.values.x})
+    if self.values.x == 1 then
+      -- Radio button behavior: turn off all other control bus buttons
+      for i = 1, 5 do
+        if i ~= currentBus then
+          local busGroupName = 'bus'..tostring(i)..'_group'
+          local performBusGroup = root:findByName(busGroupName, true)
+          if performBusGroup then
+            local onOffButtonGroup = performBusGroup:findByName('on_off_button_group', true)
+            if onOffButtonGroup then
+              local controlBusButton = onOffButtonGroup:findByName('control_bus_button')
+              if controlBusButton then
+                controlBusButton.values.x = 0
+              end
+            end
+          end
+        end
+      end
 
-      if self.values.x == 1 then
-        -- Set this bus as the controlled bus
-        print('controlBusButton: setting controlled bus to', currentBus)
+      -- Save the controlled bus state for persistence
+      root.tag = json.fromTable({controlledBus = currentBus})
+
+      -- Notify Ableton Push handler for visual feedback (if available)
+      local abletonPushHandler = root:findByName('ableton_push_handler', true)
+      if abletonPushHandler then
+        abletonPushHandler:notify('control_bus_button_state_changed', {currentBus, self.values.x})
         abletonPushHandler:notify('set_controlled_bus', currentBus)
-      else
-        -- Clear control (optional - could keep last selection)
-        print('controlBusButton: clearing controlled bus')
-        abletonPushHandler:notify('set_controlled_bus', 0)
       end
     else
-      print('controlBusButton: ERROR - could not find ableton_push_handler')
+      -- Check if this was the last active control bus button
+      local activeCount = 0
+      for i = 1, 5 do
+        local busGroupName = 'bus'..tostring(i)..'_group'
+        local performBusGroup = root:findByName(busGroupName, true)
+        if performBusGroup then
+          local onOffButtonGroup = performBusGroup:findByName('on_off_button_group', true)
+          if onOffButtonGroup then
+            local controlBusButton = onOffButtonGroup:findByName('control_bus_button')
+            if controlBusButton and controlBusButton.values.x == 1 then
+              activeCount = activeCount + 1
+            end
+          end
+        end
+      end
+
+      -- If this was the last active button, prevent it from being turned off
+      if activeCount == 0 then
+        self.values.x = 1
+        return
+      end
+
+      -- Notify Ableton Push handler for visual feedback (if available)
+      local abletonPushHandler = root:findByName('ableton_push_handler', true)
+      if abletonPushHandler then
+        abletonPushHandler:notify('control_bus_button_state_changed', {currentBus, self.values.x})
+        abletonPushHandler:notify('set_controlled_bus', 0)
+      end
     end
   end
 end
@@ -342,6 +378,52 @@ function init()
     local syncAllButton = root:findByName('sync_all_button', true)
     if syncAllButton then
       syncAllButton.script = syncAllButtonScript
+    end
+
+    -- Initialize radio button behavior: check current button states and ensure only one is active
+    local activeBus = 0
+    local activeCount = 0
+
+    -- Check which bus is currently active
+    for i = 1, 5 do
+      local busGroupName = 'bus'..tostring(i)..'_group'
+      local performBusGroup = root:findByName(busGroupName, true)
+      if performBusGroup then
+        local onOffButtonGroup = performBusGroup:findByName('on_off_button_group', true)
+        if onOffButtonGroup then
+          local controlBusButton = onOffButtonGroup:findByName('control_bus_button')
+          if controlBusButton and controlBusButton.values.x == 1 then
+            activeBus = i
+            activeCount = activeCount + 1
+          end
+        end
+      end
+    end
+
+    -- If no bus is active or multiple buses are active, default to Bus 1
+    if activeCount == 0 or activeCount > 1 then
+      activeBus = 1
+    end
+
+    -- Set the correct radio button state
+    for i = 1, 5 do
+      local busGroupName = 'bus'..tostring(i)..'_group'
+      local performBusGroup = root:findByName(busGroupName, true)
+      if performBusGroup then
+        local onOffButtonGroup = performBusGroup:findByName('on_off_button_group', true)
+        if onOffButtonGroup then
+          local controlBusButton = onOffButtonGroup:findByName('control_bus_button')
+          if controlBusButton then
+            controlBusButton.values.x = (i == activeBus) and 1 or 0
+          end
+        end
+      end
+    end
+
+    -- Notify Ableton Push handler about the restored bus selection
+    local abletonPushHandler = root:findByName('ableton_push_handler', true)
+    if abletonPushHandler then
+      abletonPushHandler:notify('set_controlled_bus', activeBus)
     end
   end
 end

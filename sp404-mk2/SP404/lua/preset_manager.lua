@@ -33,6 +33,36 @@ local function storePreset(fxNum, presetNum, presetValue)
     local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
     editCompressorSidechain:notify('store_preset', presetNum)
   end
+
+  -- Notify Ableton Push handler to update preset lighting for all buses with this effect
+  local abletonPushHandler = root:findByName('ableton_push_handler', true)
+  if abletonPushHandler then
+    -- Get the effect numbers for all buses
+    local busEffectNums = {}
+    for busNum = 1, 4 do
+      local busGroupName = 'bus'..tostring(busNum)..'_group'
+      local performBusGroup = root:findByName(busGroupName, true)
+      if performBusGroup then
+        local effectChooser = performBusGroup:findByName('effect_chooser', true)
+        if effectChooser then
+          local selectedItem = effectChooser:findByName('selected_item')
+          if selectedItem and selectedItem.tag ~= "" then
+            local menuItemData = json.toTable(selectedItem.tag)
+            if menuItemData then
+              busEffectNums[busNum] = tonumber(menuItemData.id)
+            end
+          end
+        end
+      end
+    end
+
+    -- Notify all buses that have the same effect loaded
+    for busNum = 1, 4 do
+      if busEffectNums[busNum] == fxNum then
+        abletonPushHandler:notify('add_preset', {busNum, presetNum})
+      end
+    end
+  end
 end
 
 local function deletePreset(fxNum, presetNum)
@@ -58,6 +88,12 @@ local function deleteAllPresetsForAllFX()
   local performPresetGrids = root:findAllByName('perform_preset_grid', true)
   for _, presetGrid in ipairs(performPresetGrids) do
     presetGrid:notify('refresh_presets_list')
+  end
+
+  -- Notify Ableton Push handler to clear presets for all buses
+  local abletonPushHandler = root:findByName('ableton_push_handler', true)
+  if abletonPushHandler then
+    abletonPushHandler:notify('clear_all_presets_global')
   end
 end
 

@@ -92,6 +92,12 @@ local function handleDelete(value)
 
   -- Refresh all buses that have the same FX
   refreshAllBusesWithSameFX()
+
+  -- Notify Ableton Push handler to clear presets for all buses with the same effect
+  local abletonPushHandler = root:findByName('ableton_push_handler', true)
+  if abletonPushHandler then
+    abletonPushHandler:notify('clear_presets', busNum)
+  end
 end
 
 function onValueChanged(key, value)
