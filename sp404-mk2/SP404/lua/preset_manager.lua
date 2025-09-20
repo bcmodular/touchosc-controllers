@@ -17,62 +17,20 @@ local function storePreset(fxNum, presetNum, presetValue)
 
   local presetArray = json.toTable(self.children[tostring(fxNum)].tag) or {}
 
-  if presetValue == nil then
-    --print('Deleting preset:', fxNum, presetNum)
-  else
-    --print('Storing preset:', fxNum, presetNum, 'with values:', unpack(presetValue))
-  end
-
   presetArray[formatPresetNum(presetNum)] = presetValue
 
   local jsonPresets = json.fromTable(presetArray)
   self.children[tostring(fxNum)].tag = jsonPresets
-  --print('Updated presets array (json):', jsonPresets)
 
-  if fxNum == 37 then
-    local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
-    editCompressorSidechain:notify('store_preset', presetNum)
-  end
-
-  -- Notify Ableton Push handler to update preset lighting for all buses with this effect
   local abletonPushHandler = root:findByName('ableton_push_handler', true)
-  if abletonPushHandler then
-    -- Get the effect numbers for all buses
-    local busEffectNums = {}
-    for busNum = 1, 4 do
-      local busGroupName = 'bus'..tostring(busNum)..'_group'
-      local performBusGroup = root:findByName(busGroupName, true)
-      if performBusGroup then
-        local effectChooser = performBusGroup:findByName('effect_chooser', true)
-        if effectChooser then
-          local selectedItem = effectChooser:findByName('selected_item')
-          if selectedItem and selectedItem.tag ~= "" then
-            local menuItemData = json.toTable(selectedItem.tag)
-            if menuItemData then
-              busEffectNums[busNum] = tonumber(menuItemData.id)
-            end
-          end
-        end
-      end
-    end
-
-    -- Notify all buses that have the same effect loaded
-    for busNum = 1, 4 do
-      if busEffectNums[busNum] == fxNum then
-        abletonPushHandler:notify('add_preset', {busNum, presetNum})
-      end
-    end
+  for busNum = 1, 4 do
+    abletonPushHandler:notify('sync_push_lighting', busNum)
   end
 end
 
 local function deletePreset(fxNum, presetNum)
   --print('Preset manager deleting preset:', fxNum, presetNum)
   storePreset(fxNum, presetNum, nil)
-
-  if fxNum == 37 then
-    local editCompressorSidechain = root:findByName('edit_compressor_sidechain', true)
-    editCompressorSidechain:notify('delete_preset', presetNum)
-  end
 end
 
 local function deleteAllPresets(fxNum)
@@ -92,8 +50,8 @@ local function deleteAllPresetsForAllFX()
 
   -- Notify Ableton Push handler to clear presets for all buses
   local abletonPushHandler = root:findByName('ableton_push_handler', true)
-  if abletonPushHandler then
-    abletonPushHandler:notify('clear_all_presets_global')
+  for busNum = 1, 4 do
+    abletonPushHandler:notify('sync_push_lighting', busNum)
   end
 end
 
