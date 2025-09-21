@@ -1,6 +1,6 @@
 local presetGridScript = [[
 local fxNum = 0
-local busNum = self.tag
+local busNum = tonumber(self.tag) or 1
 local deleteMode = false
 local abletonFourBusMode = true
 local defaultCCValues = {0, 0, 0, 0, 0, 0}
@@ -23,15 +23,15 @@ end
 
 local function getRecallButtonColor()
   if busNum == 1 then
-    return "00FFFFFF"  -- cyan
+    return "00E6FFFF"  -- cyan
   elseif busNum == 2 then
     return "FFD700FF"  -- very bright pale yellow
   elseif busNum == 3 then
-    return "FF5EDCFF"  -- pale pink
+    return "FF69B4FF"  -- pale pink
   elseif busNum == 4 then
-    return "0000FFFF"  -- blue
+    return "4A90E2FF"  -- blue
   else
-    return "00FF00FF"  -- green (default)
+    return "32CD32FF"  -- green (default)
   end
 end
 
@@ -78,15 +78,42 @@ local function initialiseButtons()
 end
 
 local function changeState(index, color)
-  print('changeState', index, color)
+  --print('changeState', index, color)
   self.children[tostring(index)].color = color
+end
+
+local function refreshPresets()
+  print('refreshPresets', fxNum)
+  if fxNum ~= 0 then
+    local presetManagerChild = presetManager.children[tostring(fxNum)]
+    local presetArray = json.toTable(presetManagerChild.tag) or {}
+
+    initialiseButtons()
+
+    -- Set STORED state for active presets
+    for index, _ in pairs(presetArray) do
+      local presetNum = tonumber(index)
+      if deleteMode then
+        changeState(presetNum, BUTTON_STATE_COLORS.DELETE)
+      else
+        changeState(presetNum, getRecallButtonColor())
+      end
+    end
+
+    abletonPushHandler:notify('sync_push_lighting', busNum)
+  end
 end
 
 local function refreshAllBuses()
   for i = 1, 5 do
-    local busGroup = root:findByName('bus'..tostring(i)..'_group', true)
-    local presetGrid = busGroup:findByName('preset_grid', true)
-    presetGrid:notify('refresh_presets_list', i)
+    if i == busNum then
+      refreshPresets()
+    else
+      local busGroup = root:findByName('bus'..tostring(i)..'_group', true)
+      local presetGrid = busGroup:findByName('preset_grid', true)
+      presetGrid:notify('refresh_presets_list')
+    end
+
     if i <= 4 then
       abletonPushHandler:notify('sync_push_lighting', i)
     end
@@ -148,6 +175,7 @@ local function buttonPressed(index)
 end
 
 local function toggleDeleteMode(value)
+  print('toggleDeleteMode', value, busNum)
   deleteMode = value
 
   for i = 1, 16 do
@@ -164,28 +192,7 @@ local function toggleDeleteMode(value)
   end
 
   abletonPushHandler:notify('toggle_delete_mode', deleteMode)
-end
-
-local function refreshPresets()
-  print('refreshPresets', fxNum)
-  if fxNum ~= 0 then
-    local presetManagerChild = presetManager.children[tostring(fxNum)]
-    local presetArray = json.toTable(presetManagerChild.tag) or {}
-
-    initialiseButtons()
-
-    -- Set STORED state for active presets
-    for index, _ in pairs(presetArray) do
-      local presetNum = tonumber(index)
-      if deleteMode then
-        changeState(presetNum, BUTTON_STATE_COLORS.DELETE)
-      else
-        changeState(presetNum, getRecallButtonColor())
-      end
-    end
-
-    abletonPushHandler:notify('sync_push_lighting', busNum)
-  end
+  refreshAllBuses()
 end
 
 function onReceiveNotify(key, value)
@@ -204,6 +211,25 @@ function onReceiveNotify(key, value)
 end
 
 function init()
+  local background = self:findByName('preset_grid_background_box')
+  background.color = getRecallButtonColor()
+
+  local selectedItemButton = self.parent.parent:findByName('selected_item_button', true)
+  selectedItemButton.color = getRecallButtonColor()
+  local selectedItemBackground = self.parent.parent:findByName('background', true)
+  selectedItemBackground.color = getRecallButtonColor()
+
+  local controlFaders = faderGroup:findAllByName('control_fader', true)
+  for _, controlFader in ipairs(controlFaders) do
+    controlFader.color = getRecallButtonColor()
+  end
+
+  local valueLabel = faderGroup:findAllByName('value_label', true)
+  for _, valueLabel in ipairs(valueLabel) do
+    valueLabel.textColor = Color.fromHexString("FFFFFFFF")
+    valueLabel.color = Color.fromHexString("00000000")
+  end
+
   refreshPresets()
 end
 ]]

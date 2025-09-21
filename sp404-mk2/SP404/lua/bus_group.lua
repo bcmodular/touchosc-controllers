@@ -100,7 +100,7 @@ local function clearBus()
   controlGroup.visible = false
   fxNum = 0
   fxName = "Choose FX..."
-  self.tag = json.fromTable({fxNum = fxNum, fxName = fxName})
+  self.tag = json.fromTable({fxNum = fxNum, fxName = fxName, busNum = busNum})
 
   effectChooser.children.label.values.text = fxName
   sendOffMIDI()
@@ -119,7 +119,7 @@ function onReceiveNotify(key, value)
   if (key == "set_fx") then
     fxNum = value[1]
     fxName = value[2]
-    self.tag = json.fromTable({fxNum = fxNum, fxName = fxName})
+    self.tag = json.fromTable({fxNum = fxNum, fxName = fxName, busNum = busNum})
     print('set_fx', busNum, fxNum, fxName)
     showBus()
     fxSelectorGroup:notify('toggle_visibility', busNum)

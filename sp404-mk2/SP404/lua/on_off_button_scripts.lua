@@ -32,16 +32,19 @@ end
 
 local onOffButtonGroupScript = [[
 local busGroup = self.parent.parent
-local busNum = busGroup.tag.busNum or 1
-local midiChannel = busNum - 1
-local fxNum = busGroup.tag.fxNum or 0
 local toggleButton = self:findByName('toggle_button')
 local controlBusButton = self:findByName('control_bus_button')
 local abletonPushHandler = root:findByName('ableton_push_handler', true)
-
+local busSettings = json.toTable(busGroup.tag) or {}
+local busNum = tonumber(busSettings['busNum']) or 1
+local midiChannel = busNum - 1
 local conn = { true, false, false } -- only send to connection 1
 
 local function getBusOnMidiValue()
+  print('getBusOnMidiValue', busGroup.tag)
+  local latestBusSettings = json.toTable(busGroup.tag) or {}
+  local fxNum = tonumber(latestBusSettings['fxNum']) or 0
+
   if fxNum == 0 then
     return 0
   end
@@ -71,10 +74,12 @@ local function getBusOnMidiValue()
 end
 
 local function sendMIDIOn()
+  print('sendMIDIOn', midiChannel, getBusOnMidiValue())
   sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, getBusOnMidiValue()}, conn)
 end
 
 local function sendMIDIOff()
+  print('sendMIDIOff', midiChannel, 0)
   sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
 end
 

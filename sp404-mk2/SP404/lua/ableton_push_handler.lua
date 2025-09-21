@@ -257,46 +257,27 @@ local function getPresetVelocity(pressed, busNum)
     return colorBase.normal
   end
 end
+
+local presetMidiNoteTable = {
+  {92, 93, 84, 85, 76, 77, 68, 69, 60, 61, 52, 53, 44, 45, 36, 37},
+  {94, 95, 86, 87, 78, 79, 70, 71, 62, 63, 54, 55, 46, 47, 38, 39},
+  {96, 97, 88, 89, 80, 81, 72, 73, 64, 65, 56, 57, 48, 49, 40, 41},
+  {98, 99, 90, 91, 82, 83, 74, 75, 66, 67, 58, 59, 50, 51, 42, 43}
+}
+
 local function mapNoteToPreset(note)
-  --print('mapNoteToPreset', note)
-  -- Map from Push 8x8 grid (notes 36-99) to four 4x4 preset grids
-  -- Each 4x4 grid maps to a bus number (1-4) and preset number (1-16)
-
-  -- Calculate which quadrant of the 8x8 grid we're in
-  local quadX = math.floor((note - 36) % 8 / 4)  -- 0 or 1 (left/right)
-  local quadY = 1 - math.floor((note - 36) / 32) -- 1 (top), 0 (bottom)
-  local quadrantToBus = {
-    [0] = { [0] = 1, [1] = 2 },  -- Top row: left=1, right=2
-    [1] = { [0] = 3, [1] = 4 }   -- Bottom row: left=3, right=4
-  }
-  local busNum = quadrantToBus[quadY][quadX]
-
-  -- Calculate relative position within quadrant
-  local relX = (note - 36) % 4
-  local relY = 3 - math.floor((note - 36) % 32 / 8)  -- 0 (top) to 3 (bottom)
-  local presetNum = relX + (relY * 4) + 1            -- 1-16, top-left to bottom-right
-  --print('quadX', quadX, 'quadY', quadY, 'relX', relX, 'relY', relY, 'busNum', busNum, 'presetNum', presetNum)
-  return {busNum, presetNum}
+  for busNum = 1, #presetMidiNoteTable do
+    local bus = presetMidiNoteTable[busNum]
+    for presetNum = 1, #bus do
+      if bus[presetNum] == note then
+        return {busNum, presetNum}
+      end
+    end
+  end
 end
 
 local function mapPresetToNote(busNum, presetNum)
-  -- Convert bus number to quadrant position
-  local busToQuadrant = {
-    [1] = { quadY = 0, quadX = 0 }, -- top-left
-    [2] = { quadY = 0, quadX = 1 }, -- top-right
-    [3] = { quadY = 1, quadX = 0 }, -- bottom-left
-    [4] = { quadY = 1, quadX = 1 }, -- bottom-right
-  }
-
-  local quadY = busToQuadrant[busNum].quadY
-  local quadX = busToQuadrant[busNum].quadX
-
-  -- Calculate relative position within quadrant
-  local relX = (presetNum - 1) % 4
-  local relY = math.floor((presetNum - 1) / 4)
-
-  -- Calculate note number (92 is top-left note)
-  return 92 - (quadY * 32) + (quadX * 4) - (relY * 8) + relX
+  return presetMidiNoteTable[busNum][presetNum]
 end
 
 local function toggleEffect(busNum, ccValue)
@@ -391,12 +372,6 @@ local function handleKnobTouch(knobIndex, isTouched)
   end
 end
 
-local function toggleDeleteMode(newDeleteMode)
-  deleteMode = newDeleteMode
-  root:findByName('delete_button', true).values.x = deleteMode and 1 or 0
-  sendMIDI({ 176, 118, deleteMode and 127 or 1 }, conn)
-end
-
 local function sendIncrementToFader(ccNum, ccValue)
   --print('sending increment to fader for bus:', busToControl)
   if busToControl then
@@ -451,6 +426,55 @@ local function controlEffect(busNum)
   syncPushOnOffGroupLighting(busNum)
 end
 
+local function illuminatePreset(busNum, presetNum, state, velocity)
+  local noteNum = mapPresetToNote(busNum, presetNum)
+
+  if state then
+    sendMIDI({ 144, noteNum, velocity }, conn)
+  else
+    sendMIDI({ 128, noteNum, velocity }, conn)
+  end
+end
+
+local function refreshPresets(busNum)
+  initialiseBusGroups()
+  local busSettings = json.toTable(busGroups[tonumber(busNum)].tag) or {}
+  local fxNum = tonumber(busSettings['fxNum']) or 0
+  print('refreshPresets', busNum, fxNum, busGroups[tonumber(busNum)].tag)
+  presetStates[busNum] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
+
+  if fxNum ~= 0 then
+    local presetManagerChild = presetManager.children[tostring(fxNum)]
+    local presetArray = json.toTable(presetManagerChild.tag) or {}
+
+    for index, _ in pairs(presetArray) do
+      local presetNum = tonumber(index)
+
+      if presetNum ~= nil then
+        presetStates[busNum][presetNum] = true
+      end
+    end
+  end
+
+  for presetNum = 1, 16 do
+    if deleteMode then
+      illuminatePreset(busNum, presetNum, presetStates[busNum][presetNum], deletePresetVelocity)
+    else
+      illuminatePreset(busNum, presetNum, presetStates[busNum][presetNum], getPresetVelocity(false, busNum))
+    end
+  end
+end
+
+
+local function toggleDeleteMode(newDeleteMode)
+  deleteMode = newDeleteMode
+  root:findByName('delete_button', true).values.x = deleteMode and 1 or 0
+  sendMIDI({ 176, 118, deleteMode and 127 or 1 }, conn)
+  for busNum = 1, 4 do
+    refreshPresets(busNum)
+  end
+end
+
 local function mapCCToFeature(ccNum, ccValue)
   -- Toggle button: 20, 22, 24, 26 are the cc numbers to toggle each of the four effect buses
   if ccNum == 20 or ccNum == 22 or ccNum == 24 or ccNum == 26 then
@@ -496,45 +520,6 @@ local function mapCCToFeature(ccNum, ccValue)
     sendIncrementToFader(ccNum, ccValue)
   elseif ccNum == 118 then
     toggleDeleteMode(ccValue == 127)
-  end
-end
-
-local function illuminatePreset(busNum, presetNum, state, velocity)
-  local noteNum = mapPresetToNote(busNum, presetNum)
-
-  if state then
-    sendMIDI({ 144, noteNum, velocity }, conn)
-  else
-    sendMIDI({ 128, noteNum, velocity }, conn)
-  end
-end
-
-local function refreshPresets(busNum)
-  initialiseBusGroups()
-  local busSettings = json.toTable(busGroups[tonumber(busNum)].tag) or {}
-  local fxNum = tonumber(busSettings['fxNum']) or 0
-  print('refreshPresets', busNum, fxNum, busGroups[tonumber(busNum)].tag)
-  presetStates[busNum] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
-
-  if fxNum ~= 0 then
-    local presetManagerChild = presetManager.children[tostring(fxNum)]
-    local presetArray = json.toTable(presetManagerChild.tag) or {}
-
-    for index, _ in pairs(presetArray) do
-      local presetNum = tonumber(index)
-
-      if presetNum ~= nil then
-        presetStates[busNum][presetNum] = true
-      end
-    end
-  end
-
-  for presetNum = 1, 16 do
-    if deleteMode then
-      illuminatePreset(busNum, presetNum, presetStates[busNum][presetNum], deletePresetVelocity)
-    else
-      illuminatePreset(busNum, presetNum, presetStates[busNum][presetNum], getPresetVelocity(false, busNum))
-    end
   end
 end
 
