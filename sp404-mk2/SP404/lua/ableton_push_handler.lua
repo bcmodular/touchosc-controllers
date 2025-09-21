@@ -234,10 +234,8 @@ local deleteMode = false
 
 local function initialiseBusGroups()
   for busNum = 1, 4 do
-    print('init', busNum)
     local busGroupName = 'bus'..tostring(busNum)..'_group'
     local busGroup = root:findByName(busGroupName, true)
-    print('busGroup', busGroup.name)
     busGroups[busNum] = busGroup
   end
 end
@@ -331,7 +329,7 @@ local function toggleEffect(busNum, ccValue)
 end
 
 local function grabEffect(busNum, ccValue)
-  local busGroup = busGroups[busNum]
+  local busGroup = busGroups[tonumber(busNum)]
   local grabButton = busGroup:findByName('grab_button', true)
   local onOffButtonGroup = busGroup:findByName('on_off_button_group', true)
   local toggleButton = onOffButtonGroup:findByName('toggle_button', true)
@@ -423,8 +421,6 @@ end
 local function syncPushOnOffGroupLighting(busNum)
   initialiseBusGroups()
   local busGroup = busGroups[busNum]
-  print('busNum', busNum)
-  print('syncPushOnOffGroupLighting', busGroup.name)
   local onOffButtonGroup = busGroup:findByName('on_off_button_group', true)
 
   -- Toggle button (effect on/off)
@@ -514,9 +510,10 @@ local function illuminatePreset(busNum, presetNum, state, velocity)
 end
 
 local function refreshPresets(busNum)
-  print('refreshPresets', busNum)
   initialiseBusGroups()
-  local fxNum = busGroups[busNum].tag.fxNum or 0
+  local busSettings = json.toTable(busGroups[tonumber(busNum)].tag) or {}
+  local fxNum = tonumber(busSettings['fxNum']) or 0
+  print('refreshPresets', busNum, fxNum, busGroups[tonumber(busNum)].tag)
   presetStates[busNum] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
 
   if fxNum ~= 0 then
@@ -585,7 +582,7 @@ local function handleMIDIMessage(midiMessage)
         return
       end
 
-      local busGroup = busGroups[busNum]
+      local busGroup = busGroups[tonumber(busNum)]
       local presetGrid = busGroup:findByName('preset_grid', true)
 
       if midiMessage[1] == 144 then
@@ -613,10 +610,13 @@ function onReceiveNotify(key, value)
   elseif key == 'toggle_delete_mode' then
     toggleDeleteMode(value)
   elseif key == 'set_controlled_bus' then
-    controlEffect(value)
+    controlEffect(tonumber(value))
   elseif key == 'sync_push_lighting' then
-    refreshPresets(value)
-    syncPushOnOffGroupLighting(value)
+    local busNum = tonumber(value)
+    if busNum <= 4 then
+      refreshPresets(busNum)
+      syncPushOnOffGroupLighting(busNum)
+    end
   end
 end
 

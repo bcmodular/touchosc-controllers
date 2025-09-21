@@ -24,7 +24,17 @@ local allMidiValues = {
 local busNum = 1
 local midiIndex = 1
 
+local buttonScript = [[
+function onValueChanged(key, value)
+  if key == 'x' and self.values.x == 0 then
+    self.parent:notify('set_fx', {self.tag, self.name})
+  end
+end
+]]
+
 local function setupUI()
+  busNum = tonumber(self.tag) or 1
+
   if busNum == 1 or busNum == 2 then
     midiIndex = 1
   elseif busNum == 3 or busNum == 4 then
@@ -55,28 +65,16 @@ end
 function onReceiveNotify(key, value)
   if key == 'setup_ui' then
     setupUI()
+  elseif key == 'set_fx' then
+    local busGroup = root:findByName('bus'..tostring(busNum)..'_group', true)
+    busGroup:notify('set_fx', {value[1], value[2]})
   end
 end
-
-local buttonScript = [[
-local bus = root:findByName('bus'..tostring(%s)..'_group', true)
-function onValueChanged(key, value)
-  if key == 'x' and self.values.x == 1 then
-    bus:notify('set_fx', {self.tag, self.name})
-    self.parent.parent.visible = false
-  end
-end
-]]
 
 function init()
-  busNum = tonumber(self.tag) or 1
+  for i = 1, #self.children do
+    self.children[i].script = buttonScript
+  end
 
   setupUI()
-
-  for i = 1, #self.children do
-    local script = string.format(buttonScript, busNum)
-    self.children[i].script = script
-  end
 end
-
-

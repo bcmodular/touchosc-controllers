@@ -1,3 +1,4 @@
+local busGroupScript = [[
 local busNum = 1
 local midiChannel = 0
 local fxNum = 0
@@ -9,6 +10,7 @@ local abletonPushHandler = root:findByName('ableton_push_handler', true)
 local controlMapper = root:findByName('control_mapper', true)
 local faders = self:findByName('faders', true)
 local onOffButtonGroup = self:findByName('on_off_button_group', true)
+local fxSelectorGroup = root:findByName('fx_selector_group', true)
 
 local function midiToFloat(midiValue)
   local floatValue = midiValue / 127
@@ -22,7 +24,7 @@ end
 
 local function refreshPresetList()
   if fxNum ~= 0 then
-    presetGrid:notify('refresh_presets_list')
+    presetGrid:notify('refresh_presets_list', fxNum)
   end
 end
 
@@ -100,30 +102,30 @@ local function clearBus()
   fxName = "Choose FX..."
   self.tag = json.fromTable({fxNum = fxNum, fxName = fxName})
 
-  effectChooser.label.values.text = fxName
+  effectChooser.children.label.values.text = fxName
   sendOffMIDI()
 end
 
 local function setSelectedBusHighlight(isSelected)
   if isSelected then
-    effectChooser.background.color = Color.fromHexString("FFA61AFF")
+    effectChooser.children.background.color = Color.fromHexString("FFA61AFF")
   else
-    effectChooser.background.color = Color.fromHexString("FFA61AAA")
+    effectChooser.children.background.color = Color.fromHexString("FFA61AAA")
   end
 end
 
 ---@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
-  if(key == "set_fx") then
+  if (key == "set_fx") then
     fxNum = value[1]
     fxName = value[2]
     self.tag = json.fromTable({fxNum = fxNum, fxName = fxName})
+    print('set_fx', busNum, fxNum, fxName)
     showBus()
-  elseif(key == "clear_bus") then
+    fxSelectorGroup:notify('toggle_visibility', busNum)
+  elseif (key == "clear_bus") then
     clearBus()
-  elseif(key == "init_preset_list") then
-    initPresetList()
-  elseif(key == "set_bus_highlight") then
+  elseif (key == "set_bus_highlight") then
     setSelectedBusHighlight(value)
   end
 end
@@ -147,5 +149,16 @@ function init()
     showBus()
   else
     clearBus()
+  end
+end
+]]
+
+function init()
+  local debugMode = root:findByName('debug_mode').values.x
+  if debugMode == 1 then
+    for i = 1, 5 do
+      local busGroup = root:findByName('bus'..tostring(i)..'_group', true)
+      busGroup.script = busGroupScript
+    end
   end
 end
