@@ -6,7 +6,6 @@ local fxName = 'Choose FX...'
 local effectChooser = self:findByName('effect_chooser', true)
 local controlGroup = self:findByName('control_group', true)
 local presetGrid = self:findByName('preset_grid', true)
-local abletonPushHandler = root:findByName('ableton_push_handler', true)
 local controlMapper = root:findByName('control_mapper', true)
 local faders = self:findByName('faders', true)
 local onOffButtonGroup = self:findByName('on_off_button_group', true)
@@ -69,7 +68,6 @@ local function showBus()
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel})
   recallValues()
   onOffButtonGroup:notify('switch_to_effect')
-  abletonPushHandler:notify('sync_push_lighting', busNum)
 end
 
 local function sendOffMIDI()
@@ -96,7 +94,6 @@ end
 
 local function clearBus()
   storeCurrentValues()
-  abletonPushHandler:notify('sync_push_lighting', busNum)
   controlGroup.visible = false
   fxNum = 0
   fxName = "Choose FX..."
@@ -154,11 +151,8 @@ end
 ]]
 
 function init()
-  local debugMode = root:findByName('debug_mode').values.x
-  if debugMode == 1 then
-    for i = 1, 5 do
-      local busGroup = root:findByName('bus'..tostring(i)..'_group', true)
-      busGroup.script = busGroupScript
-    end
+  for i = 1, 5 do
+    local busGroup = root:findByName('bus'..tostring(i)..'_group', true)
+    busGroup.script = busGroupScript
   end
 end

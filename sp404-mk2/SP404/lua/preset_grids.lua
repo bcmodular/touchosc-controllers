@@ -5,10 +5,9 @@ local deleteMode = false
 local abletonFourBusMode = true
 local defaultCCValues = {0, 0, 0, 0, 0, 0}
 local presetManager = root.children.preset_manager
-local excludeMarkedPresetsButton = self.parent:findByName('exclude_tuning_from_presets_button')
+local excludeMarkedPresetsButton = self.parent:findByName('exclude_tuning_from_presets_button', true)
 local faderGroup = self.parent:findByName('faders', true)
 local defaultManager = root.children.default_manager
-local abletonPushHandler = root:findByName('ableton_push_handler', true)
 
 local BUTTON_STATE_COLORS = {
   --RECALL = "00FF00FF",
@@ -71,6 +70,31 @@ local function recallPreset(presetNum)
   end
 end
 
+local function recallDefaults()
+  local defaultValues = json.toTable(defaultManager.tag)[tostring(fxNum)]
+
+  if defaultValues == nil then
+    return
+  end
+
+  local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
+
+  local exclude_marked_presets = excludeMarkedPresetsButton.values.x == 1
+
+  for i, controlInfo in ipairs(controlInfoArray) do
+    local _, _, isExcludable = unpack(controlInfo)
+    local fader = faderGroup:findByName(tostring(i))
+    local controlFader = fader:findByName('control_fader')
+
+    print('recallDefaults', fxNum, i, defaultValues[i])
+    print('recallDefaults', faderGroup.name )
+    print('recallDefaults', controlFader.name)
+    if not isExcludable or not exclude_marked_presets then
+      controlFader:notify('new_value', midiToFloat(defaultValues[i]))
+    end
+  end
+end
+
 local function initialiseButtons()
   for i = 1, 16 do
     self.children[tostring(i)].color = BUTTON_STATE_COLORS.AVAILABLE
@@ -83,7 +107,7 @@ local function changeState(index, color)
 end
 
 local function refreshPresets()
-  print('refreshPresets', fxNum)
+  --print('refreshPresets', fxNum)
   if fxNum ~= 0 then
     local presetManagerChild = presetManager.children[tostring(fxNum)]
     local presetArray = json.toTable(presetManagerChild.tag) or {}
@@ -99,8 +123,6 @@ local function refreshPresets()
         changeState(presetNum, getRecallButtonColor())
       end
     end
-
-    abletonPushHandler:notify('sync_push_lighting', busNum)
   end
 end
 
@@ -112,10 +134,6 @@ local function refreshAllBuses()
       local busGroup = root:findByName('bus'..tostring(i)..'_group', true)
       local presetGrid = busGroup:findByName('preset_grid', true)
       presetGrid:notify('refresh_presets_list')
-    end
-
-    if i <= 4 then
-      abletonPushHandler:notify('sync_push_lighting', i)
     end
   end
 end
@@ -156,6 +174,8 @@ local function storeDefaults()
     local fader = faderGroup:findByName(tostring(i))
     local controlFader = fader:findByName('control_fader')
     ccValues[i] = floatToMIDI(controlFader.values.x)
+
+    controlFader:setValueField("x", ValueField.DEFAULT, controlFader.values.x)
   end
 
   print('storeDefaults', fxNum, ccValues)
@@ -191,7 +211,6 @@ local function toggleDeleteMode(value)
     end
   end
 
-  abletonPushHandler:notify('toggle_delete_mode', deleteMode)
   refreshAllBuses()
 end
 
@@ -205,6 +224,8 @@ function onReceiveNotify(key, value)
     toggleDeleteMode(value)
   elseif key == 'store_defaults' then
     storeDefaults()
+  elseif key == 'recall_defaults' then
+    recallDefaults()
   elseif key == 'button_pressed' then
     buttonPressed(value)
   end
@@ -243,17 +264,13 @@ end
 ]]
 
 function init()
-  local debugMode = root:findByName('debug_mode').values.x
+  local presetGrids = root:findAllByName('preset_grid', true)
 
-  if debugMode == 1 then
-    local presetGrids = root:findAllByName('preset_grid', true)
-
-    for _, presetGrid in ipairs(presetGrids) do
-      presetGrid.script = presetGridScript
-      for i = 1, 16 do
-        local button = presetGrid:findByName(tostring(i))
-        button.script = presetButtonScript
-      end
+  for _, presetGrid in ipairs(presetGrids) do
+    presetGrid.script = presetGridScript
+    for i = 1, 16 do
+      local button = presetGrid:findByName(tostring(i))
+      button.script = presetButtonScript
     end
   end
 end

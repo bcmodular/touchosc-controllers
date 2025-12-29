@@ -15,11 +15,6 @@ local function deleteAllPresetsForAllFX()
   for _, presetGrid in ipairs(presetGrids) do
     presetGrid:notify('refresh_presets_list')
   end
-
-  local abletonPushHandler = root:findByName('ableton_push_handler', true)
-  for busNum = 1, 4 do
-    abletonPushHandler:notify('sync_push_lighting', busNum)
-  end
 end
 
 local function exportPresetsToOSC()
