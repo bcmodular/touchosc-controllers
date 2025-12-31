@@ -9,6 +9,21 @@ local excludeMarkedPresetsButton = self.parent:findByName('exclude_tuning_from_p
 local faderGroup = self.parent:findByName('faders', true)
 local defaultManager = root.children.default_manager
 
+
+local presetNoteMap = {
+    81, 82, 71, 72, 61, 62, 51, 52, 41, 42, 31, 32, 21, 22, 11, 12,
+    83, 84, 73, 74, 63, 64, 53, 54, 43, 44, 33, 34, 23, 24, 13, 14,
+    85, 86, 75, 76, 65, 66, 55, 56, 45, 46, 35, 36, 25, 26, 15, 16,
+    87, 88, 77, 78, 67, 68, 57, 58, 47, 48, 37, 38, 27, 28, 17, 18
+}
+
+local velocityColours = {
+  35,
+  15,
+  59,
+  47
+}
+
 local BUTTON_STATE_COLORS = {
   --RECALL = "00FF00FF",
   AVAILABLE = "FFFFFFFF",
@@ -95,10 +110,31 @@ local function recallDefaults()
   end
 end
 
+local function refreshMIDIButtons()
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + 1, 123, 0 }, {false, true})
+  for i = 1, 16 do
+    local button = self.children[tostring(i)]
+    local midiColour = 0
+
+    if (Color.toHexString(button.color) == BUTTON_STATE_COLORS.DELETE) then
+      midiColour = 5
+    elseif (Color.toHexString(button.color) == getRecallButtonColor()) then
+      midiColour = velocityColours[busNum]
+    end
+
+    if midiColour ~= 0 then
+      local mapEntry = (busNum - 1) * 16 + i
+      sendMIDI({ MIDIMessageType.NOTE_ON + 1, presetNoteMap[mapEntry], midiColour }, {false, true})
+    end
+  end
+end
+
 local function initialiseButtons()
   for i = 1, 16 do
     self.children[tostring(i)].color = BUTTON_STATE_COLORS.AVAILABLE
   end
+
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + 1, 123, 0 }, {false, true})
 end
 
 local function changeState(index, color)
@@ -124,6 +160,23 @@ local function refreshPresets()
       end
     end
   end
+  refreshMIDIButtons()
+end
+
+local function sendNoteOffForPresetOnAllBuses(presetNum)
+  -- Send note off for this preset on all buses that have the same fxNum loaded
+  for i = 1, 5 do
+    local busGroup = root:findByName('bus'..tostring(i)..'_group', true)
+    if busGroup then
+      local busSettings = json.toTable(busGroup.tag) or {}
+      local busFxNum = tonumber(busSettings.fxNum) or 0
+
+      if busFxNum == fxNum and fxNum ~= 0 then
+        local mapEntry = (i - 1) * 16 + presetNum
+        sendMIDI({ MIDIMessageType.NOTE_OFF + 1, presetNoteMap[mapEntry], 0 }, {false, true})
+      end
+    end
+  end
 end
 
 local function refreshAllBuses()
@@ -132,8 +185,17 @@ local function refreshAllBuses()
       refreshPresets()
     else
       local busGroup = root:findByName('bus'..tostring(i)..'_group', true)
-      local presetGrid = busGroup:findByName('preset_grid', true)
-      presetGrid:notify('refresh_presets_list')
+      if busGroup then
+        local busSettings = json.toTable(busGroup.tag) or {}
+        local busFxNum = tonumber(busSettings.fxNum) or 0
+        -- Only refresh buses that have the same effect loaded
+        if busFxNum == fxNum and fxNum ~= 0 then
+          local presetGrid = busGroup:findByName('preset_grid', true)
+          if presetGrid then
+            presetGrid:notify('refresh_presets_list')
+          end
+        end
+      end
     end
   end
 end
@@ -142,7 +204,7 @@ local function storePreset(presetNum, delete)
   local ccValues = {unpack(defaultCCValues)}
   local presetArray = json.toTable(presetManager.children[tostring(fxNum)].tag) or {}
 
-  if not delete then
+  if not delete and not deleteMode then
     for i = 1, 6 do
       local fader = faderGroup:findByName(tostring(i))
       local controlFader = fader:findByName('control_fader')
@@ -154,6 +216,8 @@ local function storePreset(presetNum, delete)
 
   else
     print('deletePreset', fxNum, presetNum)
+    -- Send explicit note off for this preset on all buses before deleting
+    sendNoteOffForPresetOnAllBuses(presetNum)
     presetArray[formatPresetNum(presetNum)] = nil
   end
 
@@ -180,6 +244,38 @@ local function storeDefaults()
 
   print('storeDefaults', fxNum, ccValues)
   defaultManager:notify('store_defaults', {fxNum, ccValues})
+end
+
+local function updateButtonMIDIHighlight(presetNum, isPressed)
+  local button = self:findByName(tostring(presetNum))
+  local buttonColor = Color.toHexString(button.color)
+  local mapEntry = (busNum - 1) * 16 + presetNum
+  local velocity = 0
+
+  -- Don't highlight DELETE buttons - they get deleted immediately and pad is set to 0
+  if buttonColor == BUTTON_STATE_COLORS.DELETE then
+    return
+  elseif buttonColor == getRecallButtonColor() then
+    -- Stored preset (recall button)
+    if isPressed then
+      -- Brighter version: 2 lower than regular
+      velocity = velocityColours[busNum] - 2
+    else
+      -- Regular velocity
+      velocity = velocityColours[busNum]
+    end
+  elseif buttonColor == BUTTON_STATE_COLORS.AVAILABLE then
+    -- New preset being stored
+    if isPressed then
+      -- Use regular velocity for new presets (will become stored after press)
+      velocity = velocityColours[busNum]
+    end
+    -- No need to restore on release for AVAILABLE buttons (they don't have MIDI state)
+  end
+
+  if velocity > 0 then
+    sendMIDI({ MIDIMessageType.NOTE_ON + 1, presetNoteMap[mapEntry], velocity }, {false, true})
+  end
 end
 
 local function buttonPressed(index)
@@ -228,6 +324,12 @@ function onReceiveNotify(key, value)
     recallDefaults()
   elseif key == 'button_pressed' then
     buttonPressed(value)
+  elseif key == 'button_value_changed' then
+    local presetNum = tonumber(value[1])
+    local isPressed = value[2] == 1
+    updateButtonMIDIHighlight(presetNum, isPressed)
+  elseif key == 'clear_presets' then
+    initialiseButtons()
   end
 end
 
@@ -257,8 +359,13 @@ end
 
 local presetButtonScript = [[
 function onValueChanged(key, value)
-  if key == 'x' and self.values.x == 1 then
-    self.parent:notify('button_pressed', self.name)
+  if key == 'x' then
+    local presetNum = tonumber(self.name)
+    self.parent:notify('button_value_changed', {presetNum, self.values.x})
+
+    if self.values.x == 1 then
+      self.parent:notify('button_pressed', self.name)
+    end
   end
 end
 ]]

@@ -101,6 +101,7 @@ local function clearBus()
 
   effectChooser.children.label.values.text = fxName
   sendOffMIDI()
+  presetGrid:notify('clear_presets')
 end
 
 local function setSelectedBusHighlight(isSelected)
