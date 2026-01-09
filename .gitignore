@@ -1,2 +1,5 @@
 
 .DS_Store
+utils/MIDI-tester.tosc
+utils/LK-tester.tosc
+preset-manager/python/messages.json

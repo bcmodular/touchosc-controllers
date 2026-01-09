@@ -28,7 +28,6 @@ local toggleButton = self:findByName('toggle_button')
 local busSettings = json.toTable(busGroup.tag) or {}
 local busNum = tonumber(busSettings['busNum']) or 1
 local midiChannel = busNum - 1
-local conn = { true, false, false } -- only send to connection 1
 
 local function getBusOnMidiValue()
   local latestBusSettings = json.toTable(busGroup.tag) or {}
@@ -61,11 +60,11 @@ local function getBusOnMidiValue()
 end
 
 local function sendMIDIOn()
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, getBusOnMidiValue()}, conn)
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, getBusOnMidiValue()})
 end
 
 local function sendMIDIOff()
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
 end
 
 local function sendEffectState(state)

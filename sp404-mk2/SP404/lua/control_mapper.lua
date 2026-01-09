@@ -1038,9 +1038,7 @@ local performFaderScriptTemplate = [[
   end
 
   local function syncMIDI()
-    local conn = { true } -- only send to connection 1
-
-    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, floatToMIDI(self.values.x)}, conn)
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, floatToMIDI(self.values.x)})
   end
 
   local function initialise()

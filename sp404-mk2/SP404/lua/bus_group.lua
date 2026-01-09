@@ -71,8 +71,7 @@ local function showBus()
 end
 
 local function sendOffMIDI()
-  local conn = { true } -- only send to connection 1
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, conn)
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
 end
 
 local function storeCurrentValues()
