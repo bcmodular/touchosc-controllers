@@ -1,0 +1,18 @@
+{
+  "source": "SP404.tosc",
+  "output": "SP404.tosc",
+  "lua_dir": "lua",
+  "mappings": [
+    {"lua": "root.lua", "node_id": "root"},
+    {"lua": "bus_group_instance.lua", "node_names": ["bus1_group", "bus2_group", "bus3_group", "bus4_group", "bus5_group"]},
+    {"lua": "control_mapper.lua", "node_name": "control_mapper"},
+    {"lua": "controls_info.lua", "node_name": "controls_info"},
+    {"lua": "preset_grids.lua", "node_name": "preset_grids"},
+    {"lua": "preset_manager.lua", "node_name": "preset_manager"},
+    {"lua": "default_manager.lua", "node_name": "default_manager"},
+    {"lua": "recent_values.lua", "node_name": "recent_values"},
+    {"lua": "on_off_button_scripts.lua", "node_name": "on_off_button_scripts"},
+    {"lua": "fx_selector_group.lua", "node_name": "fx_selector_group"},
+    {"lua": "fx_selector_button_group.lua", "node_name": "fx_selector_button_group"}
+  ]
+}

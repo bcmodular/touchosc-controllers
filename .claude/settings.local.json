@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:airainfo.org)",
+      "WebFetch(domain:brian-candler.medium.com)",
+      "WebFetch(domain:media.djmania.net)",
+      "Bash(python3:*)",
+      "Bash(npm install:*)",
+      "Bash(npx expo install:*)",
+      "Bash(node -e:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx expo export:*)",
+      "Bash(xcrun simctl:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(xcode-select:*)",
+      "Bash(open:*)",
+      "Bash(npx expo start:*)",
+      "WebFetch(domain:hexler.net)",
+      "Bash(mkdir:*)",
+      "Bash(wc:*)",
+      "Bash(chmod +x:*)"
+    ]
+  }
+}

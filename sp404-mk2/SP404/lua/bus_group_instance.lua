@@ -1,4 +1,3 @@
-local busGroupScript = [[
 local busNum = 1
 local midiChannel = 0
 local fxNum = 0
@@ -146,13 +145,5 @@ function init()
     showBus()
   else
     clearBus()
-  end
-end
-]]
-
-function init()
-  for i = 1, 5 do
-    local busGroup = root:findByName('bus'..tostring(i)..'_group', true)
-    busGroup.script = busGroupScript
   end
 end
