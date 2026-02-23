@@ -19,7 +19,10 @@
       "WebFetch(domain:hexler.net)",
       "Bash(mkdir:*)",
       "Bash(wc:*)",
-      "Bash(chmod +x:*)"
+      "Bash(chmod +x:*)",
+      "mcp__codescene__code_health_review",
+      "mcp__codescene__code_health_auto_refactor",
+      "Bash(git add:*)"
     ]
   }
 }

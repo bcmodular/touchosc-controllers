@@ -155,29 +155,33 @@ def _get_prop(node, key):
     return None
 
 
+def _node_summary(elem):
+    """Build a summary string for a single node."""
+    name = _get_prop(elem, "name") or ""
+    ntype = elem.get("type", "?")
+    parts = [f"{ntype} '{name}'"]
+
+    script = _get_prop(elem, "script") or ""
+    if script:
+        parts.append(f"[script: {len(script)} chars]")
+
+    tag_val = _get_prop(elem, "tag") or ""
+    if tag_val:
+        parts.append(f"[tag: {len(tag_val)} chars]")
+
+    messages = elem.find("messages")
+    if messages is not None:
+        midi_count = len(messages.findall(".//midi"))
+        if midi_count:
+            parts.append(f"[midi: {midi_count} msgs]")
+
+    return " ".join(parts)
+
+
 def _print_tree(elem, depth=0):
     """Recursively print the node hierarchy."""
     if elem.tag == "node":
-        name = _get_prop(elem, "name") or ""
-        script = _get_prop(elem, "script") or ""
-        ntype = elem.get("type", "?")
-        tag_val = _get_prop(elem, "tag") or ""
-
-        parts = [f"{'  ' * depth}{ntype} '{name}'"]
-        if script:
-            parts.append(f"[script: {len(script)} chars]")
-        if tag_val:
-            parts.append(f"[tag: {len(tag_val)} chars]")
-
-        # Count MIDI messages
-        messages = elem.find("messages")
-        if messages is not None:
-            midi_count = len(messages.findall(".//midi"))
-            if midi_count:
-                parts.append(f"[midi: {midi_count} msgs]")
-
-        print(" ".join(parts))
-
+        print(f"{'  ' * depth}{_node_summary(elem)}")
         children = elem.find("children")
         if children is not None:
             for child in children:
@@ -198,31 +202,35 @@ def cmd_tree(args):
 # Subcommand: extract
 # ---------------------------------------------------------------------------
 
-def _extract_scripts(elem, scripts, path=""):
-    """Recursively extract all non-empty scripts from nodes."""
+def _walk_nodes(elem, path=""):
+    """Yield (path, node) for every <node> element in the tree."""
     if elem.tag == "node":
         name = _get_prop(elem, "name") or ""
-        script = _get_prop(elem, "script") or ""
-        ntype = elem.get("type", "?")
-
         current_path = f"{path}/{name}" if path else name
-
-        if script:
-            scripts.append({
-                "path": current_path,
-                "name": name,
-                "type": ntype,
-                "script": script,
-                "chars": len(script),
-            })
-
+        yield current_path, elem
         children = elem.find("children")
         if children is not None:
             for child in children:
-                _extract_scripts(child, scripts, current_path)
+                yield from _walk_nodes(child, current_path)
     else:
         for child in elem:
-            _extract_scripts(child, scripts, path)
+            yield from _walk_nodes(child, path)
+
+
+def _collect_scripts(root_elem):
+    """Collect all non-empty scripts from the node tree."""
+    scripts = []
+    for path, node in _walk_nodes(root_elem):
+        script = _get_prop(node, "script") or ""
+        if script:
+            scripts.append({
+                "path": path,
+                "name": _get_prop(node, "name") or "",
+                "type": node.get("type", "?"),
+                "script": script,
+                "chars": len(script),
+            })
+    return scripts
 
 
 def cmd_extract(args):
@@ -230,8 +238,7 @@ def cmd_extract(args):
     xml_str = tosc_read(args.file)
     root = ET.fromstring(xml_str)
 
-    scripts = []
-    _extract_scripts(root, scripts)
+    scripts = _collect_scripts(root)
 
     out_dir = args.output or "extracted"
     os.makedirs(out_dir, exist_ok=True)
@@ -266,11 +273,9 @@ def cmd_extract(args):
 # Subcommand: build
 # ---------------------------------------------------------------------------
 
-def cmd_build(args):
-    """Inject Lua scripts into .tosc based on toscbuild.json manifest."""
-    manifest_dir = args.dir
+def _load_manifest(manifest_dir):
+    """Load and validate the build manifest. Returns (manifest, source_path, output_path, lua_dir)."""
     manifest_path = os.path.join(manifest_dir, "toscbuild.json")
-
     if not os.path.isfile(manifest_path):
         print(f"Error: {manifest_path} not found", file=sys.stderr)
         sys.exit(1)
@@ -286,67 +291,92 @@ def cmd_build(args):
         print(f"Error: source file {source_path} not found", file=sys.stderr)
         sys.exit(1)
 
-    # Backup unless --no-backup
+    return manifest, source_path, output_path, lua_dir
+
+
+def _resolve_targets(mapping):
+    """Resolve a mapping entry to (is_root, targets) or None if invalid."""
+    is_root = mapping.get("node_id") == "root"
+    if "node_names" in mapping:
+        return is_root, mapping["node_names"]
+    if "node_name" in mapping:
+        return is_root, [mapping["node_name"]]
+    if is_root:
+        return True, [None]
+    return None
+
+
+def _count_total_targets(mappings):
+    """Count the total number of injection targets across all mappings."""
+    return sum(
+        len(m.get("node_names", [m.get("node_name", m.get("node_id"))]))
+        for m in mappings
+    )
+
+
+def _inject_mapping(xml_str, lua_dir, mapping, quiet=False):
+    """Inject a single mapping's Lua file into all its target nodes.
+
+    Returns (xml_str, inject_count).
+    """
+    lua_file = mapping["lua"]
+    lua_path = os.path.join(lua_dir, lua_file)
+
+    if not os.path.isfile(lua_path):
+        print(f"  SKIP  {lua_file} (file not found)", file=sys.stderr)
+        return xml_str, 0
+
+    with open(lua_path) as f:
+        lua_content = f.read()
+
+    resolved = _resolve_targets(mapping)
+    if resolved is None:
+        print(f"  SKIP  {lua_file} (no node_name or node_names)", file=sys.stderr)
+        return xml_str, 0
+
+    is_root, targets = resolved
+    injected = 0
+    for node_name in targets:
+        try:
+            xml_str = replace_script(xml_str, node_name, lua_content, is_root=is_root)
+            if not quiet:
+                target = "root" if is_root else node_name
+                print(f"  OK    {lua_file} → {target} ({len(lua_content)} chars)")
+            injected += 1
+        except ValueError as e:
+            print(f"  ERROR {lua_file}: {e}", file=sys.stderr)
+
+    return xml_str, injected
+
+
+def cmd_build(args):
+    """Inject Lua scripts into .tosc based on toscbuild.json manifest."""
+    manifest, source_path, output_path, lua_dir = _load_manifest(args.dir)
+
     if not args.no_backup and os.path.isfile(output_path):
         backup_path = output_path + ".bak"
         shutil.copy2(output_path, backup_path)
         if not args.quiet:
             print(f"Backup: {backup_path}")
 
-    # Read and decompress
     xml_str = tosc_read(source_path)
     original_size = len(xml_str)
 
     if args.dry_run:
         print("Dry run — no files will be written\n")
 
-    # Process each mapping
     injected = 0
     for mapping in manifest["mappings"]:
-        lua_file = mapping["lua"]
-        lua_path = os.path.join(lua_dir, lua_file)
-
-        if not os.path.isfile(lua_path):
-            print(f"  SKIP  {lua_file} (file not found)", file=sys.stderr)
-            continue
-
-        with open(lua_path) as f:
-            lua_content = f.read()
-
-        is_root = mapping.get("node_id") == "root"
-
-        # Support one-to-many: node_names (array) or node_name (string)
-        if "node_names" in mapping:
-            targets = mapping["node_names"]
-        elif "node_name" in mapping:
-            targets = [mapping["node_name"]]
-        elif is_root:
-            targets = [None]  # root doesn't need a name
-        else:
-            print(f"  SKIP  {lua_file} (no node_name or node_names)", file=sys.stderr)
-            continue
-
-        for node_name in targets:
-            try:
-                xml_str = replace_script(xml_str, node_name, lua_content, is_root=is_root)
-                if not args.quiet:
-                    target = "root" if is_root else node_name
-                    print(f"  OK    {lua_file} → {target} ({len(lua_content)} chars)")
-                injected += 1
-            except ValueError as e:
-                print(f"  ERROR {lua_file}: {e}", file=sys.stderr)
+        xml_str, count = _inject_mapping(xml_str, lua_dir, mapping, args.quiet)
+        injected += count
 
     if not args.dry_run:
         tosc_write(output_path, xml_str)
 
     if not args.quiet:
+        total = _count_total_targets(manifest["mappings"])
         new_size = len(xml_str)
-        # Count total targets across all mappings
-        total_targets = sum(
-            len(m.get("node_names", [m.get("node_name", m.get("node_id"))]))
-            for m in manifest["mappings"]
-        )
-        print(f"\nInjected {injected}/{total_targets} scripts")
+        print(f"\nInjected {injected}/{total} scripts")
         print(f"XML size: {original_size:,} → {new_size:,} bytes "
               f"({new_size - original_size:+,})")
         if not args.dry_run:
@@ -368,34 +398,29 @@ def _get_lua_mtimes(lua_dir, mappings):
     return mtimes
 
 
+def _detect_changes(last_mtimes, current_mtimes):
+    """Return list of filenames that changed between two mtime snapshots."""
+    return [
+        os.path.basename(path)
+        for path, mtime in current_mtimes.items()
+        if last_mtimes.get(path) != mtime
+    ]
+
+
 def cmd_dev(args):
     """Watch Lua files for changes, rebuild, and optionally open TouchOSC."""
-    manifest_dir = args.dir
-    manifest_path = os.path.join(manifest_dir, "toscbuild.json")
+    manifest, _, output_path, lua_dir = _load_manifest(args.dir)
 
-    if not os.path.isfile(manifest_path):
-        print(f"Error: {manifest_path} not found", file=sys.stderr)
-        sys.exit(1)
-
-    with open(manifest_path) as f:
-        manifest = json.load(f)
-
-    lua_dir = os.path.join(manifest_dir, manifest.get("lua_dir", "lua"))
-    output_path = os.path.join(manifest_dir, manifest.get("output", manifest["source"]))
-
-    # Initial build
     print("=== Initial build ===")
     build_args = argparse.Namespace(
-        dir=manifest_dir, dry_run=False, no_backup=False, quiet=False
+        dir=args.dir, dry_run=False, no_backup=False, quiet=False
     )
     cmd_build(build_args)
 
-    # Open in TouchOSC if requested
     if not args.no_open and sys.platform == "darwin":
         print(f"\nOpening {output_path} in TouchOSC...")
         subprocess.run(["open", "-a", "TouchOSC", output_path])
 
-    # Watch loop
     print(f"\nWatching {lua_dir} for changes (Ctrl+C to stop)...\n")
     last_mtimes = _get_lua_mtimes(lua_dir, manifest["mappings"])
 
@@ -403,24 +428,21 @@ def cmd_dev(args):
         while True:
             time.sleep(1)
             current_mtimes = _get_lua_mtimes(lua_dir, manifest["mappings"])
+            changed = _detect_changes(last_mtimes, current_mtimes)
+            if not changed:
+                continue
 
-            changed = []
-            for path, mtime in current_mtimes.items():
-                if last_mtimes.get(path) != mtime:
-                    changed.append(os.path.basename(path))
-
-            if changed:
-                timestamp = time.strftime("%H:%M:%S")
-                print(f"[{timestamp}] Changed: {', '.join(changed)}")
-                build_args = argparse.Namespace(
-                    dir=manifest_dir, dry_run=False, no_backup=True, quiet=False
-                )
-                try:
-                    cmd_build(build_args)
-                    print(f"[{timestamp}] Rebuild complete — reload in TouchOSC\n")
-                except Exception as e:
-                    print(f"[{timestamp}] Build error: {e}\n", file=sys.stderr)
-                last_mtimes = current_mtimes
+            timestamp = time.strftime("%H:%M:%S")
+            print(f"[{timestamp}] Changed: {', '.join(changed)}")
+            rebuild_args = argparse.Namespace(
+                dir=args.dir, dry_run=False, no_backup=True, quiet=False
+            )
+            try:
+                cmd_build(rebuild_args)
+                print(f"[{timestamp}] Rebuild complete — reload in TouchOSC\n")
+            except Exception as e:
+                print(f"[{timestamp}] Build error: {e}\n", file=sys.stderr)
+            last_mtimes = current_mtimes
 
     except KeyboardInterrupt:
         print("\nStopped.")
