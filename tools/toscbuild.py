@@ -8,6 +8,7 @@ string-level replacement (no XML parser for writes).
 
 Usage:
     python3 toscbuild.py build <dir>       # Inject Lua scripts into .tosc
+    python3 toscbuild.py scaffold <dir>    # Generate .tosc from layout definition
     python3 toscbuild.py extract <file>    # Extract all scripts to files
     python3 toscbuild.py tree <file>       # Print node hierarchy
     python3 toscbuild.py dev <dir>         # Watch + rebuild + open TouchOSC
@@ -21,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 import zlib
 import xml.etree.ElementTree as ET
 
@@ -449,6 +451,265 @@ def cmd_dev(args):
 
 
 # ---------------------------------------------------------------------------
+# Subcommand: scaffold — generate .tosc from layout definition
+# ---------------------------------------------------------------------------
+
+def _xml_prop(ptype, key, value):
+    """Build a single <property> XML string."""
+    if ptype == "s":
+        return (f"<property type='s'><key><![CDATA[{key}]]></key>"
+                f"<value><![CDATA[{value}]]></value></property>")
+    elif ptype == "c":
+        r, g, b, a = value
+        return (f"<property type='c'><key><![CDATA[{key}]]></key>"
+                f"<value><r>{r}</r><g>{g}</g><b>{b}</b><a>{a}</a></value></property>")
+    elif ptype == "r":
+        x, y, w, h = value
+        return (f"<property type='r'><key><![CDATA[{key}]]></key>"
+                f"<value><x>{x}</x><y>{y}</y><w>{w}</w><h>{h}</h></value></property>")
+    elif ptype == "b":
+        return (f"<property type='b'><key><![CDATA[{key}]]></key>"
+                f"<value>{1 if value else 0}</value></property>")
+    elif ptype == "i":
+        return (f"<property type='i'><key><![CDATA[{key}]]></key>"
+                f"<value>{value}</value></property>")
+    elif ptype == "f":
+        return (f"<property type='f'><key><![CDATA[{key}]]></key>"
+                f"<value>{value}</value></property>")
+    else:
+        raise ValueError(f"Unknown property type: {ptype}")
+
+
+def _xml_value(key, default="0", locked=False):
+    """Build a single <value> element for the <values> section."""
+    return (f"<value><key><![CDATA[{key}]]></key>"
+            f"<locked>{1 if locked else 0}</locked>"
+            f"<lockedDefaultCurrent>0</lockedDefaultCurrent>"
+            f"<default><![CDATA[{default}]]></default>"
+            f"<defaultPull>0</defaultPull></value>")
+
+
+# Default properties per node type (beyond the common set)
+_TYPE_DEFAULTS = {
+    "GROUP": {
+        "background": ("b", False),
+        "outline": ("b", False),
+    },
+    "BOX": {
+        "background": ("b", True),
+        "outline": ("b", False),
+        "shape": ("i", 1),
+    },
+    "FADER": {
+        "background": ("b", True),
+        "bar": ("b", True),
+        "barDisplay": ("i", 0),
+        "cursor": ("b", True),
+        "cursorDisplay": ("i", 0),
+        "grid": ("b", False),
+        "gridSteps": ("i", 10),
+        "response": ("i", 0),
+        "responseFactor": ("i", 100),
+        "shape": ("i", 1),
+        "valuePosition": ("b", False),
+    },
+    "BUTTON": {
+        "background": ("b", True),
+        "buttonType": ("i", 0),
+        "press": ("b", True),
+        "release": ("b", True),
+        "shape": ("i", 1),
+        "valuePosition": ("b", False),
+    },
+    "LABEL": {
+        "background": ("b", False),
+        "font": ("i", 0),
+        "outline": ("b", False),
+        "shape": ("i", 1),
+        "textAlignH": ("i", 1),
+        "textAlignV": ("i", 1),
+        "textClip": ("b", False),
+        "textColor": ("c", [1, 1, 1, 1]),
+        "textLength": ("i", 0),
+        "textSize": ("i", 14),
+    },
+    "GRID": {
+        "background": ("b", False),
+        "exclusive": ("b", False),
+        "gridNaming": ("i", 0),
+        "gridOrder": ("i", 0),
+        "gridStart": ("i", 0),
+        "gridType": ("i", 0),
+        "gridX": ("i", 1),
+        "gridY": ("i", 1),
+        "outline": ("b", True),
+        "shape": ("i", 1),
+    },
+}
+
+# Values each node type gets in its <values> section
+_TYPE_VALUES = {
+    "GROUP": [("touch", "false")],
+    "BOX": [("touch", "false")],
+    "FADER": [("x", "0"), ("touch", "false")],
+    "BUTTON": [("x", "0"), ("touch", "false")],
+    "LABEL": [("text", ""), ("touch", "false")],
+    "GRID": [("touch", "false")],
+}
+
+
+def _build_node_xml(node_def, depth=0):
+    """Recursively build XML for a node definition dict."""
+    ntype = node_def.get("type", "GROUP")
+    node_id = str(uuid.uuid4())
+    name = node_def.get("name", "")
+    frame = node_def.get("frame", [0, 0, 100, 100])
+    visible = node_def.get("visible", True)
+    interactive = node_def.get("interactive", True)
+    color = node_def.get("color", [0.25, 0.25, 0.25, 1])
+    script = node_def.get("script", "")
+    tag = node_def.get("tag", "")
+    properties = node_def.get("properties", {})
+
+    parts = [f"<node ID='{node_id}' type='{ntype}'>"]
+
+    # --- Properties ---
+    parts.append("<properties>")
+
+    # Common properties (alphabetical order matching TouchOSC convention)
+    type_defaults = _TYPE_DEFAULTS.get(ntype, {})
+
+    # Merge: type defaults < node_def.properties overrides
+    all_props = {}
+
+    # Start with type-specific defaults
+    for k, (pt, pv) in type_defaults.items():
+        all_props[k] = (pt, pv)
+
+    # Common properties
+    all_props["color"] = ("c", color)
+    all_props["cornerRadius"] = ("f", node_def.get("cornerRadius", 1))
+    all_props["frame"] = ("r", frame)
+    all_props["grabFocus"] = ("b", node_def.get("grabFocus", True))
+    all_props["interactive"] = ("b", interactive)
+    all_props["locked"] = ("b", False)
+    all_props["name"] = ("s", name)
+    all_props["orientation"] = ("i", node_def.get("orientation", 0))
+    all_props["outline"] = all_props.get("outline", ("b", True))
+    all_props["outlineStyle"] = ("i", node_def.get("outlineStyle", 0))
+    all_props["pointerPriority"] = ("i", 0)
+    all_props["script"] = ("s", script)
+    all_props["tag"] = ("s", tag)
+    all_props["visible"] = ("b", visible)
+
+    # Apply explicit overrides from properties dict
+    prop_type_map = {
+        "orientation": "i", "buttonType": "i", "response": "i",
+        "responseFactor": "i", "gridX": "i", "gridY": "i",
+        "gridType": "i", "gridSteps": "i", "textSize": "i",
+        "textAlignH": "i", "textAlignV": "i", "font": "i",
+        "textLength": "i", "outlineStyle": "i", "shape": "i",
+        "barDisplay": "i", "cursorDisplay": "i", "gridOrder": "i",
+        "gridNaming": "i", "gridStart": "i",
+        "background": "b", "outline": "b", "bar": "b",
+        "cursor": "b", "grid": "b", "exclusive": "b",
+        "press": "b", "release": "b", "interactive": "b",
+        "visible": "b", "grabFocus": "b", "locked": "b",
+        "valuePosition": "b", "textClip": "b",
+        "cornerRadius": "f",
+        "color": "c", "textColor": "c",
+    }
+    for k, v in properties.items():
+        pt = prop_type_map.get(k, "s")
+        all_props[k] = (pt, v)
+
+    # Emit in sorted order for consistency
+    for k in sorted(all_props.keys()):
+        pt, pv = all_props[k]
+        parts.append(_xml_prop(pt, k, pv))
+
+    parts.append("</properties>")
+
+    # --- Values ---
+    value_defs = _TYPE_VALUES.get(ntype, [("touch", "false")])
+    # Allow text default override for LABEL nodes
+    text_default = node_def.get("text", "")
+    parts.append("<values>")
+    for vkey, vdefault in value_defs:
+        if vkey == "text" and text_default:
+            parts.append(_xml_value(vkey, text_default))
+        else:
+            parts.append(_xml_value(vkey, vdefault))
+    parts.append("</values>")
+
+    # --- Children ---
+    children = node_def.get("children", [])
+    if children:
+        parts.append("<children>")
+        for child_def in children:
+            parts.append(_build_node_xml(child_def, depth + 1))
+        parts.append("</children>")
+
+    parts.append("</node>")
+    return "".join(parts)
+
+
+def _generate_tosc_xml(layout):
+    """Generate complete .tosc XML from a layout definition."""
+    width = layout.get("width", 1024)
+    height = layout.get("height", 600)
+    orientation = layout.get("orientation", "horizontal")
+
+    # Root node is always a GROUP
+    root_def = {
+        "type": "GROUP",
+        "name": "group",
+        "frame": [0, 0, width, height],
+        "color": [0.15, 0.15, 0.15, 1],
+        "interactive": False,
+        "properties": {
+            "background": True,
+            "outline": True,
+        },
+        "children": layout.get("nodes", []),
+    }
+
+    xml = "<?xml version='1.0' encoding='UTF-8'?>"
+    xml += "<lexml version='5'>"
+    xml += _build_node_xml(root_def)
+    xml += "</lexml>"
+    return xml
+
+
+def cmd_scaffold(args):
+    """Generate a .tosc file from the layout section of toscbuild.json."""
+    manifest_path = os.path.join(args.dir, "toscbuild.json")
+    if not os.path.isfile(manifest_path):
+        print(f"Error: {manifest_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+
+    layout = manifest.get("layout")
+    if not layout:
+        print("Error: no 'layout' section in toscbuild.json", file=sys.stderr)
+        sys.exit(1)
+
+    xml_str = _generate_tosc_xml(layout)
+
+    output_path = os.path.join(args.dir, manifest["source"])
+    tosc_write(output_path, xml_str)
+
+    # Count nodes
+    node_count = xml_str.count("<node ")
+    file_size = os.path.getsize(output_path)
+    print(f"Scaffolded {node_count} nodes")
+    print(f"XML size: {len(xml_str):,} bytes")
+    print(f"Output: {output_path} ({file_size:,} bytes compressed)")
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -480,6 +741,12 @@ def main():
     p_tree = subparsers.add_parser("tree", help="Print node hierarchy")
     p_tree.add_argument("file", help="Path to .tosc file")
     p_tree.set_defaults(func=cmd_tree)
+
+    # scaffold
+    p_scaffold = subparsers.add_parser("scaffold",
+                                       help="Generate .tosc from layout definition")
+    p_scaffold.add_argument("dir", help="Directory containing toscbuild.json")
+    p_scaffold.set_defaults(func=cmd_scaffold)
 
     # dev
     p_dev = subparsers.add_parser("dev", help="Watch + rebuild + open TouchOSC")

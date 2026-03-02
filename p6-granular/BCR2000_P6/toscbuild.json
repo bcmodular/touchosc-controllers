@@ -1,0 +1,4187 @@
+{
+  "source": "BCR2000_P6.tosc",
+  "output": "BCR2000_P6.tosc",
+  "lua_dir": "lua",
+  "layout": {
+    "width": 1024,
+    "height": 600,
+    "orientation": "horizontal",
+    "nodes": [
+      {
+        "name": "config",
+        "type": "BOX",
+        "visible": false,
+        "frame": [
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "params",
+        "type": "BOX",
+        "visible": false,
+        "frame": [
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "preset_manager",
+        "type": "BOX",
+        "visible": false,
+        "frame": [
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "row1_group",
+        "type": "GROUP",
+        "frame": [
+          8,
+          8,
+          992,
+          108
+        ],
+        "properties": {
+          "background": false
+        },
+        "children": [
+          {
+            "name": "row1_label",
+            "type": "LABEL",
+            "frame": [
+              0,
+              0,
+              992,
+              16
+            ],
+            "text": "GRANULAR OSC",
+            "properties": {
+              "textSize": 10,
+              "textAlignH": 0,
+              "textAlignV": 1,
+              "textColor": [
+                0.2,
+                0.6,
+                0.9,
+                1
+              ]
+            }
+          },
+          {
+            "name": "enc_1_1",
+            "type": "GROUP",
+            "frame": [
+              0,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.2,
+              0.6,
+              0.9,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_1_1_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Coarse Tune",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_1_1_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.2,
+                  0.6,
+                  0.9,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_1_1_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_1_2",
+            "type": "GROUP",
+            "frame": [
+              124,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.2,
+              0.6,
+              0.9,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_1_2_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Fine Tune",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_1_2_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.2,
+                  0.6,
+                  0.9,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_1_2_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_1_3",
+            "type": "GROUP",
+            "frame": [
+              248,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.2,
+              0.6,
+              0.9,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_1_3_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Detune",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_1_3_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.2,
+                  0.6,
+                  0.9,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_1_3_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_1_4",
+            "type": "GROUP",
+            "frame": [
+              372,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.2,
+              0.6,
+              0.9,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_1_4_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Grains",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_1_4_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.2,
+                  0.6,
+                  0.9,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_1_4_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_1_5",
+            "type": "GROUP",
+            "frame": [
+              496,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.2,
+              0.6,
+              0.9,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_1_5_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Grain Shape",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_1_5_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.2,
+                  0.6,
+                  0.9,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_1_5_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_1_6",
+            "type": "GROUP",
+            "frame": [
+              620,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.2,
+              0.6,
+              0.9,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_1_6_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Grain Size",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_1_6_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.2,
+                  0.6,
+                  0.9,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_1_6_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_1_7",
+            "type": "GROUP",
+            "frame": [
+              744,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.2,
+              0.6,
+              0.9,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_1_7_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Spread",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_1_7_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.2,
+                  0.6,
+                  0.9,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_1_7_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_1_8",
+            "type": "GROUP",
+            "frame": [
+              868,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.2,
+              0.6,
+              0.9,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_1_8_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Start Mode",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_1_8_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.2,
+                  0.6,
+                  0.9,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_1_8_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "row2_group",
+        "type": "GROUP",
+        "frame": [
+          8,
+          122,
+          992,
+          108
+        ],
+        "properties": {
+          "background": false
+        },
+        "children": [
+          {
+            "name": "row2_label",
+            "type": "LABEL",
+            "frame": [
+              0,
+              0,
+              992,
+              16
+            ],
+            "text": "PLAYBACK / TONE ENV",
+            "properties": {
+              "textSize": 10,
+              "textAlignH": 0,
+              "textAlignV": 1,
+              "textColor": [
+                0.3,
+                0.7,
+                0.4,
+                1
+              ]
+            }
+          },
+          {
+            "name": "enc_2_1",
+            "type": "GROUP",
+            "frame": [
+              0,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.3,
+              0.7,
+              0.4,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_2_1_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Head Pos",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_2_1_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.3,
+                  0.7,
+                  0.4,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_2_1_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_2_2",
+            "type": "GROUP",
+            "frame": [
+              124,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.3,
+              0.7,
+              0.4,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_2_2_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Head Speed",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_2_2_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.3,
+                  0.7,
+                  0.4,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_2_2_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_2_3",
+            "type": "GROUP",
+            "frame": [
+              248,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.3,
+              0.7,
+              0.4,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_2_3_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Time KF",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_2_3_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.3,
+                  0.7,
+                  0.4,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_2_3_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_2_4",
+            "type": "GROUP",
+            "frame": [
+              372,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.3,
+              0.7,
+              0.4,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_2_4_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Rev Prob",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_2_4_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.3,
+                  0.7,
+                  0.4,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_2_4_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_2_5",
+            "type": "GROUP",
+            "frame": [
+              496,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.3,
+              0.7,
+              0.4,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_2_5_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Time Jitter",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_2_5_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.3,
+                  0.7,
+                  0.4,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_2_5_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_2_6",
+            "type": "GROUP",
+            "frame": [
+              620,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.3,
+              0.7,
+              0.4,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_2_6_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "T.Env Atk",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_2_6_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.3,
+                  0.7,
+                  0.4,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_2_6_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_2_7",
+            "type": "GROUP",
+            "frame": [
+              744,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.3,
+              0.7,
+              0.4,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_2_7_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "T.Env Dec",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_2_7_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.3,
+                  0.7,
+                  0.4,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_2_7_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_2_8",
+            "type": "GROUP",
+            "frame": [
+              868,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.3,
+              0.7,
+              0.4,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_2_8_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "T.Env Sus",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_2_8_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.3,
+                  0.7,
+                  0.4,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_2_8_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "row3_group",
+        "type": "GROUP",
+        "frame": [
+          8,
+          236,
+          992,
+          108
+        ],
+        "properties": {
+          "background": false
+        },
+        "children": [
+          {
+            "name": "row3_label",
+            "type": "LABEL",
+            "frame": [
+              0,
+              0,
+              992,
+              16
+            ],
+            "text": "TONE ENV / FILTER",
+            "properties": {
+              "textSize": 10,
+              "textAlignH": 0,
+              "textAlignV": 1,
+              "textColor": [
+                0.7,
+                0.5,
+                0.2,
+                1
+              ]
+            }
+          },
+          {
+            "name": "enc_3_1",
+            "type": "GROUP",
+            "frame": [
+              0,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.7,
+              0.5,
+              0.2,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_3_1_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "T.Env Rel",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_3_1_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.7,
+                  0.5,
+                  0.2,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_3_1_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_3_2",
+            "type": "GROUP",
+            "frame": [
+              124,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.7,
+              0.5,
+              0.2,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_3_2_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "T.Env TKF",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_3_2_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.7,
+                  0.5,
+                  0.2,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_3_2_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_3_3",
+            "type": "GROUP",
+            "frame": [
+              248,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.7,
+              0.5,
+              0.2,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_3_3_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "T.Env Mode",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_3_3_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.7,
+                  0.5,
+                  0.2,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_3_3_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_3_4",
+            "type": "GROUP",
+            "frame": [
+              372,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.7,
+              0.5,
+              0.2,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_3_4_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Filter Cut",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_3_4_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.7,
+                  0.5,
+                  0.2,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_3_4_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_3_5",
+            "type": "GROUP",
+            "frame": [
+              496,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.7,
+              0.5,
+              0.2,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_3_5_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Filter Res",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_3_5_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.7,
+                  0.5,
+                  0.2,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_3_5_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_3_6",
+            "type": "GROUP",
+            "frame": [
+              620,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.7,
+              0.5,
+              0.2,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_3_6_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Filter Env",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_3_6_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.7,
+                  0.5,
+                  0.2,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_3_6_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_3_7",
+            "type": "GROUP",
+            "frame": [
+              744,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.7,
+              0.5,
+              0.2,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_3_7_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Filter KF",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_3_7_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.7,
+                  0.5,
+                  0.2,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_3_7_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_3_8",
+            "type": "GROUP",
+            "frame": [
+              868,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.7,
+              0.5,
+              0.2,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_3_8_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Filter Vel",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_3_8_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.7,
+                  0.5,
+                  0.2,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_3_8_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "row4_group",
+        "type": "GROUP",
+        "frame": [
+          8,
+          350,
+          992,
+          108
+        ],
+        "properties": {
+          "background": false
+        },
+        "children": [
+          {
+            "name": "row4_label",
+            "type": "LABEL",
+            "frame": [
+              0,
+              0,
+              992,
+              16
+            ],
+            "text": "FILTER / LO-FI / AMP / OUTPUT",
+            "properties": {
+              "textSize": 10,
+              "textAlignH": 0,
+              "textAlignV": 1,
+              "textColor": [
+                0.6,
+                0.3,
+                0.6,
+                1
+              ]
+            }
+          },
+          {
+            "name": "enc_4_1",
+            "type": "GROUP",
+            "frame": [
+              0,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.6,
+              0.3,
+              0.6,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_4_1_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Filter Type",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_4_1_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.6,
+                  0.3,
+                  0.6,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_4_1_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_4_2",
+            "type": "GROUP",
+            "frame": [
+              124,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.6,
+              0.3,
+              0.6,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_4_2_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Lo-Fi Sw",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_4_2_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.6,
+                  0.3,
+                  0.6,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_4_2_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_4_3",
+            "type": "GROUP",
+            "frame": [
+              248,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.6,
+              0.3,
+              0.6,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_4_3_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Lo-Fi Amt",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_4_3_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.6,
+                  0.3,
+                  0.6,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_4_3_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_4_4",
+            "type": "GROUP",
+            "frame": [
+              372,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.6,
+              0.3,
+              0.6,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_4_4_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Amp Switch",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_4_4_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.6,
+                  0.3,
+                  0.6,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_4_4_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_4_5",
+            "type": "GROUP",
+            "frame": [
+              496,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.6,
+              0.3,
+              0.6,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_4_5_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Send Rev",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_4_5_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.6,
+                  0.3,
+                  0.6,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_4_5_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_4_6",
+            "type": "GROUP",
+            "frame": [
+              620,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.6,
+              0.3,
+              0.6,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_4_6_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Send Dly",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_4_6_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.6,
+                  0.3,
+                  0.6,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_4_6_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_4_7",
+            "type": "GROUP",
+            "frame": [
+              744,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.6,
+              0.3,
+              0.6,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_4_7_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Pan",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_4_7_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.6,
+                  0.3,
+                  0.6,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_4_7_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_4_8",
+            "type": "GROUP",
+            "frame": [
+              868,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.6,
+              0.3,
+              0.6,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_4_8_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Level",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_4_8_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.6,
+                  0.3,
+                  0.6,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_4_8_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "row5_group",
+        "type": "GROUP",
+        "frame": [
+          8,
+          464,
+          992,
+          108
+        ],
+        "properties": {
+          "background": false
+        },
+        "children": [
+          {
+            "name": "row5_label",
+            "type": "LABEL",
+            "frame": [
+              0,
+              0,
+              992,
+              16
+            ],
+            "text": "EFFECTS / UTILITY",
+            "properties": {
+              "textSize": 10,
+              "textAlignH": 0,
+              "textAlignV": 1,
+              "textColor": [
+                0.5,
+                0.5,
+                0.5,
+                1
+              ]
+            }
+          },
+          {
+            "name": "enc_5_1",
+            "type": "GROUP",
+            "frame": [
+              0,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.5,
+              0.5,
+              0.5,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_5_1_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Rev Time",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_5_1_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.5,
+                  0.5,
+                  0.5,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_5_1_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_5_2",
+            "type": "GROUP",
+            "frame": [
+              124,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.5,
+              0.5,
+              0.5,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_5_2_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Dly Time",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_5_2_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.5,
+                  0.5,
+                  0.5,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_5_2_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_5_3",
+            "type": "GROUP",
+            "frame": [
+              248,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.5,
+              0.5,
+              0.5,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_5_3_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Rev Lvl",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_5_3_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.5,
+                  0.5,
+                  0.5,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_5_3_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_5_4",
+            "type": "GROUP",
+            "frame": [
+              372,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.5,
+              0.5,
+              0.5,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_5_4_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Dly Lvl",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_5_4_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.5,
+                  0.5,
+                  0.5,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_5_4_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_5_5",
+            "type": "GROUP",
+            "frame": [
+              496,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.5,
+              0.5,
+              0.5,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_5_5_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Lvl Jitter",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_5_5_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.5,
+                  0.5,
+                  0.5,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_5_5_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_5_6",
+            "type": "GROUP",
+            "frame": [
+              620,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.5,
+              0.5,
+              0.5,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_5_6_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Auto Pan",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_5_6_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.5,
+                  0.5,
+                  0.5,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_5_6_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_5_7",
+            "type": "GROUP",
+            "frame": [
+              744,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.5,
+              0.5,
+              0.5,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_5_7_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Out Bus",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_5_7_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.5,
+                  0.5,
+                  0.5,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_5_7_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "name": "enc_5_8",
+            "type": "GROUP",
+            "frame": [
+              868,
+              18,
+              118,
+              90
+            ],
+            "color": [
+              0.5,
+              0.5,
+              0.5,
+              1
+            ],
+            "properties": {
+              "background": false
+            },
+            "children": [
+              {
+                "name": "enc_5_8_name",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  0,
+                  118,
+                  16
+                ],
+                "text": "Sample",
+                "properties": {
+                  "textSize": 10,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    0.7,
+                    0.7,
+                    0.7,
+                    1
+                  ]
+                }
+              },
+              {
+                "name": "enc_5_8_fader",
+                "type": "FADER",
+                "frame": [
+                  2,
+                  18,
+                  114,
+                  48
+                ],
+                "color": [
+                  0.5,
+                  0.5,
+                  0.5,
+                  1
+                ],
+                "properties": {
+                  "orientation": 1,
+                  "response": 0,
+                  "bar": true,
+                  "cursor": true
+                }
+              },
+              {
+                "name": "enc_5_8_value",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  68,
+                  118,
+                  20
+                ],
+                "text": "---",
+                "properties": {
+                  "textSize": 13,
+                  "textAlignH": 1,
+                  "textAlignV": 1,
+                  "textColor": [
+                    1,
+                    1,
+                    1,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "preset_grid",
+        "type": "GROUP",
+        "frame": [
+          1010,
+          8,
+          6,
+          340
+        ],
+        "properties": {
+          "background": false
+        },
+        "children": [
+          {
+            "name": "preset_title",
+            "type": "LABEL",
+            "frame": [
+              0,
+              0,
+              6,
+              20
+            ],
+            "text": "PRESETS",
+            "properties": {
+              "textSize": 12,
+              "textAlignH": 1,
+              "textAlignV": 1,
+              "textColor": [
+                0.8,
+                0.8,
+                0.8,
+                1
+              ]
+            }
+          },
+          {
+            "name": "preset_1",
+            "type": "BUTTON",
+            "frame": [
+              1,
+              24,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_2",
+            "type": "BUTTON",
+            "frame": [
+              3,
+              24,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_3",
+            "type": "BUTTON",
+            "frame": [
+              5,
+              24,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_4",
+            "type": "BUTTON",
+            "frame": [
+              7,
+              24,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_5",
+            "type": "BUTTON",
+            "frame": [
+              1,
+              26,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_6",
+            "type": "BUTTON",
+            "frame": [
+              3,
+              26,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_7",
+            "type": "BUTTON",
+            "frame": [
+              5,
+              26,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_8",
+            "type": "BUTTON",
+            "frame": [
+              7,
+              26,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_9",
+            "type": "BUTTON",
+            "frame": [
+              1,
+              28,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_10",
+            "type": "BUTTON",
+            "frame": [
+              3,
+              28,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_11",
+            "type": "BUTTON",
+            "frame": [
+              5,
+              28,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_12",
+            "type": "BUTTON",
+            "frame": [
+              7,
+              28,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_13",
+            "type": "BUTTON",
+            "frame": [
+              1,
+              30,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_14",
+            "type": "BUTTON",
+            "frame": [
+              3,
+              30,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_15",
+            "type": "BUTTON",
+            "frame": [
+              5,
+              30,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_16",
+            "type": "BUTTON",
+            "frame": [
+              7,
+              30,
+              -2,
+              -2
+            ],
+            "color": [
+              0.3,
+              0.3,
+              0.3,
+              1
+            ],
+            "properties": {
+              "buttonType": 0
+            }
+          },
+          {
+            "name": "preset_store",
+            "type": "BUTTON",
+            "frame": [
+              4,
+              40,
+              -3,
+              28
+            ],
+            "color": [
+              0.8,
+              0.3,
+              0.2,
+              1
+            ],
+            "properties": {
+              "buttonType": 1
+            }
+          },
+          {
+            "name": "preset_delete",
+            "type": "BUTTON",
+            "frame": [
+              5,
+              40,
+              -3,
+              28
+            ],
+            "color": [
+              0.5,
+              0.2,
+              0.2,
+              1
+            ],
+            "properties": {
+              "buttonType": 1
+            }
+          },
+          {
+            "name": "preset_status",
+            "type": "LABEL",
+            "frame": [
+              0,
+              72,
+              6,
+              20
+            ],
+            "text": "",
+            "properties": {
+              "textSize": 10,
+              "textAlignH": 1,
+              "textAlignV": 1,
+              "textColor": [
+                0.6,
+                0.6,
+                0.6,
+                1
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "title_label",
+        "type": "LABEL",
+        "frame": [
+          1010,
+          358,
+          6,
+          24
+        ],
+        "text": "P-6 GRANULAR",
+        "properties": {
+          "textSize": 14,
+          "textAlignH": 1,
+          "textAlignV": 1,
+          "textColor": [
+            0.2,
+            0.6,
+            0.9,
+            1
+          ]
+        }
+      },
+      {
+        "name": "bcr_status",
+        "type": "LABEL",
+        "frame": [
+          1010,
+          384,
+          6,
+          18
+        ],
+        "text": "BCR2000 Ch.1 \u2192 P-6 Ch.5",
+        "properties": {
+          "textSize": 9,
+          "textAlignH": 1,
+          "textAlignV": 1,
+          "textColor": [
+            0.5,
+            0.5,
+            0.5,
+            1
+          ]
+        }
+      }
+    ]
+  },
+  "mappings": [
+    {
+      "lua": "root.lua",
+      "node_id": "root"
+    },
+    {
+      "lua": "config.lua",
+      "node_name": "config"
+    },
+    {
+      "lua": "params.lua",
+      "node_name": "params"
+    },
+    {
+      "lua": "encoder_mapper.lua",
+      "node_names": [
+        "row1_group",
+        "row2_group",
+        "row3_group",
+        "row4_group",
+        "row5_group"
+      ]
+    },
+    {
+      "lua": "preset_grid.lua",
+      "node_name": "preset_grid"
+    },
+    {
+      "lua": "preset_manager.lua",
+      "node_name": "preset_manager"
+    }
+  ]
+}

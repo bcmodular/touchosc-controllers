@@ -22,7 +22,9 @@
       "Bash(chmod +x:*)",
       "mcp__codescene__code_health_review",
       "mcp__codescene__code_health_auto_refactor",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(cat:*)"
     ]
   }
 }
