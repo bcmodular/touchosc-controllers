@@ -258,3 +258,151 @@ TouchOSC faders use 0.0–1.0 float range. MIDI uses 0–127 integer range. Comm
 local function floatToMIDI(f) return math.floor(f * 127 + 0.5) end
 local function midiToFloat(m) return m / 127 end
 ```
+
+## Programmatic Layout Generation (Scaffold)
+
+The `toscbuild.py scaffold` command generates `.tosc` files from JSON layout definitions in `toscbuild.json`. This enables fully code-defined layouts without the TouchOSC GUI editor.
+
+### Layout Definition Format
+
+The `layout` section of `toscbuild.json`:
+
+```json
+{
+  "layout": {
+    "width": 1024,
+    "height": 768,
+    "orientation": "horizontal",
+    "nodes": [
+      {
+        "type": "GROUP",
+        "name": "my_group",
+        "frame": [10, 10, 200, 100],
+        "color": [0.2, 0.2, 0.2, 1],
+        "interactive": false,
+        "properties": {
+          "background": true
+        },
+        "children": [
+          {
+            "type": "FADER",
+            "name": "volume_fader",
+            "frame": [0, 0, 40, 200],
+            "properties": {
+              "orientation": 1,
+              "response": 0
+            }
+          },
+          {
+            "type": "LABEL",
+            "name": "title_label",
+            "frame": [50, 0, 100, 30],
+            "text": "Volume",
+            "properties": {
+              "textSize": 16,
+              "textAlignH": 0
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Node Definition Fields
+
+| Field          | Type    | Default              | Description                              |
+|----------------|---------|----------------------|------------------------------------------|
+| `type`         | string  | `"GROUP"`            | Node type (GROUP, BUTTON, FADER, etc.)   |
+| `name`         | string  | `""`                 | Element name for `findByName()` lookups  |
+| `frame`        | array   | `[0, 0, 100, 100]`  | `[x, y, width, height]`                 |
+| `color`        | array   | `[0.25, 0.25, 0.25, 1]` | `[r, g, b, a]` (0.0–1.0)           |
+| `visible`      | bool    | `true`               | Element visibility                       |
+| `interactive`  | bool    | `true`               | Responds to touch                        |
+| `script`       | string  | `""`                 | Inline Lua script                        |
+| `tag`          | string  | `""`                 | Tag property for state sharing           |
+| `text`         | string  | `""`                 | Default text for LABEL nodes             |
+| `properties`   | object  | `{}`                 | Override any property (see types below)  |
+| `children`     | array   | `[]`                 | Child node definitions                   |
+
+### Property Type Inference
+
+The `properties` object automatically infers property types:
+- **Boolean** (`b`): `background`, `outline`, `bar`, `cursor`, `grid`, `exclusive`, `press`, `release`, `interactive`, `visible`, `grabFocus`, `locked`, `valuePosition`, `textClip`
+- **Integer** (`i`): `orientation`, `buttonType`, `response`, `responseFactor`, `gridX`, `gridY`, `gridType`, `gridSteps`, `textSize`, `textAlignH`, `textAlignV`, `font`, `shape`, etc.
+- **Float** (`f`): `cornerRadius`
+- **Color** (`c`): `color`, `textColor` — use `[r, g, b, a]` arrays
+- **String** (`s`): Everything else defaults to string
+
+### Generated Structure
+
+The scaffold creates proper TouchOSC XML with:
+- Unique UUIDs for each node
+- Type-appropriate default properties (e.g., FADER gets `bar`, `cursor`, `response`; BUTTON gets `buttonType`, `press`, `release`)
+- Correct `<values>` section per type (FADER: `x` + `touch`; BUTTON: `x` + `touch`; LABEL: `text` + `touch`)
+- Properties emitted in sorted alphabetical order (matching TouchOSC convention)
+
+### Workflow: Scaffold then Build
+
+For fully code-defined controllers:
+
+```bash
+# 1. Generate the .tosc layout from JSON definition
+python3 tools/toscbuild.py scaffold sp404-mk2/SP404
+
+# 2. Inject Lua scripts into the generated layout
+python3 tools/toscbuild.py build sp404-mk2/SP404
+
+# 3. Open in TouchOSC to test
+open -a TouchOSC sp404-mk2/SP404/SP404.tosc
+```
+
+## Modifying .tosc Files Programmatically
+
+### Reading and Writing
+
+```python
+import zlib
+
+# Read
+with open("layout.tosc", "rb") as f:
+    xml = zlib.decompress(f.read()).decode("utf-8")
+
+# Write
+compressed = zlib.compress(xml.encode("utf-8"))
+with open("layout.tosc", "wb") as f:
+    f.write(compressed)
+```
+
+### Script Replacement Strategy
+
+To modify scripts without corrupting the file, use string-level regex replacement:
+
+1. Find the target `<node>` by matching its `name` property CDATA value
+2. Within that node's `<properties>` block, find the `script` property
+3. Replace only the content between `<![CDATA[` and `]]>` in the script value
+4. Never use `xml.etree.ElementTree` for writes — it strips CDATA markers
+
+The `toscbuild.py` tool implements this approach. See the `replace_script()` function for the canonical implementation.
+
+### Removing Nodes
+
+To remove a node from the XML (e.g., deleting an obsolete manager node):
+
+```python
+import re, zlib
+
+xml = zlib.decompress(open("layout.tosc", "rb").read()).decode("utf-8")
+
+# Find the node by name
+name_match = re.search(r"<!\[CDATA\[node_name_here\]\]>", xml)
+node_start = xml.rfind("<node ", 0, name_match.start())
+node_end = xml.find("</node>", name_match.end()) + len("</node>")
+
+# Remove it (only safe for leaf nodes without nested children)
+xml = xml[:node_start] + xml[node_end:]
+
+compressed = zlib.compress(xml.encode("utf-8"))
+open("layout.tosc", "wb").write(compressed)
+```
