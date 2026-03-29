@@ -1038,7 +1038,7 @@ local performFaderScriptTemplate = [[
   end
 
   local function syncMIDI()
-    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, floatToMIDI(self.values.x)})
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, floatToMIDI(self.values.x)}, {true})
   end
 
   local function initialise()

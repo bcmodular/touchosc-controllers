@@ -17,6 +17,9 @@ local BUTTON_STATE_COLORS = {
 
 local defaultCCValues = {0, 0, 0, 0, 0, 0}
 
+-- Launchpad Pro LED SysEx: TouchOSC MIDI connection 3 (same as root.lua)
+local LAUNCHPAD_MIDI_CONNECTION = { false, false, true }
+
 -- Shared references
 local presetManager = root.children.preset_manager
 local defaultManager = root.children.default_manager
@@ -51,7 +54,7 @@ end
 local function sendSysexLEDUpdate(ledIndex, color)
   local sysexMessage = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0A, ledIndex, color, 0xF7 }
   print('sendSysexLEDUpdate', ledIndex, color)
-  sendMIDI(sysexMessage)
+  sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
 end
 
 local function sendSysexAllPadsOff(busNum)
@@ -72,16 +75,30 @@ local function sendSysexAllPadsOff(busNum)
     end
     table.insert(sysexMessage, 0xF7)
     print('sendSysexAllPadsOff bus', busNum, #ledUpdates / 2, 'pads')
-    sendMIDI(sysexMessage)
+    sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
   end
 end
 
 local function getGrid(busNum)
-  local busGroup = root:findByName('bus'..tostring(busNum)..'_group', true)
+  local busGroup = root:findByName('bus' .. tostring(busNum) .. '_group', true)
   if busGroup then
     return busGroup:findByName('preset_grid', true)
   end
   return nil
+end
+
+local function getFxNumFromBusTag(busNum)
+  local busGroup = root:findByName('bus' .. tostring(busNum) .. '_group', true)
+  if not busGroup then return 0 end
+  local settings = json.toTable(busGroup.tag) or {}
+  return tonumber(settings.fxNum) or 0
+end
+
+-- Keeps fxNums in sync when init order skips refresh_presets_list or tag was updated elsewhere.
+local function syncFxNumFromBusTag(busNum)
+  local fxNum = getFxNumFromBusTag(busNum)
+  fxNums[busNum] = fxNum
+  return fxNum
 end
 
 local function initialiseButtons(busNum)
@@ -126,7 +143,7 @@ local function refreshMIDIButtons(busNum)
     end
     table.insert(sysexMessage, 0xF7)
     print('refreshMIDIButtons bus', busNum, #ledUpdates / 2, 'LEDs')
-    sendMIDI(sysexMessage)
+    sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
   end
 end
 
@@ -147,7 +164,9 @@ local function refreshPresets(busNum, fxNum)
     return
   end
 
+  if not presetManager then return end
   local presetManagerChild = presetManager.children[tostring(fxNum)]
+  if not presetManagerChild then return end
   local presetArray = json.toTable(presetManagerChild.tag) or {}
 
   initialiseButtons(busNum)
@@ -391,9 +410,15 @@ local function initializeGrid(busNum)
   refreshPresets(busNum, fxNum)
 end
 
--- Manager notification handler
-local function onReceiveNotify(key, value)
+-- Global: TouchOSC dispatches :notify() to onReceiveNotify on this node.
+function onReceiveNotify(key, value)
+  local vt = type(value)
+  local vstr = (vt == 'table' and string.format('{%s,%s,%s}', tostring(value[1]), tostring(value[2]), tostring(value[3])))
+    or tostring(value)
+  print('preset_grid_manager onReceiveNotify', key, vstr, '(' .. vt .. ')')
+
   if key == 'refresh_presets_list' then
+    if type(value) ~= 'table' then return end
     local busNum = value[1]
     local fxNum = value[2]
     if busNum then
@@ -412,12 +437,20 @@ local function onReceiveNotify(key, value)
       recallDefaults(busNum)
     end
   elseif key == 'button_value_changed' then
+    if type(value) ~= 'table' then return end
     local busNum = value[1]
     local presetNum = value[2]
     local isPressed = value[3] == 1
     local fxNum = fxNums[busNum] or 0
+    if fxNum == 0 then
+      fxNum = syncFxNumFromBusTag(busNum)
+      if fxNum ~= 0 then
+        print('preset_grid_manager synced fxNum from bus_group.tag', busNum, fxNum)
+      end
+    end
 
     if fxNum == 0 then
+      print('preset_grid_manager button_value_changed ignored: no FX on bus', busNum, '(choose an effect for this bus first)')
       return
     end
 
@@ -429,65 +462,98 @@ local function onReceiveNotify(key, value)
     local busNum = value
     if busNum then
       print('clear_presets', busNum)
+      fxNums[busNum] = 0
       initialiseButtons(busNum)
     end
   end
 end
 
--- Simplified preset grid script - delegates to manager
+-- Delegate scripts pushed onto each `preset_grid` and pad at runtime (no toscbuild required
+-- for these; the manager script itself can be pasted on `preset_grid_manager` in TouchOSC).
 local presetGridScript = [[
 local busNum = tonumber(self.tag) or 1
 local manager = root.children.preset_grid_manager
 
+local function logValue(value)
+  local t = type(value)
+  if t == 'table' then
+    return string.format('table{%s,%s,%s}', tostring(value[1]), tostring(value[2]), tostring(value[3]))
+  end
+  return tostring(value) .. ' (' .. t .. ')'
+end
+
 function onReceiveNotify(key, value)
+  print('preset_grid', self.name, 'bus', busNum, 'onReceiveNotify', key, logValue(value))
+  if not manager then
+    print('preset_grid', self.name, 'bus', busNum, 'no root.children.preset_grid_manager')
+    return
+  end
   if key == 'refresh_presets_list' then
-    -- value can be fxNum (number) or nil
     local fxNum = value
+    print('preset_grid -> manager refresh_presets_list', busNum, fxNum)
     manager:notify(key, {busNum, fxNum})
   elseif key == 'toggle_delete_mode' then
+    print('preset_grid -> manager toggle_delete_mode', logValue(value))
     manager:notify(key, value)
   elseif key == 'store_defaults' then
+    print('preset_grid -> manager store_defaults', busNum)
     manager:notify(key, busNum)
   elseif key == 'recall_defaults' then
+    print('preset_grid -> manager recall_defaults', busNum)
     manager:notify(key, busNum)
   elseif key == 'button_value_changed' then
+    print('preset_grid -> manager button_value_changed relay', busNum, logValue(value))
     manager:notify(key, {busNum, value[1], value[2]})
   elseif key == 'clear_presets' then
+    print('preset_grid -> manager clear_presets', busNum)
     manager:notify(key, busNum)
+  else
+    print('preset_grid unhandled key', key)
   end
 end
 ]]
 
--- Simplified button script - notifies manager
 local presetButtonScript = [[
 function onValueChanged(key, value)
   if key == 'x' then
     local presetNum = tonumber(self.name)
-    local busNum = tonumber(self.parent.tag) or 1
+    local busNum = tonumber(self.parent and self.parent.tag) or 1
     local manager = root.children.preset_grid_manager
+    print('preset_pad', self.name, 'bus', busNum, 'onValueChanged x=', self.values.x, 'arg value=', value, 'manager=', manager ~= nil, 'parent.tag=', self.parent and self.parent.tag)
+    if not manager then
+      print('preset_pad', self.name, 'no root.children.preset_grid_manager')
+      return
+    end
     manager:notify('button_value_changed', {busNum, presetNum, self.values.x})
+    print('preset_pad', self.name, 'notified button_value_changed', busNum, presetNum, self.values.x)
   end
 end
 ]]
 
 function init()
-  -- Expose manager functions for the manager script to call
-  root.preset_grid_manager = {
-    onReceiveNotify = onReceiveNotify
-  }
-
   local presetGrids = root:findAllByName('preset_grid', true)
 
   for _, presetGrid in ipairs(presetGrids) do
     presetGrid.script = presetGridScript
     for i = 1, 16 do
       local button = presetGrid:findByName(tostring(i))
-      button.script = presetButtonScript
+      if button then
+        button.script = presetButtonScript
+      end
     end
   end
 
-  -- Initialize all grids
   for i = 1, 5 do
     initializeGrid(i)
+  end
+
+  -- If bus_group inits ran after we read tags inside initializeGrid, pick up final fxNum from tags.
+  for i = 1, 5 do
+    local tagFx = getFxNumFromBusTag(i)
+    if tagFx ~= (fxNums[i] or 0) then
+      print('preset_grid_manager init resync bus', i, 'fxNum', fxNums[i], '->', tagFx)
+      fxNums[i] = tagFx
+      refreshPresets(i, tagFx)
+    end
   end
 end

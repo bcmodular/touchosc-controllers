@@ -1,12 +1,22 @@
 local noteMidiChannel = 10
 local DELETE_BUTTON_LED = 0x32  -- LED index for delete button (50 decimal)
 
+-- Launchpad Pro: TouchOSC MIDI connection 3 — sendMIDI / receive filter flags per port
+local LAUNCHPAD_MIDI_CONNECTION = { false, false, true }
+
+local function midiFromLaunchpad(connections)
+  if type(connections) ~= 'table' then
+    return true
+  end
+  return connections[3] == true
+end
+
 local function sendSysexLEDUpdate(ledIndex, color)
   -- SysEx format: F0h 00h 20h 29h 02h 10h 0Ah <LED> <Colour> F7h
   -- Decimal: (240,0,32,41,2,16,10,<LED>,<Colour>,247)
   local sysexMessage = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0A, ledIndex, color, 0xF7 }
   print('sendSysexLEDUpdate', ledIndex, color, sysexMessage)
-  sendMIDI(sysexMessage)
+  sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
 end
 
 local function setLaunchpadLayout(layout)
@@ -15,12 +25,16 @@ local function setLaunchpadLayout(layout)
   -- Layout: 00h=Note, 01h=Drum, 02h=Fader, 03h=Programmer
   local sysexMessage = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x2C, layout, 0xF7 }
   print('setLaunchpadLayout', layout)
-  sendMIDI(sysexMessage)
+  sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
 end
 
 function onReceiveMIDI(message, connections)
   -- Filter out SysEx messages to avoid processing our own messages
   if message[1] == MIDIMessageType.SYSTEMEXCLUSIVE + 1 then
+    return
+  end
+
+  if not midiFromLaunchpad(connections) then
     return
   end
 
@@ -77,6 +91,6 @@ function init()
   setLaunchpadLayout(0x03)
   local sysexMessage = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0E, 0x00, 0xF7 }
   print('sendSysexAllPadsOff')
-  sendMIDI(sysexMessage)
+  sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
   sendSysexLEDUpdate(DELETE_BUTTON_LED, 7)
 end
