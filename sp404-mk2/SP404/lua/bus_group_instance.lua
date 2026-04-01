@@ -1,3 +1,6 @@
+local BUS_GROUP_INSTANCE_SCRIPT = [[
+-- Per-instance: bus index and MIDI channel are derived from self.name (bus1_group … bus5_group).
+-- Bus chrome colours are applied by root.lua (apply_bus_theme notify on root).
 local busNum = 1
 local midiChannel = 0
 local fxNum = 0
@@ -103,10 +106,12 @@ local function clearBus()
 end
 
 local function setSelectedBusHighlight(isSelected)
+  local bg = effectChooser:findByName("background", true) or effectChooser.children.background
+  if not bg then return end
   if isSelected then
-    effectChooser.children.background.color = Color.fromHexString("FFA61AFF")
+    bg.color = Color.fromHexString("FFA61AFF")
   else
-    effectChooser.children.background.color = Color.fromHexString("FFA61AAA")
+    root:notify("apply_bus_theme", busNum)
   end
 end
 
@@ -141,9 +146,31 @@ function init()
   effectChooser.children.selected_item_button.tag = busNum
   presetGrid.tag = busNum
 
+  local bcrMIDIChannel = 4 + busNum
+  faders.tag = tostring(bcrMIDIChannel)
+  onOffButtonGroup.tag = tostring(bcrMIDIChannel)
+
   if fxNum ~= 0 then
     showBus()
   else
     clearBus()
+  end
+
+  root:notify("apply_bus_theme", busNum)
+end
+]]
+
+local BUS_GROUP_NAMES = {
+  "bus1_group",
+  "bus2_group",
+  "bus3_group",
+  "bus4_group",
+  "bus5_group",
+}
+
+function init()
+  for _, name in ipairs(BUS_GROUP_NAMES) do
+    local g = root:findByName(name, true)
+    g.script = BUS_GROUP_INSTANCE_SCRIPT
   end
 end

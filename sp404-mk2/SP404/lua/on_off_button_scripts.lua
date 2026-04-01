@@ -25,9 +25,22 @@ end
 local onOffButtonGroupScript = [[
 local busGroup = self.parent.parent
 local toggleButton = self:findByName('toggle_button')
-local busSettings = json.toTable(busGroup.tag) or {}
-local busNum = tonumber(busSettings['busNum']) or 1
-local midiChannel = busNum - 1
+
+-- Read at use time: if this script loads before bus_group init(), tag.busNum may be missing
+-- and every bus would otherwise stick to channel 0.
+local function getBusNum()
+  local busSettings = json.toTable(busGroup.tag) or {}
+  local n = tonumber(busSettings['busNum'])
+  if n then return n end
+  if busGroup.name then
+    n = tonumber(busGroup.name:match("bus(%d+)_group"))
+  end
+  return n or 1
+end
+
+local function getMidiChannel()
+  return getBusNum() - 1
+end
 
 local function getBusOnMidiValue()
   local latestBusSettings = json.toTable(busGroup.tag) or {}
@@ -36,6 +49,8 @@ local function getBusOnMidiValue()
   if fxNum == 0 then
     return 0
   end
+
+  local midiChannel = getMidiChannel()
 
   local onButtonMidiValues = {
     {1, 10, 0}, {2, 17, 0}, {3, 23, 0}, {4, 8, 0}, {5, 35, 0},
@@ -60,11 +75,11 @@ local function getBusOnMidiValue()
 end
 
 local function sendMIDIOn()
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, getBusOnMidiValue()})
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + getMidiChannel(), 83, getBusOnMidiValue()})
 end
 
 local function sendMIDIOff()
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + getMidiChannel(), 83, 0 })
 end
 
 local function sendEffectState(state)
@@ -135,7 +150,9 @@ function init()
     -- Set bus_label text to bus number
     local busGroup = onOffButtonGroup.parent.parent
     local busSettings = json.toTable(busGroup.tag) or {}
-    local busNum = tonumber(busSettings['busNum']) or 1
+    local busNum = tonumber(busSettings['busNum'])
+        or tonumber(busGroup.name and busGroup.name:match("bus(%d+)_group"))
+        or 1
     local busLabel = onOffButtonGroup:findByName('bus_label')
     if busLabel then
       busLabel.values.text = 'BUS ' .. tostring(busNum)

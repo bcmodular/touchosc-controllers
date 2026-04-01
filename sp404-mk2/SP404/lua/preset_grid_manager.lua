@@ -29,18 +29,25 @@ local function formatPresetNum(num)
   return string.format("%02d", num)
 end
 
+-- Preset “stored” colour must match root.lua BUS_ACCENT_HEX / root.tag.busAccentHex (root owns chrome).
+local FALLBACK_BUS_ACCENT_HEX = {
+  [1] = "00E6FFFF",
+  [2] = "FFD700FF",
+  [3] = "FF69B4FF",
+  [4] = "4A90E2FF",
+  [5] = "32CD32FF",
+}
+
 local function getRecallButtonColor(busNum)
-  if busNum == 1 then
-    return "00E6FFFF"  -- cyan
-  elseif busNum == 2 then
-    return "FFD700FF"  -- very bright pale yellow
-  elseif busNum == 3 then
-    return "FF69B4FF"  -- pale pink
-  elseif busNum == 4 then
-    return "4A90E2FF"  -- blue
-  else
-    return "32CD32FF"  -- green (default)
+  local meta = json.toTable(root.tag) or {}
+  local t = meta.busAccentHex
+  if type(t) == "table" then
+    local hex = t[tostring(busNum)] or t["5"]
+    if hex and hex ~= "" then
+      return hex
+    end
   end
+  return FALLBACK_BUS_ACCENT_HEX[busNum] or FALLBACK_BUS_ACCENT_HEX[5]
 end
 
 local function midiToFloat(midiValue)
@@ -382,26 +389,6 @@ local function initializeGrid(busNum)
   sendSysexAllPadsOff(busNum)
 
   local busGroup = grid.parent
-  local background = grid:findByName('preset_grid_background_box')
-  background.color = getRecallButtonColor(busNum)
-
-  local selectedItemButton = busGroup.parent:findByName('selected_item_button', true)
-  selectedItemButton.color = getRecallButtonColor(busNum)
-  local selectedItemBackground = busGroup.parent:findByName('background', true)
-  selectedItemBackground.color = getRecallButtonColor(busNum)
-
-  local faderGroup = busGroup:findByName('faders', true)
-  local controlFaders = faderGroup:findAllByName('control_fader', true)
-  for _, controlFader in ipairs(controlFaders) do
-    controlFader.color = getRecallButtonColor(busNum)
-  end
-
-  local valueLabels = faderGroup:findAllByName('value_label', true)
-  for _, valueLabel in ipairs(valueLabels) do
-    valueLabel.textColor = Color.fromHexString("FFFFFFFF")
-    valueLabel.color = Color.fromHexString("00000000")
-  end
-
   -- Get initial fxNum from bus_group tag
   local busSettings = json.toTable(busGroup.tag) or {}
   local fxNum = tonumber(busSettings.fxNum) or 0
