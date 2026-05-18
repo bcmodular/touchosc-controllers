@@ -1,5 +1,32 @@
 local controlsInfo = root.children.controls_info
 
+-- Per-fader BCR2000 CCs (fader slots 1–6). MIDI channel comes from bus `faders.tag` (4+busNum → ch 6 for bus 1).
+local BCR_ENCODER_CC = { 81, 82, 89, 90, 97, 98 }
+local BCR_MIDI_OUT = { false, true }
+
+local function sendBcrEncoderZeros(bcrChannel, slotFrom, slotTo)
+  if bcrChannel == nil then
+    return
+  end
+  slotFrom = slotFrom or 1
+  slotTo = slotTo or 6
+  for slot = slotFrom, slotTo do
+    local cc = BCR_ENCODER_CC[slot]
+    if cc then
+      sendMIDI({ MIDIMessageType.CONTROLCHANGE + bcrChannel, cc, 0 }, BCR_MIDI_OUT)
+    end
+  end
+end
+
+-- No SP/BCR sends: avoids stale perform scripts after switching to an effect with fewer parameters.
+local HIDDEN_FADER_SCRIPT = [[
+function onReceiveNotify(key, value)
+end
+
+function onValueChanged(value)
+end
+]]
+
 --************************************************************
 -- INITIALISE MAPPING
 --************************************************************
@@ -1038,14 +1065,17 @@ local performFaderScriptTemplate = [[
   end
 
   local function syncMIDI()
-    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, floatToMIDI(self.values.x)}, {true})
+    local v = floatToMIDI(self.values.x)
+    -- Port 1 = SP-404MKII, port 2 = BCR2000 (both units share this connection).
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, v}, { true, false })
+%s
   end
 
   local function initialise()
     --print('initialise', self.name)
     self.properties.response = Response.RELATIVE
     if syncedFaderNum ~= 0 then
-      syncedFader = self.parent.parent.children[syncedFaderNum].children.control_fader
+      syncedFader = self.parent.parent.children[tostring(syncedFaderNum)].children.control_fader
     end
     updateLabel(self.values.x)
     self.messages.LOCAL[1]:trigger()
@@ -1085,28 +1115,6 @@ local performFaderScriptTemplate = [[
       syncMIDI()
     end
   end
-
-  function onPointer(pointers)
-    -- Iterate through each pointer event
-    for i = 1, #pointers do
-      local pointer = pointers[i]
-
-      if (pointer.state == PointerState.END) then
-        -- Get the current time in milliseconds
-        local new_press_time = getMillis()
-        -- Check if the press duration was short (a tap)
-        --print('new_press_time', new_press_time, 'press_time', press_time)
-        if (new_press_time - press_time < 200) then
-          local defaultValue = self:getValueField("x", ValueField.DEFAULT)
-          --print('resetting to default', self.values.x, defaultValue)
-          self.values.x = defaultValue
-          return
-        end
-        -- Update the press_time to the current time
-        press_time = new_press_time
-      end
-    end
-  end
 ]]
 
 local function setUpPerformValueLabel(valueLabel, labelFormat)
@@ -1116,7 +1124,7 @@ local function setUpPerformValueLabel(valueLabel, labelFormat)
   end
 end
 
-local function setUpPerformFader(faderNum, controlFader, channel, controlInfo, syncedFaderNum)
+local function setUpPerformFader(faderNum, controlFader, spChannel, bcrChannel, controlInfo, syncedFaderNum)
   local ccNumber, _, _, _, _, labelMapping, _, _, _, _, startValues, amSyncedFader, _, _, _, _ = unpack(controlInfo)
 
   if not startValues or startValues == '' then
@@ -1128,6 +1136,15 @@ local function setUpPerformFader(faderNum, controlFader, channel, controlInfo, s
     amSyncedFader = 'false'
   end
 
+  local bcrCc = BCR_ENCODER_CC[faderNum] or 0
+  local bcrMidiLine = ""
+  if bcrChannel ~= nil then
+    bcrMidiLine = string.format(
+      "    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %d, %d, v}, { false, true })",
+      bcrChannel,
+      bcrCc)
+  end
+
   local faderScript = string.format(performFaderScriptTemplate,
     faderNum,
     amSyncedFader,
@@ -1136,16 +1153,20 @@ local function setUpPerformFader(faderNum, controlFader, channel, controlInfo, s
     startValues,
     labelMapping,
     labelMapping,
-    channel,
-    ccNumber)
+    spChannel,
+    ccNumber,
+    bcrMidiLine)
 
   controlFader.script = faderScript
-  controlFader:notify('update_label')
+  -- Must run initialise (not just update_label): it resolves syncedFader for sync_fader so
+  -- toggleFaderSync can notify the linked fader; script replacement clears the old closure.
+  controlFader:notify('initialise')
 end
 
 local function setUpPerformFaders(fxNum, channel, faderGroups)
   -- print('Initialising perform faders')
   local controlInfo = json.toTable(controlsInfo.children[tostring(fxNum)].tag)
+  local bcrChannel = tonumber(faderGroups.tag)
 
   local syncedFaderNum = 0
 
@@ -1160,6 +1181,8 @@ local function setUpPerformFaders(fxNum, channel, faderGroups)
 
     if control == nil then
       faderGroup.visible = false
+      controlFader.script = HIDDEN_FADER_SCRIPT
+      sendBcrEncoderZeros(bcrChannel, index, index)
     else
       faderGroup.visible = true
 
@@ -1174,10 +1197,10 @@ local function setUpPerformFaders(fxNum, channel, faderGroups)
 
       if faderName == 'sync_fader' then
         -- Set up the sync fader
-        setUpPerformFader(index, controlFader, channel, control, tostring(syncedFaderNum))
+        setUpPerformFader(index, controlFader, channel, bcrChannel, control, tostring(syncedFaderNum))
       else
         -- Set up the other faders
-        setUpPerformFader(index, controlFader, channel, control, '0')
+        setUpPerformFader(index, controlFader, channel, bcrChannel, control, '0')
       end
 
       setUpPerformValueLabel(valueLabel, labelFormat)
@@ -1193,5 +1216,7 @@ function onReceiveNotify(key, value)
     local faderGroups = value[3]
 
     setUpPerformFaders(fxNum, channel, faderGroups)
+  elseif key == 'bcr_zero_slots' then
+    sendBcrEncoderZeros(value[1], value[2], value[3])
   end
 end

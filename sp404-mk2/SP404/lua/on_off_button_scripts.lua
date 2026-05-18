@@ -22,9 +22,23 @@ function onValueChanged(key, value)
 end
 ]]
 
+local chooseButtonScript = [[
+function onValueChanged(key, value)
+  if key == 'x' then
+    local fxSelector = root:findByName('fx_selector_group', true)
+    if value == 0 and fxSelector and not fxSelector.visible then
+      return
+    end
+    fxSelector:notify('toggle_visibility', self.tag)
+  end
+end
+]]
+
 local onOffButtonGroupScript = [[
 local busGroup = self.parent.parent
 local toggleButton = self:findByName('toggle_button')
+-- TouchOSC output 1 = SP-404MKII (CC 83 is SP effect on/off only).
+local SP404_MIDI_OUT = { true, false }
 
 -- Read at use time: if this script loads before bus_group init(), tag.busNum may be missing
 -- and every bus would otherwise stick to channel 0.
@@ -75,11 +89,11 @@ local function getBusOnMidiValue()
 end
 
 local function sendMIDIOn()
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + getMidiChannel(), 83, getBusOnMidiValue()})
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + getMidiChannel(), 83, getBusOnMidiValue()}, SP404_MIDI_OUT)
 end
 
 local function sendMIDIOff()
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + getMidiChannel(), 83, 0 })
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + getMidiChannel(), 83, 0 }, SP404_MIDI_OUT)
 end
 
 local function sendEffectState(state)
@@ -99,13 +113,28 @@ local function syncCurrentBusToDevice()
   sendEffectState(toggleButton.values.x == 1)
 
   local faders = busGroup:findByName('faders', true)
+  local bcrCh = faders and tonumber(faders.tag)
+  local controlMapper = root:findByName('control_mapper', true)
+
+  local latestBusSettings = json.toTable(busGroup.tag) or {}
+  if (tonumber(latestBusSettings['fxNum']) or 0) == 0 then
+    if bcrCh and controlMapper then
+      controlMapper:notify('bcr_zero_slots', { bcrCh, 1, 6 })
+    end
+    return
+  end
+
   if faders then
     for i = 1, 6 do
       local faderGroup = faders:findByName(tostring(i))
       if faderGroup then
         local controlFader = faderGroup:findByName('control_fader')
         if controlFader then
-          controlFader:notify('sync_midi')
+          if faderGroup.visible then
+            controlFader:notify('sync_midi')
+          elseif bcrCh and controlMapper then
+            controlMapper:notify('bcr_zero_slots', { bcrCh, i, i })
+          end
         end
       end
     end
@@ -146,6 +175,10 @@ function init()
     grabButton.script = grabButtonScript
     local syncButton = onOffButtonGroup:findByName('sync_button')
     syncButton.script = syncButtonScript
+    local chooseButton = onOffButtonGroup:findByName('choose_button')
+    if chooseButton then
+      chooseButton.script = chooseButtonScript
+    end
 
     -- Set bus_label text to bus number
     local busGroup = onOffButtonGroup.parent.parent

@@ -54,14 +54,17 @@ function applyBusGroupTheme(busNum)
 
   setChromeColor(busGroup:findByName("edit_group", true), hex)
 
+  local onOffButtonGroup = busGroup:findByName("on_off_button_group", true)
+  if onOffButtonGroup then
+    setChromeColor(onOffButtonGroup:findByName("choose_button", true), hex)
+  end
+
   local effectChooser = busGroup:findByName("effect_chooser", true)
   if effectChooser then
-    setChromeColor(effectChooser:findByName("selected_item_button", true), hex)
     setChromeColor(effectChooser:findByName("background", true), hex)
   else
     local parent = busGroup.parent
     if parent then
-      setChromeColor(parent:findByName("selected_item_button", true), hex)
       setChromeColor(parent:findByName("background", true), hex)
     end
   end
@@ -168,6 +171,26 @@ function onReceiveMIDI(message, connections)
       sendSysexLEDUpdate(DELETE_BUTTON_LED, deleteButtonColor)
     end
   end
+end
+
+-- Defer one frame so manager inits (e.g. on_off_button_scripts) have installed handlers on bus groups.
+local pendingStartupMidiSync = true
+
+function update()
+  if not pendingStartupMidiSync then
+    return
+  end
+  pendingStartupMidiSync = false
+  for busNum = 1, 5 do
+    local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+    if busGroup then
+      local onOff = busGroup:findByName("on_off_button_group", true)
+      if onOff then
+        onOff:notify("sync_current_bus")
+      end
+    end
+  end
+  print("startup: sync_all_buses_midi")
 end
 
 function init()

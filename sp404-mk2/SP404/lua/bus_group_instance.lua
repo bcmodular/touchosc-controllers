@@ -1,4 +1,3 @@
-local BUS_GROUP_INSTANCE_SCRIPT = [[
 -- Per-instance: bus index and MIDI channel are derived from self.name (bus1_group … bus5_group).
 -- Bus chrome colours are applied by root.lua (apply_bus_theme notify on root).
 local busNum = 1
@@ -58,14 +57,11 @@ local function showBus()
   effectChooser.children.label.values.text = fxName
   controlGroup.visible = true
 
-  for i = 1, 6 do
-    local fader = faders:findByName(tostring(i))
-    local controlFader = fader:findByName('control_fader')
-    controlFader:notify('initialise')
-  end
-
   refreshPresetList()
 
+  -- init_perform injects fader scripts and notifies each control_fader 'initialise' (resolves
+  -- sync_fader -> linked fader reference). Do not initialise before that: the old script
+  -- would be replaced and the new closure would never get syncedFader set.
   controlMapper:notify('init_perform', {fxNum, midiChannel, faders})
   onOffButtonGroup:notify('set_settings', {fxNum, midiChannel})
   recallValues()
@@ -73,7 +69,7 @@ local function showBus()
 end
 
 local function sendOffMIDI()
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 })
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, { true, false })
 end
 
 local function storeCurrentValues()
@@ -102,6 +98,10 @@ local function clearBus()
 
   effectChooser.children.label.values.text = fxName
   sendOffMIDI()
+  local bcrCh = tonumber(faders.tag)
+  if bcrCh and controlMapper then
+    controlMapper:notify('bcr_zero_slots', { bcrCh, 1, 6 })
+  end
   presetGrid:notify('clear_presets')
 end
 
@@ -143,12 +143,13 @@ function init()
 
   self.tag = json.fromTable({fxNum = fxNum, fxName = fxName, busNum = busNum})
 
-  effectChooser.children.selected_item_button.tag = busNum
   presetGrid.tag = busNum
 
+  -- BCR2000 (shared MIDI port): buses 1–4 → channels 6–9, bus 5 → channel 10 (index 4+busNum).
   local bcrMIDIChannel = 4 + busNum
   faders.tag = tostring(bcrMIDIChannel)
   onOffButtonGroup.tag = tostring(bcrMIDIChannel)
+  effectChooser.tag = tostring(bcrMIDIChannel)
 
   if fxNum ~= 0 then
     showBus()
@@ -157,20 +158,4 @@ function init()
   end
 
   root:notify("apply_bus_theme", busNum)
-end
-]]
-
-local BUS_GROUP_NAMES = {
-  "bus1_group",
-  "bus2_group",
-  "bus3_group",
-  "bus4_group",
-  "bus5_group",
-}
-
-function init()
-  for _, name in ipairs(BUS_GROUP_NAMES) do
-    local g = root:findByName(name, true)
-    g.script = BUS_GROUP_INSTANCE_SCRIPT
-  end
 end
