@@ -1,21 +1,21 @@
 local controlsInfoArray = {
-  -- Array structure:
+  -- Array structure (per fader, 1–16 fields):
   -- 1) *MIDI CC number
-  -- 2) *Fader name
-  -- 3) *Is excludable (true/false)
-  -- 4) *Label text
-  -- 5) Label name
-  -- 6) *Label mapping function
-  -- 7) *Label format string
-  -- 8) Synced grid (optional)
-  -- 9) Synced label grid (optional)
-  -- 10) Synced label grid mapping function (optional)
-  -- 11) *Start values of ranges (optional, used for grids)
-  -- 12) *Am synced fader (optional, used for sync grids)
-  -- 13) Show/hide fader name (optional, used for sync grids)
-  -- 14) Show/hide fader label name (optional, used for sync grids)
-  -- 15) Show/hide grid name (optional, used for sync grids)
-  -- 16) Show/hide grid label name (optional, used for sync grids)
+  -- 2) *Fader control name
+  -- 3) *Is excludable from preset recall when "exclude tuning" is on (boolean)
+  -- 4) *Name label text
+  -- 5) *Value label control name
+  -- 6) *Label mapping function name (key in control_mapper.mappingScripts)
+  -- 7) *Label format string (passed to value label script)
+  -- 8) Grid control name ('' if none)
+  -- 9) Grid label grid name (optional, with grid)
+  -- 10) Grid label mapping function (optional, with grid)
+  -- 11) Start values of discrete ranges as Lua table literal string (optional, with grid; '{}' = full MIDI range)
+  -- 12) Am synced fader: 'true' | 'false' (optional; linked rate/time fader when sync is on)
+  -- 13) Linked fader control name (optional; sync_fader only)
+  -- 14) Linked value label control name (optional; sync_fader only)
+  -- 15) Linked grid control name (optional; sync_fader only)
+  -- 16) Linked grid label grid name (optional; sync_fader only)
 
   [1] = { -- filter + drive
     {16, 'cutoff_fader', false, 'CUTOFF', 'cutoff_label', 'getFreq', '%s Hz', ''},

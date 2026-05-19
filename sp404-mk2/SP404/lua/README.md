@@ -34,6 +34,28 @@ local ratioFaderGroup = editCompressorSidechain:findByName('ratio_fader_group', 
 - Update existing code to follow these conventions when modified
 - Use automated tools (like linters) where possible to enforce these rules
 
+## Prefer Direct Control Over `notify`
+
+TouchOSC’s `notify` / `onReceiveNotify` pattern is useful for cross-scope messaging (e.g. root → bus group, modal → button grid), but it can be **less reliable** than working directly with controls:
+
+- **Prefer** finding a control with `findByName` and setting `values` (e.g. `button.values.x = 0`) so `onValueChanged` runs on the target — **but** TouchOSC often does **not** call `onValueChanged` when values are changed from Lua; only real touch/MIDI on that control does. Do not rely on scripted value changes to trigger handlers.
+- **Avoid** `self:notify(...)` on the same node that handles the message — delivery to `onReceiveNotify` on `self` is inconsistent.
+- **Use `notify`** when the handler lives on a different node and there is no natural value to set (e.g. `bus_group` → `control_mapper` `init_perform`), or for grid parent/child scope where `tag` is required.
+
+Example (MIDI confirm: notify the bus group directly — scripted button values will not fire `onValueChanged`):
+
+```lua
+local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+busGroup:notify("set_fx", { fxIdx, fxName })
+```
+
+Example (UI tap: child resolves bus from `parent.tag`, notifies bus — not self):
+
+```lua
+local busGroup = root:findByName('bus' .. tostring(self.parent.tag) .. '_group', true)
+busGroup:notify('set_fx', { self.tag, self.name })
+```
+
 ## TouchOSC Grid Scope Rules
 
 When working with TouchOSC grids, it's important to understand how scope works:

@@ -25,31 +25,47 @@ end
 local chooseButtonScript = [[
 function onValueChanged(key, value)
   if key == 'x' then
-    local fxSelector = root:findByName('fx_selector_group', true)
-    if value == 0 and fxSelector and not fxSelector.visible then
-      return
-    end
-    fxSelector:notify('toggle_visibility', self.tag)
+    self.parent:notify('set_chooser_state', self.values.x == 1)
   end
 end
 ]]
 
 local onOffButtonGroupScript = [[
-local busGroup = self.parent.parent
 local toggleButton = self:findByName('toggle_button')
 -- TouchOSC output 1 = SP-404MKII (CC 83 is SP effect on/off only).
 local SP404_MIDI_OUT = { true, false }
 
--- Read at use time: if this script loads before bus_group init(), tag.busNum may be missing
--- and every bus would otherwise stick to channel 0.
+-- Do not cache self.parent at load time — the same script string is shared across
+-- all on_off_button_group instances and would otherwise stick to bus 1.
+local function getBusGroup()
+  return self.parent
+end
+
 local function getBusNum()
+  local bcrTag = tonumber(self.tag)
+  if bcrTag and bcrTag >= 5 and bcrTag <= 9 then
+    return bcrTag - 4
+  end
+
+  local busGroup = getBusGroup()
+  if not busGroup then
+    return 1
+  end
+
+  if busGroup.name then
+    local n = tonumber(busGroup.name:match("bus(%d+)_group"))
+    if n then
+      return n
+    end
+  end
+
   local busSettings = json.toTable(busGroup.tag) or {}
   local n = tonumber(busSettings['busNum'])
-  if n then return n end
-  if busGroup.name then
-    n = tonumber(busGroup.name:match("bus(%d+)_group"))
+  if n then
+    return n
   end
-  return n or 1
+
+  return 1
 end
 
 local function getMidiChannel()
@@ -57,7 +73,7 @@ local function getMidiChannel()
 end
 
 local function getBusOnMidiValue()
-  local latestBusSettings = json.toTable(busGroup.tag) or {}
+  local latestBusSettings = json.toTable(getBusGroup().tag) or {}
   local fxNum = tonumber(latestBusSettings['fxNum']) or 0
 
   if fxNum == 0 then
@@ -112,6 +128,7 @@ end
 local function syncCurrentBusToDevice()
   sendEffectState(toggleButton.values.x == 1)
 
+  local busGroup = getBusGroup()
   local faders = busGroup:findByName('faders', true)
   local bcrCh = faders and tonumber(faders.tag)
   local controlMapper = root:findByName('control_mapper', true)
@@ -150,6 +167,42 @@ local function setGrabState(buttonDown)
   toggleButton.values.x = buttonDown and 1 or 0
 end
 
+local function setChooserState(isOpen)
+  local fxSelector = root:findByName('fx_selector_group', true)
+  if not fxSelector then
+    return
+  end
+
+  local busNum = getBusNum()
+  local chooseButton = self:findByName('choose_button')
+
+  if isOpen then
+    for _, btn in ipairs(root:findAllByName('choose_button', true)) do
+      btn.values.x = 0
+    end
+    if chooseButton then
+      chooseButton.values.x = 1
+    end
+
+    local selectorLabel = fxSelector:findByName('fx_selector_label')
+    local selectorButtons = fxSelector:findByName('fx_selector_button_group')
+    if not selectorLabel or not selectorButtons then
+      return
+    end
+
+    selectorLabel.values.text = 'Choose FX for Bus ' .. tostring(busNum)
+    selectorButtons.tag = tostring(busNum)
+    selectorButtons:notify('setup_ui')
+    fxSelector.visible = true
+  else
+    if fxSelector.visible then
+      fxSelector:notify('hide')
+    elseif chooseButton then
+      chooseButton.values.x = 0
+    end
+  end
+end
+
 function onReceiveNotify(key, value)
   if key == 'sync_current_bus' then
     syncCurrentBusToDevice()
@@ -159,6 +212,8 @@ function onReceiveNotify(key, value)
     switchToEffect()
   elseif key == 'set_grab_state' then
     setGrabState(value)
+  elseif key == 'set_chooser_state' then
+    setChooserState(value)
   end
 end
 ]]
@@ -181,7 +236,7 @@ function init()
     end
 
     -- Set bus_label text to bus number
-    local busGroup = onOffButtonGroup.parent.parent
+    local busGroup = onOffButtonGroup.parent
     local busSettings = json.toTable(busGroup.tag) or {}
     local busNum = tonumber(busSettings['busNum'])
         or tonumber(busGroup.name and busGroup.name:match("bus(%d+)_group"))

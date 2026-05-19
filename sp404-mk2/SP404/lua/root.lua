@@ -97,6 +97,44 @@ local function midiFromLaunchpad(connections)
   return connections[3] == true
 end
 
+local function midiFromBcr(connections)
+  if type(connections) ~= 'table' then
+    return false
+  end
+  return connections[2] == true
+end
+
+-- BCR top-row encoders for FX selector modal (fixed MIDI channel 6).
+local FX_SELECTOR_BCR_CHANNEL = 5
+
+local function handleFxSelectorBcrMidi(message)
+  local fxSelector = root:findByName('fx_selector_group', true)
+  if not fxSelector or not fxSelector.visible then
+    return
+  end
+
+  local status = message[1]
+  local cc = message[2]
+  local ccValue = message[3]
+  local msgType = status - (status % 16)
+  local msgChannel = status % 16
+
+  if msgType ~= MIDIMessageType.CONTROLCHANGE or msgChannel ~= FX_SELECTOR_BCR_CHANNEL then
+    return
+  end
+
+  local selectorButtons = fxSelector:findByName('fx_selector_button_group')
+  if not selectorButtons then
+    return
+  end
+
+  if cc >= 1 and cc <= 8 then
+    selectorButtons:notify('midi_column_tick', { col = cc, ccValue = ccValue })
+  elseif cc >= 9 and cc <= 16 and ccValue == 0 then
+    selectorButtons:notify('midi_column_confirm', { col = cc - 8 })
+  end
+end
+
 local function sendSysexLEDUpdate(ledIndex, color)
   -- SysEx format: F0h 00h 20h 29h 02h 10h 0Ah <LED> <Colour> F7h
   -- Decimal: (240,0,32,41,2,16,10,<LED>,<Colour>,247)
@@ -117,6 +155,11 @@ end
 function onReceiveMIDI(message, connections)
   -- Filter out SysEx messages to avoid processing our own messages
   if message[1] == MIDIMessageType.SYSTEMEXCLUSIVE + 1 then
+    return
+  end
+
+  if midiFromBcr(connections) then
+    handleFxSelectorBcrMidi(message)
     return
   end
 
