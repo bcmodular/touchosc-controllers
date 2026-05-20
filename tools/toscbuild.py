@@ -356,7 +356,14 @@ def cmd_build(args):
     manifest, source_path, output_path, lua_dir = _load_manifest(args.dir)
 
     if not args.no_backup and os.path.isfile(output_path):
-        backup_path = output_path + ".bak"
+        # Timestamped backup under layout/backups/ (safer than a single .bak overwrite).
+        backups_dir = os.path.join(os.path.dirname(output_path), "backups")
+        os.makedirs(backups_dir, exist_ok=True)
+        from datetime import datetime
+
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base = os.path.splitext(os.path.basename(output_path))[0]
+        backup_path = os.path.join(backups_dir, f"{base}_{stamp}.tosc")
         shutil.copy2(output_path, backup_path)
         if not args.quiet:
             print(f"Backup: {backup_path}")

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Collection of TouchOSC controllers for hardware synthesizers/samplers, primarily the Roland SP-404 MK2. The main controller (`sp404-mk2/SP404/SP404.tosc`) is a complex TouchOSC layout with extensive Lua scripting that provides:
 
 - Full effects parameter control across 5 buses (46 effects supported)
-- Preset save/recall system with 16 slots per effect
+- Preset save/recall system with 8 slots per effect
 - Launchpad Pro integration via SysEx for pad LED feedback
 - BCR2000 MIDI controller mapping
 - Default value management and recent value recall
@@ -28,7 +28,7 @@ Scripts are organized by responsibility and communicate via TouchOSC's `notify`/
 - **`bus_group_instance.lua`** — Per-bus script injected at build time into all 5 bus group nodes (`bus1_group` through `bus5_group`). Each bus self-discovers its number from `self.name:match("bus(%d+)_group")`, manages effect selection, fader setup, preset grid, and recent value storage.
 - **`control_mapper.lua`** — The core fader engine. Generates per-fader scripts dynamically using `string.format` with templates. Handles MIDI CC mapping, value display labels, sync toggles, and double-tap-to-reset. Still uses runtime injection (manager pattern).
 - **`controls_info.lua`** — Data definition for all 46 effects. Each entry maps CC numbers, fader names, label formats, mapping functions, grid configurations, and sync relationships. The array structure has 16 positional fields (documented in the file header).
-- **`preset_grids.lua`** — Centralized preset grid manager. Handles store/recall/delete across all buses, Launchpad LED synchronization, and color-coded bus identification. Still uses runtime injection.
+- **`preset_grid_manager.lua`** — Centralized preset grid manager (8 presets per bus). Handles store/recall/delete across all buses, Launchpad LED synchronization, and color-coded bus identification. Injects pad scripts at runtime via `init()`.
 - **`preset_manager.lua`** — Persistent preset storage. Each of the 46 effect slots stores its presets as JSON in the element's `tag` property. Supports OSC export/import.
 - **`default_manager.lua`** — Stores default fader values per effect.
 - **`recent_values.lua`** — MRU stack (max 16) of recently used effect parameters per bus.
@@ -39,8 +39,8 @@ Scripts are organized by responsibility and communicate via TouchOSC's `notify`/
 
 1. User selects effect → `fx_selector_button_group` → `bus_group.set_fx` → `control_mapper.init_perform` (generates fader scripts)
 2. Fader moved → dynamically generated script calls mapping function → updates label, sends MIDI CC
-3. Preset store → `preset_grids` captures current fader values → stores in `preset_manager` tag as JSON
-4. Preset recall → `preset_grids` reads from `preset_manager` → notifies faders with `new_value`
+3. Preset store → `preset_grid_manager` captures current fader values → stores in `preset_manager` tag as JSON
+4. Preset recall → `preset_grid_manager` reads from `preset_manager` → notifies faders with `new_value`
 
 ### Key TouchOSC Patterns
 

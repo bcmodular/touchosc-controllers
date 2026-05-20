@@ -106,3 +106,22 @@ if buttonState == BUTTON_STATE.RECALL then
     -- handle recall state
 end
 ```
+
+## Launchpad Pro preset grid
+
+In Programmer layout (MIDI channel 10), preset pads use columns 1–5 (one column per bus, preset 1 at the top). Columns 6–8 are unused. Note map is built in `preset_grid_manager.lua` and `root.lua` — keep both in sync.
+
+## Layout backups and bus UI sync
+
+Do not use git to recover `.tosc` layout work — committed snapshots are often stale.
+
+- **`toscbuild`** writes timestamped backups to `SP404/backups/SP404_YYYYMMDD_HHMMSS.tosc` before each build.
+- **`tools/sync_bus1_ui_to_buses.py`** copies frames from `bus1_group` to buses 2–5 (`control_group` + `effect_chooser`), with its own timestamped backup first.
+- **`tools/sync_bus1_ui_to_buses.py --diff-only`** lists frame differences vs bus1 without writing.
+
+After editing bus 1 in TouchOSC Editor, run sync then build:
+
+```bash
+python3 tools/sync_bus1_ui_to_buses.py sp404-mk2/SP404/SP404.tosc
+python3 tools/toscbuild.py build sp404-mk2/SP404
+```

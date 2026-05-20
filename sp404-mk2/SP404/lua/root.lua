@@ -1,6 +1,22 @@
 local noteMidiChannel = 10
 local DELETE_BUTTON_LED = 0x32  -- LED index for delete button (50 decimal)
 
+local PRESETS_PER_BUS = 8
+local NUM_BUSES = 5
+
+-- Keep buildPresetNoteMap in sync with preset_grid_manager.lua (Launchpad columns 1–5, preset 1 at top).
+local function buildPresetNoteMap()
+  local map = {}
+  for bus = 1, NUM_BUSES do
+    for preset = 1, PRESETS_PER_BUS do
+      map[(bus - 1) * PRESETS_PER_BUS + preset] = 81 + (bus - 1) - (preset - 1) * 10
+    end
+  end
+  return map
+end
+
+local presetNoteMap = buildPresetNoteMap()
+
 -- Launchpad Pro: TouchOSC MIDI connection 3 — sendMIDI / receive filter flags per port
 local LAUNCHPAD_MIDI_CONNECTION = { false, false, true }
 
@@ -53,6 +69,17 @@ function applyBusGroupTheme(busNum)
   end
 
   setChromeColor(busGroup:findByName("edit_group", true), hex)
+
+  local editModeButton = busGroup:findByName("edit_mode_button", true)
+  setChromeColor(editModeButton, hex)
+  local editModeLabel = busGroup:findByName("edit_mode_label", true)
+  if editModeLabel then
+    if editModeButton and editModeButton.values.x == 1 then
+      editModeLabel.textColor = Color.fromHexString("000000FF")
+    else
+      editModeLabel.textColor = Color.fromHexString(hex)
+    end
+  end
 
   local onOffButtonGroup = busGroup:findByName("on_off_button_group", true)
   if onOffButtonGroup then
@@ -167,13 +194,6 @@ function onReceiveMIDI(message, connections)
     return
   end
 
-  local presetNoteMap = {
-    81, 82, 71, 72, 61, 62, 51, 52, 41, 42, 31, 32, 21, 22, 11, 12,
-    83, 84, 73, 74, 63, 64, 53, 54, 43, 44, 33, 34, 23, 24, 13, 14,
-    85, 86, 75, 76, 65, 66, 55, 56, 45, 46, 35, 36, 25, 26, 15, 16,
-    87, 88, 77, 78, 67, 68, 57, 58, 47, 48, 37, 38, 27, 28, 17, 18
-  }
-
   if message[1] == MIDIMessageType.NOTE_ON + noteMidiChannel - 1 then
     local note = message[2]
     local velocity = message[3]
@@ -193,8 +213,8 @@ function onReceiveMIDI(message, connections)
     print('onReceiveMIDI', note, velocity, noteIndex)
 
     local presetIndex = noteIndex - 1
-    local busIndex = math.floor(presetIndex / 16)
-    local presetNumber = (presetIndex % 16) + 1
+    local busIndex = math.floor(presetIndex / PRESETS_PER_BUS)
+    local presetNumber = (presetIndex % PRESETS_PER_BUS) + 1
     print('onReceiveMIDI', busIndex, presetNumber)
 
     local presetGridEntry = root:findByName('bus'..tostring(busIndex + 1)..'_group', true):findByName('preset_grid', true).children[tostring(presetNumber)]

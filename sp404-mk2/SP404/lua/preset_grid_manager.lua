@@ -1,14 +1,24 @@
 local fxNums = {}
 local deleteMode = false
 
-local presetNoteMap = {
-  81, 82, 71, 72, 61, 62, 51, 52, 41, 42, 31, 32, 21, 22, 11, 12,
-  83, 84, 73, 74, 63, 64, 53, 54, 43, 44, 33, 34, 23, 24, 13, 14,
-  85, 86, 75, 76, 65, 66, 55, 56, 45, 46, 35, 36, 25, 26, 15, 16,
-  87, 88, 77, 78, 67, 68, 57, 58, 47, 48, 37, 38, 27, 28, 17, 18
-}
+local PRESETS_PER_BUS = 8
+local NUM_BUSES = 5
+local LEGACY_PRESET_SLOT_MAX = 16
 
-local velocityColours = { 35, 15, 59, 47 }
+-- Keep buildPresetNoteMap in sync with root.lua (Launchpad columns 1–5, preset 1 at top).
+local function buildPresetNoteMap()
+  local map = {}
+  for bus = 1, NUM_BUSES do
+    for preset = 1, PRESETS_PER_BUS do
+      map[(bus - 1) * PRESETS_PER_BUS + preset] = 81 + (bus - 1) - (preset - 1) * 10
+    end
+  end
+  return map
+end
+
+local presetNoteMap = buildPresetNoteMap()
+
+local velocityColours = { 35, 15, 59, 47, 21 }
 
 local BUTTON_STATE_COLORS = {
   AVAILABLE = "FFFFFFFF",
@@ -27,6 +37,18 @@ local controlsInfo = root.children.controls_info
 
 local function formatPresetNum(num)
   return string.format("%02d", num)
+end
+
+local function purgeLegacyPresetSlots(presetArray)
+  local dirty = false
+  for i = 9, LEGACY_PRESET_SLOT_MAX do
+    local key = formatPresetNum(i)
+    if presetArray[key] ~= nil then
+      presetArray[key] = nil
+      dirty = true
+    end
+  end
+  return dirty
 end
 
 -- Preset “stored” colour must match root.lua BUS_ACCENT_HEX / root.tag.busAccentHex (root owns chrome).
@@ -66,8 +88,8 @@ end
 
 local function sendSysexAllPadsOff(busNum)
   local ledUpdates = {}
-  for i = 1, 16 do
-    local mapEntry = (busNum - 1) * 16 + i
+  for i = 1, PRESETS_PER_BUS do
+    local mapEntry = (busNum - 1) * PRESETS_PER_BUS + i
     local note = presetNoteMap[mapEntry]
     if note then
       table.insert(ledUpdates, note)
@@ -112,8 +134,11 @@ local function initialiseButtons(busNum)
   local grid = getGrid(busNum)
   if not grid then return end
 
-  for i = 1, 16 do
-    grid.children[tostring(i)].color = BUTTON_STATE_COLORS.AVAILABLE
+  for i = 1, PRESETS_PER_BUS do
+    local button = grid:findByName(tostring(i))
+    if button then
+      button.color = BUTTON_STATE_COLORS.AVAILABLE
+    end
   end
   sendSysexAllPadsOff(busNum)
 end
@@ -123,22 +148,24 @@ local function refreshMIDIButtons(busNum)
   if not grid then return end
 
   local ledUpdates = {}
-  for i = 1, 16 do
-    local button = grid.children[tostring(i)]
-    local midiColour = 0
+  for i = 1, PRESETS_PER_BUS do
+    local button = grid:findByName(tostring(i))
+    if button then
+      local midiColour = 0
 
-    if (Color.toHexString(button.color) == BUTTON_STATE_COLORS.DELETE) then
-      midiColour = 5
-    elseif (Color.toHexString(button.color) == getRecallButtonColor(busNum)) then
-      midiColour = velocityColours[busNum] or velocityColours[1] or 35
-    end
+      if (Color.toHexString(button.color) == BUTTON_STATE_COLORS.DELETE) then
+        midiColour = 5
+      elseif (Color.toHexString(button.color) == getRecallButtonColor(busNum)) then
+        midiColour = velocityColours[busNum] or velocityColours[1] or 35
+      end
 
-    if midiColour ~= 0 then
-      local mapEntry = (busNum - 1) * 16 + i
-      local note = presetNoteMap[mapEntry]
-      if note then
-        table.insert(ledUpdates, note)
-        table.insert(ledUpdates, midiColour)
+      if midiColour ~= 0 then
+        local mapEntry = (busNum - 1) * PRESETS_PER_BUS + i
+        local note = presetNoteMap[mapEntry]
+        if note then
+          table.insert(ledUpdates, note)
+          table.insert(ledUpdates, midiColour)
+        end
       end
     end
   end
@@ -176,13 +203,22 @@ local function refreshPresets(busNum, fxNum)
   if not presetManagerChild then return end
   local presetArray = json.toTable(presetManagerChild.tag) or {}
 
+  if purgeLegacyPresetSlots(presetArray) then
+    presetManagerChild.tag = json.fromTable(presetArray)
+  end
+
   initialiseButtons(busNum)
 
   -- Set STORED state for active presets
   for index, _ in pairs(presetArray) do
     local presetNum = tonumber(index)
-    local color = deleteMode and BUTTON_STATE_COLORS.DELETE or getRecallButtonColor(busNum)
-    grid.children[tostring(presetNum)].color = color
+    if presetNum and presetNum >= 1 and presetNum <= PRESETS_PER_BUS then
+      local button = grid:findByName(tostring(presetNum))
+      if button then
+        local color = deleteMode and BUTTON_STATE_COLORS.DELETE or getRecallButtonColor(busNum)
+        button.color = color
+      end
+    end
   end
 
   refreshMIDIButtons(busNum)
@@ -327,7 +363,7 @@ local function updateButtonMIDIHighlight(busNum, presetNum, isPressed)
 
   local button = grid:findByName(tostring(presetNum))
   local buttonColor = Color.toHexString(button.color)
-  local mapEntry = (busNum - 1) * 16 + presetNum
+  local mapEntry = (busNum - 1) * PRESETS_PER_BUS + presetNum
   local note = presetNoteMap[mapEntry]
 
   if not note then
@@ -522,7 +558,7 @@ function init()
 
   for _, presetGrid in ipairs(presetGrids) do
     presetGrid.script = presetGridScript
-    for i = 1, 16 do
+    for i = 1, PRESETS_PER_BUS do
       local button = presetGrid:findByName(tostring(i))
       if button then
         button.script = presetButtonScript
