@@ -18,7 +18,7 @@ Collection of TouchOSC controllers for hardware synthesizers/samplers, primarily
 
 TouchOSC `.tosc` files are zlib-compressed XML layout files. The Lua scripts in `sp404-mk2/SP404/lua/` are the source of truth for all controller logic. Scripts are injected into `.tosc` nodes at **build time** using `tools/toscbuild.py`, which performs string-level regex replacement to preserve CDATA and non-script XML byte-for-byte.
 
-Some scripts (e.g., `control_mapper.lua`, `on_off_button_scripts.lua`) still use a **runtime injection** pattern where a "manager" node's `init()` distributes string templates to child nodes. These are being progressively migrated to build-time injection (see Build Pipeline below).
+Some scripts (e.g., `control_mapper.lua`) still use a **runtime injection** pattern where a "manager" node's `init()` distributes string templates to child nodes. On/off button scripts are build-time injected (`on_off_button_group.lua`, `toggle_button.lua`, etc.).
 
 ### SP404 MK2 Lua Script Architecture
 
@@ -33,7 +33,7 @@ Scripts are organized by responsibility and communicate via TouchOSC's `notify`/
 - **`default_manager.lua`** — Stores default fader values per effect.
 - **`recent_values.lua`** — MRU stack (max 16) of recently used effect parameters per bus.
 - **`fx_selector_group.lua`** / **`fx_selector_button_group.lua`** — Effect chooser UI. Shows available effects per bus (availability depends on MIDI channel mapping).
-- **`on_off_button_scripts.lua`** — Effect on/off toggle, grab (momentary), and sync-to-device buttons. Still uses runtime injection.
+- **`on_off_button_group.lua`** / **`toggle_button.lua`** etc. — Effect on/off, grab, sync, choose (build-time injected). Legacy `on_off_button_scripts` manager node is a stub.
 
 ### Data Flow
 
@@ -46,7 +46,7 @@ Scripts are organized by responsibility and communicate via TouchOSC's `notify`/
 
 - **`tag` property as shared state**: The only way to pass data between parent/child scopes in grids. Always JSON-encoded via `json.toTable()`/`json.fromTable()`.
 - **Build-time script injection**: Lua files are injected into `.tosc` nodes by `toscbuild.py` during build. The `toscbuild.json` manifest maps each `.lua` file to one or more target nodes. This replaces the older runtime injection pattern.
-- **Runtime script injection (legacy)**: Some manager scripts (e.g., `control_mapper.lua`, `on_off_button_scripts.lua`, `preset_grids.lua`) still use `init()` functions that set child `.script` properties from string templates. These are candidates for future migration to build-time injection. For scripts that use `string.format` substitution (like `control_mapper.lua`), build-time migration requires parameterized template expansion.
+- **Runtime script injection (legacy)**: Some manager scripts (e.g., `control_mapper.lua`, `preset_grids.lua`) still use `init()` functions that set child `.script` properties from string templates. For scripts that use `string.format` substitution (like `control_mapper.lua`), build-time migration requires parameterized template expansion.
 - **`notify`/`onReceiveNotify`**: The IPC mechanism between TouchOSC elements. All cross-element communication uses this pattern.
 - **MIDI values are 0-127**, but TouchOSC faders use 0.0-1.0 floats. Conversion helpers `midiToFloat`/`floatToMIDI` appear throughout.
 - **Mapping functions**: Convert MIDI values to display strings (e.g., `getFreq`, `getDelayTimes`). Defined as string snippets in `control_mapper.lua` and injected into fader scripts via `string.format`.

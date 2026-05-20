@@ -107,6 +107,37 @@ if buttonState == BUTTON_STATE.RECALL then
 end
 ```
 
+## MIDI routing (Lua only for perform controls)
+
+Perform faders and `on_off_button_group` buttons have **no layout `<midi>` block** (local messages only). All SP-404 / BCR traffic is sent/received from Lua (`root.lua` inbound, per-bus scripts outbound).
+
+| Path | Handler | Ports |
+|------|---------|-------|
+| Touch → SP-404 params | `control_fader` `syncMIDI()` → `sendSpMidi()` | `{ true, false, false }` |
+| Touch → BCR encoders | `control_fader` `syncMIDI()` → `sendBcrMidi()` | `{ false, true, false }` |
+| BCR encoder → UI | `root.lua` `handleBcrPerformMidi` → `set_cc_from_bcr` (SP only, no BCR echo) | receive port 2 |
+
+BCR encoder CCs by fader group name (`"1"`–`"6"` = BCR parameter ID): 1→81, 2→89, 3→97, 4→82, 5→90, 6→98 (`{ 81, 89, 97, 82, 90, 98 }`). Set `BCR_MIDI_DEBUG = false` in `root.lua` / `ON_OFF_DEBUG = false` in `on_off_button_group.lua` when done tracing.
+
+Toggle from BCR requires an effect loaded on that bus (`fxNum` ≠ 0); otherwise CC 83 “on” sends value 0 (same as off).
+
+| SP-404 on/off | `on_off_button_group.lua` CC 83 | port 1 |
+| BCR buttons | `on_off_button_group.lua` CC 65/66/73/74 | port 2 |
+| Launchpad LEDs | `root.lua` / `preset_grid_manager.lua` SysEx | `{ false, false, true }` |
+
+**Layout `<connections>` strings** (if you re-enable Editor MIDI): 10 digits, **right-aligned to connection number** — connection 2 = `0000000010`, connection 9 = `0100000000`. Do not use `0100000000` for port 2.
+
+After layout edits in TouchOSC Editor, strip perform MIDI again:
+
+```bash
+python3 sp404-mk2/tools/patch_sp404_disable_layout_midi.py sp404-mk2/SP404/SP404.tosc
+python3 tools/toscbuild.py build sp404-mk2/SP404
+```
+
+The patch **removes** `<midi>` from `control_fader` and on/off button nodes entirely (matching bus 1).
+
+BCR on/off inbound (port 2): CC 65 toggle, 66 sync (on release val=0), 73 grab, 74 choose → `on_off_button_group` via `bcr_*` notifies. BCR buttons: **127 = on, 0 = off**.
+
 ## Launchpad Pro preset grid
 
 In Programmer layout (MIDI channel 10), preset pads use columns 1–5 (one column per bus, preset 1 at the top). Columns 6–8 are unused. Note map is built in `preset_grid_manager.lua` and `root.lua` — keep both in sync.

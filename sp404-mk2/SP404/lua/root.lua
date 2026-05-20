@@ -131,8 +131,152 @@ local function midiFromBcr(connections)
   return connections[2] == true
 end
 
+-- BCR CC per fader group name "1"–"6" (must match control_mapper.lua BCR_ENCODER_CC).
+local BCR_ENCODER_CC = { 81, 89, 97, 82, 90, 98 }
+local BCR_CC_TO_SLOT = {}
+for slot, cc in ipairs(BCR_ENCODER_CC) do
+  BCR_CC_TO_SLOT[cc] = slot
+end
+
+local BCR_MIDI_DEBUG = false
+
+local function connectionsToString(connections)
+  if type(connections) ~= "table" then
+    return tostring(connections)
+  end
+  local parts = {}
+  for i = 1, #connections do
+    parts[i] = connections[i] and "1" or "0"
+  end
+  return table.concat(parts, ",")
+end
+
+local function debugBcr(msg)
+  if BCR_MIDI_DEBUG then
+    print("[BCR]", msg)
+  end
+end
+
+-- BCR on/off button CCs (must match on_off_button_group.lua).
+local BCR_TOGGLE_CC = 65
+local BCR_SYNC_CC = 66
+local BCR_GRAB_CC = 73
+local BCR_CHOOSE_CC = 74
+
+local BCR_ON_OFF_CC_HANDLERS = {
+  [BCR_TOGGLE_CC] = "bcr_toggle",
+  [BCR_SYNC_CC] = "bcr_sync",
+  [BCR_GRAB_CC] = "bcr_grab",
+  [BCR_CHOOSE_CC] = "bcr_choose",
+}
+
 -- BCR top-row encoders for FX selector modal (fixed MIDI channel 6).
 local FX_SELECTOR_BCR_CHANNEL = 5
+
+local function handleBcrOnOffMidi(message)
+  local status = message[1]
+  local cc = message[2]
+  local ccValue = message[3]
+  local msgType = status - (status % 16)
+  local msgChannel = status % 16
+
+  if msgType ~= MIDIMessageType.CONTROLCHANGE then
+    return false
+  end
+
+  local notifyKey = BCR_ON_OFF_CC_HANDLERS[cc]
+  if not notifyKey then
+    return false
+  end
+
+  local busNum = msgChannel - 4
+  if busNum < 1 or busNum > NUM_BUSES then
+    debugBcr(string.format("on/off skip: ch %d -> bus %d out of range", msgChannel, busNum))
+    return false
+  end
+
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  if not busGroup then
+    return false
+  end
+
+  local onOffGroup = busGroup:findByName("on_off_button_group", true)
+  if not onOffGroup then
+    return false
+  end
+
+  if tonumber(onOffGroup.tag) ~= msgChannel then
+    debugBcr(string.format(
+      "on/off skip: bus %d tag %s != ch %d",
+      busNum, tostring(onOffGroup.tag), msgChannel))
+    return false
+  end
+
+  debugBcr(string.format("-> bus %d on/off %s val %d", busNum, notifyKey, ccValue))
+  onOffGroup:notify(notifyKey, ccValue)
+  return true
+end
+
+local function handleBcrPerformMidi(message)
+  local status = message[1]
+  local cc = message[2]
+  local ccValue = message[3]
+  local msgType = status - (status % 16)
+  local msgChannel = status % 16
+
+  if msgType ~= MIDIMessageType.CONTROLCHANGE then
+    debugBcr("skip: not CC")
+    return false
+  end
+
+  local slot = BCR_CC_TO_SLOT[cc]
+  if not slot then
+    if not BCR_ON_OFF_CC_HANDLERS[cc] then
+      debugBcr("skip: cc not a perform encoder")
+    end
+    return false
+  end
+
+  local busNum = msgChannel - 4
+  if busNum < 1 or busNum > NUM_BUSES then
+    debugBcr(string.format("skip: ch %d -> bus %d out of range", msgChannel, busNum))
+    return false
+  end
+
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  if not busGroup then
+    debugBcr("skip: bus group not found")
+    return false
+  end
+
+  local controlGroup = busGroup:findByName("control_group", true)
+  if not controlGroup or not controlGroup.visible then
+    debugBcr(string.format("skip: bus %d control_group not visible", busNum))
+    return false
+  end
+
+  local faders = busGroup:findByName("faders", true)
+  if not faders then
+    debugBcr("skip: faders group not found")
+    return false
+  end
+
+  local faderGroup = faders:findByName(tostring(slot))
+  if not faderGroup or not faderGroup.visible then
+    debugBcr(string.format("skip: bus %d slot %d fader not visible", busNum, slot))
+    return false
+  end
+
+  local controlFader = faderGroup:findByName("control_fader")
+  if not controlFader then
+    debugBcr("skip: control_fader not found")
+    return false
+  end
+
+  debugBcr(string.format("-> bus %d slot %d val %d", busNum, slot, ccValue))
+  controlFader:notify("set_cc_from_bcr", ccValue)
+  return true
+end
 
 local function handleFxSelectorBcrMidi(message)
   local fxSelector = root:findByName('fx_selector_group', true)
@@ -186,6 +330,15 @@ function onReceiveMIDI(message, connections)
   end
 
   if midiFromBcr(connections) then
+    debugBcr(string.format(
+      "onReceiveMIDI status=%d cc=%d val=%d connections=%s",
+      message[1], message[2], message[3], connectionsToString(connections)))
+    if handleBcrOnOffMidi(message) then
+      return
+    end
+    if handleBcrPerformMidi(message) then
+      return
+    end
     handleFxSelectorBcrMidi(message)
     return
   end
@@ -236,7 +389,7 @@ function onReceiveMIDI(message, connections)
   end
 end
 
--- Defer one frame so manager inits (e.g. on_off_button_scripts) have installed handlers on bus groups.
+-- Defer one frame so layout init() handlers on bus groups are ready before startup MIDI sync.
 local pendingStartupMidiSync = true
 
 function update()

@@ -64,30 +64,24 @@ _SCRIPT_CDATA_RE = (
 
 
 def _find_node_range(xml_str, node_name):
-    """Find the start/end byte offsets of the <node> containing a name property
-    matching `node_name`. Returns (start, end) or None.
+    """Find the properties range for the first <node> with this name."""
+    ranges = _find_all_node_ranges(xml_str, node_name)
+    return ranges[0] if ranges else None
 
-    For uniqueness, we match the name property and then walk backwards to find
-    the enclosing <node ...> tag and forwards to find its </node> or the end
-    of its <properties> block (we only need the properties section).
-    """
+
+def _find_all_node_ranges(xml_str, node_name):
+    """Find properties ranges for every <node> whose name matches `node_name`."""
     name_pattern = _NAME_PROP_RE.format(name=re.escape(node_name))
-    m = re.search(name_pattern, xml_str)
-    if not m:
-        return None
-
-    # Walk backwards from the name property to find the enclosing <node
-    search_start = xml_str.rfind("<node ", 0, m.start())
-    if search_start == -1:
-        return None
-
-    # Find the end of this node's <properties> block.
-    # The properties block ends with </properties>.
-    props_end = xml_str.find("</properties>", m.end())
-    if props_end == -1:
-        return None
-
-    return (search_start, props_end + len("</properties>"))
+    ranges = []
+    for m in re.finditer(name_pattern, xml_str):
+        search_start = xml_str.rfind("<node ", 0, m.start())
+        if search_start == -1:
+            continue
+        props_end = xml_str.find("</properties>", m.end())
+        if props_end == -1:
+            continue
+        ranges.append((search_start, props_end + len("</properties>")))
+    return ranges
 
 
 def _find_root_node_range(xml_str):
@@ -105,26 +99,9 @@ def _find_root_node_range(xml_str):
     return (node_start, props_end + len("</properties>"))
 
 
-def replace_script(xml_str, node_name, lua_content, is_root=False):
-    """Replace the script CDATA content for a node identified by name.
-
-    Returns the modified XML string, or raises ValueError if the node or
-    script property is not found.
-    """
-    if is_root:
-        node_range = _find_root_node_range(xml_str)
-        label = "root node"
-    else:
-        node_range = _find_node_range(xml_str, node_name)
-        label = f"node '{node_name}'"
-
-    if node_range is None:
-        raise ValueError(f"Could not find {label} in .tosc XML")
-
-    start, end = node_range
+def _replace_script_in_range(xml_str, start, end, lua_content, label):
+    """Replace script CDATA within a node's <properties> byte range."""
     props_section = xml_str[start:end]
-
-    # Find and replace the script CDATA content within this section
     script_match = re.search(_SCRIPT_CDATA_RE, props_section, re.DOTALL)
     if script_match is None:
         raise ValueError(f"No script property found in {label}")
@@ -138,6 +115,28 @@ def replace_script(xml_str, node_name, lua_content, is_root=False):
     )
 
     return xml_str[:start] + new_props + xml_str[end:]
+
+
+def replace_script(xml_str, node_name, lua_content, is_root=False):
+    """Replace the script CDATA for every node matching `node_name` (or root).
+
+    Returns (modified_xml, nodes_updated_count).
+    """
+    if is_root:
+        node_range = _find_root_node_range(xml_str)
+        label = "root node"
+        ranges = [node_range] if node_range else []
+    else:
+        label = f"node '{node_name}'"
+        ranges = _find_all_node_ranges(xml_str, node_name)
+
+    if not ranges:
+        raise ValueError(f"Could not find {label} in .tosc XML")
+
+    for start, end in sorted(ranges, key=lambda r: r[0], reverse=True):
+        xml_str = _replace_script_in_range(xml_str, start, end, lua_content, label)
+
+    return xml_str, len(ranges)
 
 
 # ---------------------------------------------------------------------------
@@ -308,12 +307,20 @@ def _resolve_targets(mapping):
     return None
 
 
-def _count_total_targets(mappings):
-    """Count the total number of injection targets across all mappings."""
-    return sum(
-        len(m.get("node_names", [m.get("node_name", m.get("node_id"))]))
-        for m in mappings
-    )
+def _count_total_targets(mappings, xml_str):
+    """Estimate injection targets (duplicate node_name counts all matches)."""
+    total = 0
+    for m in mappings:
+        resolved = _resolve_targets(m)
+        if resolved is None:
+            continue
+        is_root, targets = resolved
+        for node_name in targets:
+            if is_root:
+                total += 1
+            else:
+                total += max(1, len(_find_all_node_ranges(xml_str, node_name)))
+    return total
 
 
 def _inject_mapping(xml_str, lua_dir, mapping, quiet=False):
@@ -331,6 +338,14 @@ def _inject_mapping(xml_str, lua_dir, mapping, quiet=False):
     with open(lua_path) as f:
         lua_content = f.read()
 
+    for include_file in mapping.get("include", []):
+        include_path = os.path.join(lua_dir, include_file)
+        if not os.path.isfile(include_path):
+            print(f"  SKIP  include {include_file} (file not found)", file=sys.stderr)
+            continue
+        with open(include_path) as f:
+            lua_content = f.read() + "\n" + lua_content
+
     resolved = _resolve_targets(mapping)
     if resolved is None:
         print(f"  SKIP  {lua_file} (no node_name or node_names)", file=sys.stderr)
@@ -340,11 +355,13 @@ def _inject_mapping(xml_str, lua_dir, mapping, quiet=False):
     injected = 0
     for node_name in targets:
         try:
-            xml_str = replace_script(xml_str, node_name, lua_content, is_root=is_root)
+            xml_str, count = replace_script(
+                xml_str, node_name, lua_content, is_root=is_root)
             if not quiet:
                 target = "root" if is_root else node_name
-                print(f"  OK    {lua_file} → {target} ({len(lua_content)} chars)")
-            injected += 1
+                suffix = f" ×{count}" if count > 1 else ""
+                print(f"  OK    {lua_file} → {target}{suffix} ({len(lua_content)} chars)")
+            injected += count
         except ValueError as e:
             print(f"  ERROR {lua_file}: {e}", file=sys.stderr)
 
@@ -383,7 +400,7 @@ def cmd_build(args):
         tosc_write(output_path, xml_str)
 
     if not args.quiet:
-        total = _count_total_targets(manifest["mappings"])
+        total = _count_total_targets(manifest["mappings"], xml_str)
         new_size = len(xml_str)
         print(f"\nInjected {injected}/{total} scripts")
         print(f"XML size: {original_size:,} → {new_size:,} bytes "

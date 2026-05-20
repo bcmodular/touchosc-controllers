@@ -12,9 +12,21 @@
     {"lua": "preset_grid_manager.lua", "node_name": "preset_grid_manager"},
     {"lua": "default_manager.lua", "node_name": "default_manager"},
     {"lua": "recent_values.lua", "node_name": "recent_values"},
-    {"lua": "on_off_button_scripts.lua", "node_name": "on_off_button_scripts"},
+    {
+      "lua": "on_off_button_group.lua",
+      "node_name": "on_off_button_group",
+      "include": ["sp404_effect_on_values.lua"]
+    },
+    {"lua": "toggle_button.lua", "node_name": "toggle_button"},
+    {"lua": "grab_button.lua", "node_name": "grab_button"},
+    {"lua": "sync_button.lua", "node_name": "sync_button"},
+    {"lua": "choose_button.lua", "node_name": "choose_button"},
     {"lua": "fx_selector_group.lua", "node_name": "fx_selector_group"},
     {"lua": "close_fx_selector_button.lua", "node_name": "close_fx_selector_button"},
-    {"lua": "fx_selector_button_group.lua", "node_name": "fx_selector_button_group"}
+    {
+      "lua": "fx_selector_button_group.lua",
+      "node_name": "fx_selector_button_group",
+      "include": ["sp404_effect_on_values.lua"]
+    }
   ]
 }

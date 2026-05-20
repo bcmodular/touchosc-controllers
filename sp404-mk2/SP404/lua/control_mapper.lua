@@ -1,8 +1,9 @@
 local controlsInfo = root.children.controls_info
 
--- Per-fader BCR2000 CCs (fader slots 1–6). MIDI channel comes from bus `faders.tag` (4+busNum → ch 6 for bus 1).
-local BCR_ENCODER_CC = { 81, 82, 89, 90, 97, 98 }
-local BCR_MIDI_OUT = { false, true }
+-- BCR CC per fader group name "1"–"6" (BCR effect parameter ID). Must match root.lua.
+local BCR_ENCODER_CC = { 81, 89, 97, 82, 90, 98 }
+-- Port 1 = SP-404MKII, port 2 = BCR2000, port 3 = Launchpad Pro
+local BCR_MIDI_OUT = { false, true, false }
 
 local function sendBcrEncoderZeros(bcrChannel, slotFrom, slotTo)
   if bcrChannel == nil then
@@ -1064,11 +1065,19 @@ local performFaderScriptTemplate = [[
     label:notify('update_text', newText)
   end
 
-  local function syncMIDI()
+  local function sendSpMidi()
     local v = floatToMIDI(self.values.x)
-    -- Port 1 = SP-404MKII, port 2 = BCR2000 (both units share this connection).
-    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, v}, { true, false })
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %s, %s, v}, { true, false, false })
+  end
+
+  local function sendBcrMidi()
+    local v = floatToMIDI(self.values.x)
 %s
+  end
+
+  local function syncMIDI()
+    sendSpMidi()
+    sendBcrMidi()
   end
 
   local function initialise()
@@ -1089,12 +1098,16 @@ local performFaderScriptTemplate = [[
       self.values.x = value
       updateLabel(value)
       syncMIDI()
+    elseif key == 'set_cc_from_bcr' then
+      local floatValue = midiToFloat(value)
+      self.values.x = floatValue
+      updateLabel(floatValue)
+      sendSpMidi()
     elseif key == 'new_cc_value' then
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
-      syncMIDI()
-      --print('triggering local message')
+      sendSpMidi()
     elseif key == 'sync_toggle' then
       local parent = self.parent
       syncOn = value
@@ -1140,7 +1153,7 @@ local function setUpPerformFader(faderNum, controlFader, spChannel, bcrChannel, 
   local bcrMidiLine = ""
   if bcrChannel ~= nil then
     bcrMidiLine = string.format(
-      "    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %d, %d, v}, { false, true })",
+      [[    sendMIDI({ MIDIMessageType.CONTROLCHANGE + %d, %d, v}, { false, true, false })]],
       bcrChannel,
       bcrCc)
   end

@@ -63,13 +63,13 @@ local function showBus()
   -- sync_fader -> linked fader reference). Do not initialise before that: the old script
   -- would be replaced and the new closure would never get syncedFader set.
   controlMapper:notify('init_perform', {fxNum, midiChannel, faders})
-  onOffButtonGroup:notify('set_settings', {fxNum, midiChannel})
+  onOffButtonGroup:notify('set_settings', { fxNum, midiChannel, fxName })
   recallValues()
   onOffButtonGroup:notify('switch_to_effect')
 end
 
 local function sendOffMIDI()
-  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, { true, false })
+  sendMIDI({ MIDIMessageType.CONTROLCHANGE + midiChannel, 83, 0 }, { true, false, false })
 end
 
 local function storeCurrentValues()
@@ -118,7 +118,7 @@ end
 ---@diagnostic disable: lowercase-global
 function onReceiveNotify(key, value)
   if (key == "set_fx") then
-    fxNum = value[1]
+    fxNum = tonumber(value[1]) or 0
     fxName = value[2]
     self.tag = json.fromTable({fxNum = fxNum, fxName = fxName, busNum = busNum})
     print('set_fx', busNum, fxNum, fxName)
