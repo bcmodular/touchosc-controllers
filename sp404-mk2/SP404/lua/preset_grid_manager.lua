@@ -17,7 +17,7 @@ end
 
 local presetNoteMap = buildPresetNoteMap()
 
-local velocityColours = { 35, 15, 59, 47, 21 }
+local PRESET_LED_EMPTY_PRESS_BRIGHTNESS = 0.35
 
 local BUTTON_STATE_COLORS = {
   AVAILABLE = "FFFFFFFF",
@@ -26,8 +26,7 @@ local BUTTON_STATE_COLORS = {
 
 local defaultCCValues = {0, 0, 0, 0, 0, 0}
 
--- Launchpad Pro LED SysEx: TouchOSC MIDI connection 3 (same as root.lua)
-local LAUNCHPAD_MIDI_CONNECTION = { false, false, true }
+-- Launchpad port 3 — LAUNCHPAD_MIDI_CONNECTION in launchpad_led.lua (include)
 
 -- Shared references
 local presetManager = root.children.preset_manager
@@ -65,11 +64,6 @@ end
 
 local function floatToMIDI(floatValue)
   return math.floor(floatValue * 127 + 0.5)
-end
-
-local function sendSysexLEDUpdate(ledIndex, color)
-  local sysexMessage = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0A, ledIndex, color, 0xF7 }
-  sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
 end
 
 local function sendSysexAllPadsOff(busNum)
@@ -132,37 +126,37 @@ local function refreshMIDIButtons(busNum)
   local grid = getGrid(busNum)
   if not grid then return end
 
-  local ledUpdates = {}
+  local entries = {}
+
   for i = 1, PRESETS_PER_BUS do
     local button = grid:findByName(tostring(i))
     if button then
-      local midiColour = 0
+      local buttonHex = Color.toHexString(button.color)
+      local r, g, b
+      local busHex = getRecallButtonColor(busNum)
 
-      if (Color.toHexString(button.color) == BUTTON_STATE_COLORS.DELETE) then
-        midiColour = 5
-      elseif (Color.toHexString(button.color) == getRecallButtonColor(busNum)) then
-        midiColour = velocityColours[busNum] or velocityColours[1] or 35
+      if buttonHex == BUTTON_STATE_COLORS.DELETE then
+        r, g, b = launchpadDeleteRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
+      elseif buttonHex == busHex then
+        r, g, b = launchpadBusRgb(busNum, LAUNCHPAD_IDLE_BRIGHTNESS)
+      else
+        r, g, b = nil
       end
 
-      if midiColour ~= 0 then
+      if r then
         local mapEntry = (busNum - 1) * PRESETS_PER_BUS + i
         local note = presetNoteMap[mapEntry]
         if note then
-          table.insert(ledUpdates, note)
-          table.insert(ledUpdates, midiColour)
+          table.insert(entries, note)
+          table.insert(entries, r)
+          table.insert(entries, g)
+          table.insert(entries, b)
         end
       end
     end
   end
 
-  if #ledUpdates > 0 then
-    local sysexMessage = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0A }
-    for _, value in ipairs(ledUpdates) do
-      table.insert(sysexMessage, value)
-    end
-    table.insert(sysexMessage, 0xF7)
-    sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
-  end
+  sendLaunchpadLedRgbBatch(entries)
 end
 
 local function refreshPresets(busNum, fxNum)
@@ -344,25 +338,28 @@ local function updateButtonMIDIHighlight(busNum, presetNum, isPressed)
     return
   end
 
-  local color = 0
-  local baseVelocity = velocityColours[busNum] or velocityColours[1] or 35
+  local r, g, b
+  local busHex = getRecallButtonColor(busNum)
 
   if buttonColor == BUTTON_STATE_COLORS.DELETE then
-    return
-  elseif buttonColor == getRecallButtonColor(busNum) then
-    if isPressed then
-      color = baseVelocity - 2
-    else
-      color = baseVelocity
+    if not isPressed then
+      return
     end
+    r, g, b = launchpadDeleteRgb(LAUNCHPAD_ON_BRIGHTNESS)
+  elseif buttonColor == busHex then
+    local brightness = isPressed and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS
+    r, g, b = launchpadBusRgb(busNum, brightness)
   elseif buttonColor == BUTTON_STATE_COLORS.AVAILABLE then
     if isPressed then
-      color = baseVelocity
+      r, g, b = launchpadBusRgb(busNum, PRESET_LED_EMPTY_PRESS_BRIGHTNESS)
+    else
+      sendLaunchpadLedOff(note)
+      return
     end
   end
 
-  if color > 0 then
-    sendSysexLEDUpdate(note, color)
+  if r then
+    sendLaunchpadLedRgb(note, r, g, b)
   end
 end
 

@@ -123,7 +123,7 @@ Toggle from BCR requires an effect loaded on that bus (`fxNum` ≠ 0); otherwise
 
 | SP-404 on/off | `on_off_button_group.lua` CC 83 | port 1 |
 | BCR buttons | `on_off_button_group.lua` CC 65/66/73/74 | port 2 |
-| Launchpad LEDs | `root.lua` / `preset_grid_manager.lua` SysEx | `{ false, false, true }` |
+| Launchpad LEDs | `launchpad_led.lua` (RGB `0B` + palette off `0A`) | `{ false, false, true }` |
 
 **Layout `<connections>` strings** (if you re-enable Editor MIDI): 10 digits, **right-aligned to connection number** — connection 2 = `0000000010`, connection 9 = `0100000000`. Do not use `0100000000` for port 2.
 
@@ -138,9 +138,21 @@ The patch **removes** `<midi>` from `control_fader` and on/off button nodes enti
 
 BCR on/off inbound (port 2): CC 65 toggle, 66 sync (on release val=0), 73 grab, 74 choose → `on_off_button_group` via `bcr_*` notifies. BCR buttons: **127 = on, 0 = off**.
 
-## Launchpad Pro preset grid
+## Launchpad Pro (Programmer layout, MIDI channel 10)
 
-In Programmer layout (MIDI channel 10), preset pads use columns 1–5 (one column per bus, preset 1 at the top). Columns 6–8 are unused. Note map is built in `preset_grid_manager.lua` and `root.lua` — keep both in sync.
+**Preset grid**: square pads columns 1–5 (one column per bus, preset 1 at top). Note map in `preset_grid_manager.lua` and `root.lua` — keep both in sync.
+
+**Round buttons** (`root.lua`):
+
+| CC | Role |
+|----|------|
+| 60 | Undo (pink RGB from UI hex); + bus CC recall defaults |
+| 80 | Shift (white RGB); + bus CC momentary grab |
+| 50 | Delete mode (red RGB, dim/bright) |
+| 91–95 | FX bus 1–5: tap toggle; Shift+grab; Undo+recall defaults |
+| Preset pads | Saturated RGBCMY per bus via `launchpadBusRgb()` (`launchpad_led.lua`) |
+
+Columns 6–8 square pads and CC 1–5, 96–98 are reserved for later phases.
 
 ## Layout backups and bus UI sync
 

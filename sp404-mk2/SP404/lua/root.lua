@@ -4,6 +4,22 @@ local DELETE_BUTTON_LED = 0x32  -- LED index for delete button (50 decimal)
 local PRESETS_PER_BUS = 8
 local NUM_BUSES = 5
 
+-- Launchpad Programmer round buttons (MIDI ch noteMidiChannel).
+local SHIFT_CC = 80
+local UNDO_CC = 60
+local DELETE_CC = 50
+local BUS_CC_FIRST = 91
+local BUS_CC_LAST = 95
+
+local launchpadShiftHeld = false
+local launchpadUndoHeld = false
+-- busNum -> true while Shift+grab is held on that bus CC
+local busGrabPress = {}
+-- busNum -> true while Undo+recall is held on that bus CC
+local busUndoPress = {}
+
+local LAUNCHPAD_DEBUG = false
+
 -- Keep buildPresetNoteMap in sync with preset_grid_manager.lua (Launchpad columns 1–5, preset 1 at top).
 local function buildPresetNoteMap()
   local map = {}
@@ -17,8 +33,7 @@ end
 
 local presetNoteMap = buildPresetNoteMap()
 
--- Launchpad Pro: TouchOSC MIDI connection 3 — sendMIDI / receive filter flags per port
-local LAUNCHPAD_MIDI_CONNECTION = { false, false, true }
+-- Launchpad Pro: port 3 — LAUNCHPAD_MIDI_CONNECTION in launchpad_led.lua (include)
 
 -- Bus chrome (preset area, edit strip, effect chooser, perform faders). Canonical ARGB hex per bus.
 local BUS_ACCENT_HEX = {
@@ -108,11 +123,160 @@ function applyBusGroupTheme(busNum)
   end
 end
 
+local function debugLaunchpad(msg)
+  if LAUNCHPAD_DEBUG then
+    print("[Launchpad]", msg)
+  end
+end
+
+local function busCcToBusNum(cc)
+  if cc >= BUS_CC_FIRST and cc <= BUS_CC_LAST then
+    return cc - 90
+  end
+  return nil
+end
+
+local function getOnOffGroup(busNum)
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  if not busGroup then
+    return nil
+  end
+  return busGroup:findByName("on_off_button_group", true)
+end
+
+local function isBusFxOn(busNum)
+  local onOff = getOnOffGroup(busNum)
+  if not onOff then
+    return false
+  end
+  local toggle = onOff:findByName("toggle_button", true)
+  return toggle and toggle.values.x == 1
+end
+
+local function refreshBusButtonLED(busNum)
+  local ccLed = 90 + busNum
+  local brightness = LAUNCHPAD_IDLE_BRIGHTNESS
+  if busGrabPress[busNum] or isBusFxOn(busNum) then
+    brightness = LAUNCHPAD_ON_BRIGHTNESS
+  end
+  local r, g, b = launchpadBusRgb(busNum, brightness)
+  debugLaunchpad(string.format("LED %d rgb %d %d %d (bus %d)", ccLed, r, g, b, busNum))
+  sendLaunchpadLedRgb(ccLed, r, g, b)
+end
+
+local function refreshAllBusButtonLEDs()
+  for busNum = 1, NUM_BUSES do
+    refreshBusButtonLED(busNum)
+  end
+end
+
+local function setLaunchpadDeleteMode(deleteMode)
+  local deleteButton = root:findByName("delete_button", true)
+  if deleteButton then
+    deleteButton.values.x = deleteMode and 1 or 0
+  end
+  local dr, dg, db = launchpadDeleteRgb(deleteMode and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+  sendLaunchpadLedRgb(DELETE_BUTTON_LED, dr, dg, db)
+  for busNum = 1, NUM_BUSES do
+    local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+    local grid = busGroup and busGroup:findByName("preset_grid", true)
+    if grid then
+      grid:notify("toggle_delete_mode", deleteMode)
+    end
+  end
+end
+
+local function getRecallDefaultsButton(busNum)
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  if not busGroup then
+    return nil
+  end
+  return busGroup:findByName("recall_defaults_button", true)
+end
+
+local function handleLaunchpadBusCc(busNum, pressed)
+  local onOff = getOnOffGroup(busNum)
+  if not onOff then
+    return
+  end
+
+  if pressed then
+    if launchpadUndoHeld then
+      busUndoPress[busNum] = true
+      local recallBtn = getRecallDefaultsButton(busNum)
+      if recallBtn then
+        recallBtn.values.x = 1
+      end
+      debugLaunchpad(string.format("bus %d undo+press (recall UI on)", busNum))
+    elseif launchpadShiftHeld then
+      busGrabPress[busNum] = true
+      onOff:notify("set_grab_state", true)
+      refreshBusButtonLED(busNum)
+      debugLaunchpad(string.format("bus %d shift+grab on", busNum))
+    else
+      local toggle = onOff:findByName("toggle_button", true)
+      local newOn = not (toggle and toggle.values.x == 1)
+      onOff:notify("launchpad_toggle", newOn)
+      refreshBusButtonLED(busNum)
+      debugLaunchpad(string.format("bus %d toggle -> %s", busNum, tostring(newOn)))
+    end
+  elseif busUndoPress[busNum] then
+    busUndoPress[busNum] = nil
+    local recallBtn = getRecallDefaultsButton(busNum)
+    if recallBtn then
+      recallBtn.values.x = 0
+    end
+    debugLaunchpad(string.format("bus %d undo+release recall defaults", busNum))
+  elseif busGrabPress[busNum] then
+    busGrabPress[busNum] = nil
+    onOff:notify("set_grab_state", false)
+    refreshBusButtonLED(busNum)
+    debugLaunchpad(string.format("bus %d shift+grab off", busNum))
+  end
+end
+
+local function handleLaunchpadControlChange(cc, ccValue)
+  if cc == SHIFT_CC then
+    launchpadShiftHeld = ccValue > 63
+    local sr, sg, sb = launchpadShiftRgb(launchpadShiftHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
+    debugLaunchpad(string.format("shift %s", launchpadShiftHeld and "on" or "off"))
+    return true
+  end
+
+  if cc == UNDO_CC then
+    launchpadUndoHeld = ccValue > 63
+    local ur, ug, ub = launchpadUndoRgb(launchpadUndoHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(UNDO_CC, ur, ug, ub)
+    debugLaunchpad(string.format("undo %s", launchpadUndoHeld and "on" or "off"))
+    return true
+  end
+
+  if cc == DELETE_CC then
+    setLaunchpadDeleteMode(ccValue > 63)
+    return true
+  end
+
+  local busNum = busCcToBusNum(cc)
+  if busNum then
+    handleLaunchpadBusCc(busNum, ccValue > 63)
+    return true
+  end
+
+  return false
+end
+
 function onReceiveNotify(key, value)
   if key == "apply_bus_theme" then
     local busNum = value
     if busNum then
       applyBusGroupTheme(busNum)
+    end
+  elseif key == "launchpad_bus_led_refresh" then
+    if value then
+      refreshBusButtonLED(value)
+    else
+      refreshAllBusButtonLEDs()
     end
   end
 end
@@ -306,14 +470,6 @@ local function handleFxSelectorBcrMidi(message)
   end
 end
 
-local function sendSysexLEDUpdate(ledIndex, color)
-  -- SysEx format: F0h 00h 20h 29h 02h 10h 0Ah <LED> <Colour> F7h
-  -- Decimal: (240,0,32,41,2,16,10,<LED>,<Colour>,247)
-  local sysexMessage = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0A, ledIndex, color, 0xF7 }
-  print('sendSysexLEDUpdate', ledIndex, color, sysexMessage)
-  sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
-end
-
 local function setLaunchpadLayout(layout)
   -- SysEx format: F0h 00h 20h 29h 02h 10h 2Ch <Layout> F7h
   -- Decimal: (240,0,32,41,2,16,44,<Layout>,247)
@@ -378,14 +534,7 @@ function onReceiveMIDI(message, connections)
       presetGridEntry.values.x = 0
     end
   elseif message[1] == MIDIMessageType.CONTROLCHANGE + noteMidiChannel - 1 then
-    local cc = message[2]
-    if cc == 50 then
-      local deleteMode = message[3] == 127
-      root:findByName('delete_button', true).values.x = deleteMode and 1 or 0
-      -- Update delete button LED using SysEx (color 5 for active, 7 for inactive)
-      local deleteButtonColor = deleteMode and 5 or 7
-      sendSysexLEDUpdate(DELETE_BUTTON_LED, deleteButtonColor)
-    end
+    handleLaunchpadControlChange(message[2], message[3])
   end
 end
 
@@ -397,7 +546,7 @@ function update()
     return
   end
   pendingStartupMidiSync = false
-  for busNum = 1, 5 do
+  for busNum = 1, NUM_BUSES do
     local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
     if busGroup then
       local onOff = busGroup:findByName("on_off_button_group", true)
@@ -406,6 +555,7 @@ function update()
       end
     end
   end
+  refreshAllBusButtonLEDs()
   print("startup: sync_all_buses_midi")
 end
 
@@ -419,5 +569,12 @@ function init()
   local sysexMessage = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0E, 0x00, 0xF7 }
   print('sendSysexAllPadsOff')
   sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
-  sendSysexLEDUpdate(DELETE_BUTTON_LED, 7)
+  setLaunchpadDeleteMode(false)
+  do
+    local ur, ug, ub = launchpadUndoRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(UNDO_CC, ur, ug, ub)
+    local sr, sg, sb = launchpadShiftRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
+  end
+  refreshAllBusButtonLEDs()
 end

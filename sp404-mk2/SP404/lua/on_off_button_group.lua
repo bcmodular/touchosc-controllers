@@ -89,6 +89,10 @@ local function getBusNum()
   return 1
 end
 
+local function notifyLaunchpadBusLedRefresh()
+  root:notify('launchpad_bus_led_refresh', getBusNum())
+end
+
 local function getBusFxSettings()
   local busGroup = getBusGroup()
   local settings = busGroup and json.toTable(busGroup.tag) or {}
@@ -160,6 +164,7 @@ local function sendEffectState(state, skipBcr)
   if not skipBcr then
     sendBcrCc(BCR_TOGGLE_CC, state and 127 or 0)
   end
+  notifyLaunchpadBusLedRefresh()
 end
 
 local function switchToEffect()
@@ -203,19 +208,27 @@ local function syncCurrentBusToDevice(skipBcr)
   end
 end
 
-local function setGrabState(buttonDown, skipBcr)
+-- skipBcrGrabEcho: true when grab CC originated on the BCR (do not echo grab back).
+-- Toggle CC is always mirrored so the BCR FX button lights with grab.
+local function setGrabState(buttonDown, skipBcrGrabEcho)
   if buttonDown then
     sendMIDIOn()
   else
     sendMIDIOff()
   end
-  if not skipBcr then
+  if not skipBcrGrabEcho then
     sendBcrCc(BCR_GRAB_CC, buttonDown and 127 or 0)
+  end
+  sendBcrCc(BCR_TOGGLE_CC, buttonDown and 127 or 0)
+  local grab = getGrabButton()
+  if grab then
+    grab.values.x = buttonDown and 1 or 0
   end
   local toggle = getToggleButton()
   if toggle then
     toggle.values.x = buttonDown and 1 or 0
   end
+  notifyLaunchpadBusLedRefresh()
 end
 
 local function setChooserState(isOpen, skipBcr)
@@ -272,6 +285,13 @@ function onReceiveNotify(key, value)
     syncCurrentBusToDevice(false)
   elseif key == 'set_state' then
     sendEffectState(value, false)
+  elseif key == 'launchpad_toggle' then
+    local on = value and true or false
+    local toggle = getToggleButton()
+    if toggle then
+      toggle.values.x = on and 1 or 0
+    end
+    sendEffectState(on, false)
   elseif key == 'set_settings' then
     busFxNum = tonumber(value[1]) or 0
     busFxName = value[3]
@@ -292,10 +312,12 @@ function onReceiveNotify(key, value)
       debugOnOff('warn: toggle_button not found')
     end
     sendEffectState(on, true)
+    notifyLaunchpadBusLedRefresh()
   elseif key == 'bcr_grab' then
     local pressed = bcrButtonOn(value)
     setMomentaryButtonHighlight(getGrabButton(), value)
     setGrabState(pressed, true)
+    notifyLaunchpadBusLedRefresh()
   elseif key == 'bcr_sync' then
     setMomentaryButtonHighlight(getSyncButton(), value)
     if value == 0 then
