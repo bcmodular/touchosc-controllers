@@ -10,6 +10,8 @@
     {"lua": "controls_info.lua", "node_name": "controls_info"},
     {"lua": "preset_manager.lua", "node_name": "preset_manager"},
     {"lua": "preset_grid_manager.lua", "node_name": "preset_grid_manager"},
+    {"lua": "preset_grid.lua", "node_name": "preset_grid"},
+    {"lua": "preset_pad.lua", "under_name": "preset_grid", "node_names": ["1", "2", "3", "4", "5", "6", "7", "8"]},
     {"lua": "default_manager.lua", "node_name": "default_manager"},
     {"lua": "recent_values.lua", "node_name": "recent_values"},
     {

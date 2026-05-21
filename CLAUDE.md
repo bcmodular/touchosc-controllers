@@ -28,7 +28,8 @@ Scripts are organized by responsibility and communicate via TouchOSC's `notify`/
 - **`bus_group_instance.lua`** — Per-bus script injected at build time into all 5 bus group nodes (`bus1_group` through `bus5_group`). Each bus self-discovers its number from `self.name:match("bus(%d+)_group")`, manages effect selection, fader setup, preset grid, and recent value storage.
 - **`control_mapper.lua`** — The core fader engine. Generates per-fader scripts dynamically using `string.format` with templates. Handles MIDI CC mapping, value display labels, sync toggles, and double-tap-to-reset. Still uses runtime injection (manager pattern).
 - **`controls_info.lua`** — Data definition for all 46 effects. Each entry maps CC numbers, fader names, label formats, mapping functions, grid configurations, and sync relationships. The array structure has 16 positional fields (documented in the file header).
-- **`preset_grid_manager.lua`** — Centralized preset grid manager (8 presets per bus). Handles store/recall/delete across all buses, Launchpad LED synchronization, and color-coded bus identification. Injects pad scripts at runtime via `init()`.
+- **`preset_grid_manager.lua`** — Centralized preset grid manager (8 presets per bus). Handles store/recall/delete across all buses, Launchpad LED synchronization, and color-coded bus identification.
+- **`preset_grid.lua`** / **`preset_pad.lua`** — Build-injected notify relay on each `preset_grid` group and pads `1`–`8` (bus number from `tag` / parent `tag`).
 - **`preset_manager.lua`** — Persistent preset storage. Each of the 46 effect slots stores its presets as JSON in the element's `tag` property. Supports OSC export/import.
 - **`default_manager.lua`** — Stores default fader values per effect.
 - **`recent_values.lua`** — MRU stack (max 16) of recently used effect parameters per bus.
@@ -46,7 +47,7 @@ Scripts are organized by responsibility and communicate via TouchOSC's `notify`/
 
 - **`tag` property as shared state**: The only way to pass data between parent/child scopes in grids. Always JSON-encoded via `json.toTable()`/`json.fromTable()`.
 - **Build-time script injection**: Lua files are injected into `.tosc` nodes by `toscbuild.py` during build. The `toscbuild.json` manifest maps each `.lua` file to one or more target nodes. This replaces the older runtime injection pattern.
-- **Runtime script injection (legacy)**: Some manager scripts (e.g., `control_mapper.lua`, `preset_grids.lua`) still use `init()` functions that set child `.script` properties from string templates. For scripts that use `string.format` substitution (like `control_mapper.lua`), build-time migration requires parameterized template expansion.
+- **Runtime script injection (legacy)**: `control_mapper.lua` still uses `init()` to set per-fader scripts from `string.format` templates. Build-time migration for those requires parameterized template expansion.
 - **`notify`/`onReceiveNotify`**: The IPC mechanism between TouchOSC elements. All cross-element communication uses this pattern.
 - **MIDI values are 0-127**, but TouchOSC faders use 0.0-1.0 floats. Conversion helpers `midiToFloat`/`floatToMIDI` appear throughout.
 - **Mapping functions**: Convert MIDI values to display strings (e.g., `getFreq`, `getDelayTimes`). Defined as string snippets in `control_mapper.lua` and injected into fader scripts via `string.format`.
@@ -83,7 +84,8 @@ Lives alongside the `.tosc` file (e.g., `sp404-mk2/SP404/toscbuild.json`). Forma
 
 Mapping types:
 - **`node_name`** (string) — Target a single uniquely-named node.
-- **`node_names`** (array) — One-to-many: inject the same script into multiple nodes.
+- **`node_names`** (array) — One-to-many: inject the same script into every layout node with that name.
+- **`under_name`** + **`node_names`** — Inject into direct children only: for each parent node named `under_name`, update each child whose name is in `node_names` (e.g. preset pads `1`–`8` under `preset_grid`, avoiding global name collisions).
 - **`node_id: "root"`** — Special case targeting the root `<node>` (first child of `<lexml>`).
 
 The `layout` section (optional) defines nodes for the `scaffold` command to generate.

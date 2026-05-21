@@ -1,1 +1,0 @@
--- Legacy runtime-injection manager (removed). Bus scripts are build-injected on bus1_group..bus5_group.

@@ -26,6 +26,11 @@ import uuid
 import zlib
 import xml.etree.ElementTree as ET
 
+_TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+from tosc_layout_utils import find_direct_child_block, find_node_block
+
 
 # ---------------------------------------------------------------------------
 # Core I/O
@@ -137,6 +142,61 @@ def replace_script(xml_str, node_name, lua_content, is_root=False):
         xml_str = _replace_script_in_range(xml_str, start, end, lua_content, label)
 
     return xml_str, len(ranges)
+
+
+def _properties_range_for_node_block(node_block: str):
+    """Return (start, end) of <properties> within a single-node XML block."""
+    node_start = node_block.find("<node ")
+    if node_start == -1:
+        return None
+    props_end = node_block.find("</properties>", node_start)
+    if props_end == -1:
+        return None
+    return (node_start, props_end + len("</properties>"))
+
+
+def _find_all_parent_blocks(xml_str, parent_name):
+    """Find full <node> ranges for every layout node named `parent_name`."""
+    blocks = []
+    pos = 0
+    while True:
+        found = find_node_block(xml_str, parent_name, pos)
+        if not found:
+            break
+        blocks.append(found)
+        pos = found[1]
+    return blocks
+
+
+def replace_script_under_parent(xml_str, parent_name, child_names, lua_content):
+    """Inject script into direct children of each `parent_name` node.
+
+    Returns (modified_xml, nodes_updated_count).
+    """
+    prop_ranges = []
+    for pstart, pend in _find_all_parent_blocks(xml_str, parent_name):
+        parent_block = xml_str[pstart:pend]
+        for child_name in child_names:
+            child = find_direct_child_block(parent_block, child_name)
+            if not child:
+                continue
+            cstart, cend = child
+            props = _properties_range_for_node_block(parent_block[cstart:cend])
+            if props:
+                abs_start = pstart + cstart + props[0]
+                abs_end = pstart + cstart + props[1]
+                prop_ranges.append((abs_start, abs_end))
+
+    if not prop_ranges:
+        raise ValueError(
+            f"No nodes named {child_names!r} under parent '{parent_name}' in .tosc XML"
+        )
+
+    label = f"'{parent_name}'/*"
+    for start, end in sorted(prop_ranges, key=lambda r: r[0], reverse=True):
+        xml_str = _replace_script_in_range(xml_str, start, end, lua_content, label)
+
+    return xml_str, len(prop_ranges)
 
 
 # ---------------------------------------------------------------------------
@@ -296,14 +356,25 @@ def _load_manifest(manifest_dir):
 
 
 def _resolve_targets(mapping):
-    """Resolve a mapping entry to (is_root, targets) or None if invalid."""
+    """Resolve a mapping entry to a target descriptor or None if invalid.
+
+    Returns one of:
+      ("root", None)
+      ("name", is_root, [node_name, ...])
+      ("under", parent_name, [child_name, ...])
+    """
     is_root = mapping.get("node_id") == "root"
+    if mapping.get("under_name"):
+        child_names = mapping.get("node_names") or []
+        if not child_names:
+            return None
+        return ("under", mapping["under_name"], child_names)
     if "node_names" in mapping:
-        return is_root, mapping["node_names"]
+        return ("name", is_root, mapping["node_names"])
     if "node_name" in mapping:
-        return is_root, [mapping["node_name"]]
+        return ("name", is_root, [mapping["node_name"]])
     if is_root:
-        return True, [None]
+        return ("root", None)
     return None
 
 
@@ -314,12 +385,20 @@ def _count_total_targets(mappings, xml_str):
         resolved = _resolve_targets(m)
         if resolved is None:
             continue
-        is_root, targets = resolved
-        for node_name in targets:
-            if is_root:
-                total += 1
-            else:
-                total += max(1, len(_find_all_node_ranges(xml_str, node_name)))
+        kind = resolved[0]
+        if kind == "root":
+            total += 1
+        elif kind == "under":
+            _, parent_name, child_names = resolved
+            parents = _find_all_parent_blocks(xml_str, parent_name)
+            total += len(parents) * len(child_names)
+        elif kind == "name":
+            _, is_root, targets = resolved
+            for node_name in targets:
+                if is_root:
+                    total += 1
+                else:
+                    total += max(1, len(_find_all_node_ranges(xml_str, node_name)))
     return total
 
 
@@ -348,22 +427,40 @@ def _inject_mapping(xml_str, lua_dir, mapping, quiet=False):
 
     resolved = _resolve_targets(mapping)
     if resolved is None:
-        print(f"  SKIP  {lua_file} (no node_name or node_names)", file=sys.stderr)
+        print(f"  SKIP  {lua_file} (no node_name, node_names, or under_name)", file=sys.stderr)
         return xml_str, 0
 
-    is_root, targets = resolved
     injected = 0
-    for node_name in targets:
-        try:
-            xml_str, count = replace_script(
-                xml_str, node_name, lua_content, is_root=is_root)
+    kind = resolved[0]
+    try:
+        if kind == "root":
+            xml_str, count = replace_script(xml_str, None, lua_content, is_root=True)
             if not quiet:
-                target = "root" if is_root else node_name
+                print(f"  OK    {lua_file} → root ({len(lua_content)} chars)")
+            injected = count
+        elif kind == "under":
+            _, parent_name, child_names = resolved
+            xml_str, count = replace_script_under_parent(
+                xml_str, parent_name, child_names, lua_content)
+            if not quiet:
                 suffix = f" ×{count}" if count > 1 else ""
-                print(f"  OK    {lua_file} → {target}{suffix} ({len(lua_content)} chars)")
-            injected += count
-        except ValueError as e:
-            print(f"  ERROR {lua_file}: {e}", file=sys.stderr)
+                print(
+                    f"  OK    {lua_file} → {parent_name}/{{{','.join(child_names)}}}{suffix} "
+                    f"({len(lua_content)} chars)"
+                )
+            injected = count
+        elif kind == "name":
+            _, is_root, targets = resolved
+            for node_name in targets:
+                xml_str, count = replace_script(
+                    xml_str, node_name, lua_content, is_root=is_root)
+                if not quiet:
+                    target = "root" if is_root else node_name
+                    suffix = f" ×{count}" if count > 1 else ""
+                    print(f"  OK    {lua_file} → {target}{suffix} ({len(lua_content)} chars)")
+                injected += count
+    except ValueError as e:
+        print(f"  ERROR {lua_file}: {e}", file=sys.stderr)
 
     return xml_str, injected
 

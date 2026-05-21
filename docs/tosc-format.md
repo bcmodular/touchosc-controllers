@@ -386,6 +386,23 @@ To modify scripts without corrupting the file, use string-level regex replacemen
 
 The `toscbuild.py` tool implements this approach. See the `replace_script()` function for the canonical implementation.
 
+### Build manifest (`toscbuild.json`)
+
+Each mapping entry injects one `.lua` file. Target selectors:
+
+| Field | Description |
+|-------|-------------|
+| `node_name` | Every node with this name (global match) |
+| `node_names` | Same as `node_name`, multiple names in one mapping |
+| `node_id: "root"` | The root layout node |
+| `under_name` + `node_names` | For each parent named `under_name`, inject only into **direct children** whose names appear in `node_names`. Use when child names are reused elsewhere (e.g. preset pads `1`–`8` under `preset_grid`). |
+
+Example:
+
+```json
+{"lua": "preset_pad.lua", "under_name": "preset_grid", "node_names": ["1", "2", "3", "4", "5", "6", "7", "8"]}
+```
+
 ### Removing Nodes
 
 To remove a node from the XML (e.g., deleting an obsolete manager node):

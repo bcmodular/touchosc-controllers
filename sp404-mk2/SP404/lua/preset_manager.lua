@@ -1,8 +1,5 @@
 local childScript = [[
 function onValueChanged(key, value)
-  if key == 'x' and self.values.x == 0 then
-      print('Current preset values:', self.tag)
-  end
 end
 ]]
 
