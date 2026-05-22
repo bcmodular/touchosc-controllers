@@ -52,7 +52,8 @@ local function recallValues()
   end
 end
 
-local function showBus()
+-- sceneLoad: skip recallValues + switch_to_effect (scene recall applies CC/on-off itself).
+local function showBus(sceneLoad)
 
   effectChooser.children.label.values.text = fxName
   controlGroup.visible = true
@@ -64,8 +65,10 @@ local function showBus()
   -- would be replaced and the new closure would never get syncedFader set.
   controlMapper:notify('init_perform', {fxNum, midiChannel, faders})
   onOffButtonGroup:notify('set_settings', { fxNum, midiChannel, fxName })
-  recallValues()
-  onOffButtonGroup:notify('switch_to_effect')
+  if not sceneLoad then
+    recallValues()
+    onOffButtonGroup:notify('switch_to_effect')
+  end
 end
 
 local function sendOffMIDI()
@@ -116,14 +119,31 @@ local function setSelectedBusHighlight(isSelected)
 end
 
 ---@diagnostic disable: lowercase-global
+local function applyFx(fxNumIn, fxNameIn, sceneLoad)
+  fxNum = tonumber(fxNumIn) or 0
+  fxName = fxNameIn or "Choose FX..."
+  self.tag = json.fromTable({ fxNum = fxNum, fxName = fxName, busNum = busNum })
+  print("set_fx", busNum, fxNum, fxName, sceneLoad and "scene" or "")
+  showBus(sceneLoad == true)
+end
+
+-- value[3] = showChooser (boolean, optional): true = open FX chooser, false = close, nil = leave as-is.
+-- value[4] = sceneLoad (boolean, optional): true = scene recall (skip recent-value recall + switch_to_effect).
+local function applyChooserVisibility(showChooser)
+  if showChooser == nil or not fxSelectorGroup then
+    return
+  end
+  if showChooser then
+    fxSelectorGroup:notify("show", busNum)
+  else
+    fxSelectorGroup:notify("hide")
+  end
+end
+
 function onReceiveNotify(key, value)
   if (key == "set_fx") then
-    fxNum = tonumber(value[1]) or 0
-    fxName = value[2]
-    self.tag = json.fromTable({fxNum = fxNum, fxName = fxName, busNum = busNum})
-    print('set_fx', busNum, fxNum, fxName)
-    showBus()
-    fxSelectorGroup:notify('toggle_visibility', busNum)
+    applyFx(value[1], value[2], value[4] == true)
+    applyChooserVisibility(value[3])
   elseif (key == "clear_bus") then
     clearBus()
   elseif (key == "set_bus_highlight") then

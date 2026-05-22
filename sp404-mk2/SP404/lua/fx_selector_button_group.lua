@@ -22,7 +22,7 @@ function onValueChanged(key, value)
   if key == 'x' and self.values.x == 0 then
     local busGroup = root:findByName('bus' .. tostring(self.parent.tag) .. '_group', true)
     if busGroup then
-      busGroup:notify('set_fx', { self.tag, self.name })
+      busGroup:notify('set_fx', { self.tag, self.name, false })
     end
   end
 end
@@ -226,7 +226,7 @@ local function selectEffectByIndex(fxIdx)
     return
   end
 
-  busGroup:notify("set_fx", { fxIdx, fxName })
+  busGroup:notify("set_fx", { fxIdx, fxName, false })
 end
 
 local function confirmColumnSelection(col)

@@ -9,6 +9,17 @@
     {"lua": "pointers.lua", "node_name": "pointers_scripts"},
     {"lua": "controls_info.lua", "node_name": "controls_info"},
     {"lua": "preset_manager.lua", "node_name": "preset_manager"},
+    {
+      "lua": "scene_manager.lua",
+      "node_name": "scene_manager",
+      "include": ["launchpad_led.lua", "sp404_effect_on_values.lua"]
+    },
+    {"lua": "scene_grid.lua", "node_name": "scene_grid"},
+    {
+      "lua": "scene_pad.lua",
+      "under_name": "scene_grid",
+      "node_names": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"]
+    },
     {"lua": "preset_grid_manager.lua", "node_name": "preset_grid_manager", "include": ["launchpad_led.lua"]},
     {"lua": "delete_button.lua", "node_name": "delete_button"},
     {"lua": "preset_grab_mode_button.lua", "node_name": "grab_mode_button"},

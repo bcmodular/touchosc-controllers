@@ -76,14 +76,15 @@ Example (MIDI confirm: notify the bus group directly — scripted button values 
 
 ```lua
 local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
-busGroup:notify("set_fx", { fxIdx, fxName })
+-- Third arg: FX chooser (true = show, false = hide, omit = unchanged). Fourth: sceneLoad (skip recent recall).
+busGroup:notify("set_fx", { fxIdx, fxName, false })
 ```
 
 Example (UI tap: child resolves bus from `parent.tag`, notifies bus — not self):
 
 ```lua
 local busGroup = root:findByName('bus' .. tostring(self.parent.tag) .. '_group', true)
-busGroup:notify('set_fx', { self.tag, self.name })
+busGroup:notify('set_fx', { self.tag, self.name, false })
 ```
 
 ## TouchOSC Grid Scope Rules
@@ -170,19 +171,84 @@ BCR on/off inbound (port 2): CC 65 toggle, 66 sync (on release val=0), 73 grab, 
 
 ## Launchpad Pro (Programmer layout, MIDI channel 10)
 
-**Preset grid**: square pads columns 1–5 (one column per bus, preset 1 at top). Note map in `preset_grid_manager.lua` and `root.lua` — keep both in sync.
+TouchOSC listens on **port 3** (`{ false, false, true }`). Layout must be **Programmer** mode on the Launchpad (SysEx `0x2C 0x03` from `root.lua` `init`).
 
-**Round buttons** (`root.lua`):
+### Programmer grid (canonical)
 
-| CC | Role |
-|----|------|
-| 60 | Undo (pink RGB from UI hex); + bus CC recall defaults |
-| 80 | Shift (white RGB); preset grab mode while held; + bus CC momentary FX grab |
-| 50 | Delete mode (red RGB, dim/bright) |
-| 91–95 | FX bus 1–5: tap toggle; Shift+FX grab; Undo+recall defaults |
-| Preset pads | Store/recall/delete; Shift+stored pad or **GRAB MODE** = momentary grab (restore on pad up); RGB via `launchpadBusRgb()` |
+- **Square pads** → Note on ch 10; pad label = `10 * row + col` (**row 1 = bottom**, **row 8 = top**, **col 1 = left**).
+- **Round buttons** → CC on ch 10; label = CC number.
+- **Square-pad LEDs** → RGB SysEx `F0 … 0B <note> <R> <G> <B> F7` (helpers in `launchpad_led.lua`). **Note number = LED index.**
+- **Round-button LEDs** → same RGB path; **CC number = LED index** (e.g. CC 50 → LED `0x32`).
 
-Columns 6–8 square pads and CC 1–5, 96–98 are reserved for later phases.
+```
+        [Setup]  91  92  93  94  95  96  97  98     ← top CC row (FX bus 1–5)
+         80 │ 81  82  83  84  85  86  87  88 │ 89   ← row 8; Shift = CC 80 (left)
+         70 │ 71  72  73  74  75  76  77  78 │ 79
+         60 │ 61  62  63  64  65  66  67  68 │ 69
+         50 │ 51  52  53  54  55  56  57  58 │ 59   ← Delete = CC 50 (left)
+         40 │ 41  42  43  44  45  46  47  48 │ 49
+         30 │ 31  32  33  34  35  36  37  38 │ 39
+         20 │ 21  22  23  24  25  26  27  28 │ 29
+         10 │ 11  12  13  14  15  16  17  18 │ 19   ← row 1 (bottom)
+              1   2   3   4   5   6   7   8        ← bottom CC row (unmapped; lock planned)
+```
+
+### Surface allocation
+
+| Region | Col / CC | Notes (top→bottom) | Handler |
+|--------|----------|-------------------|---------|
+| **Presets** | Square cols **1–5** | 81…11 per column | `preset_grid_manager.lua`, `root.lua` |
+| **Scenes** | Square cols **7–8** | 87…17, 88…18 | `scene_manager.lua`, `root.lua` |
+| **Shift** | CC **80** (left, row 8) | 127/0 | `root.lua` → `launchpadShiftHeld` on `root.tag` |
+| **Undo** | CC **60** (left) | 127/0 | `root.lua` → bus defaults via `preset_grid` `recall_defaults` |
+| **Delete** | CC **50** (left) | 127/0 | `delete_button` + preset/scene delete mode |
+| **FX bus** | CC **91–95** | 127/0 | `root.lua` → `on_off_button_group` (toggle / Shift+grab / Undo) |
+| **Spare** | Col **6**, CC 6–8, 96–98, side 19–89 | — | — |
+| **Bus lock** | CC **1–5** (bottom) | — | Not implemented yet |
+
+### Note formulas (keep code in sync)
+
+Presets — `preset_grid_manager.lua` and `root.lua`:
+
+```lua
+-- bus 1..5 = col 1..5; preset 1 = top (row 8), preset 8 = bottom (row 1)
+note = 81 + (bus - 1) - (preset - 1) * 10
+```
+
+Scenes — `launchpadSceneNote()` in `launchpad_led.lua`; inbound map `buildLaunchpadSceneNoteToSceneMap()` in `root.lua`:
+
+```lua
+-- scenes 1–8 = col 7, 9–16 = col 8; slot 1 = top
+local col = (sceneNum <= 8) and 7 or 8
+local slot = ((sceneNum - 1) % 8) + 1
+note = col + 80 - (slot - 1) * 10   -- 87,77,…,17 and 88,78,…,18
+```
+
+### Gestures (implemented)
+
+| Control | Gesture | Action |
+|---------|---------|--------|
+| **Preset pad** | Tap empty / stored | Store / recall (per bus, per current FX) |
+| **Preset pad** | Delete mode + tap | Delete |
+| **Preset pad** | Shift+stored or GRAB MODE | Momentary preview; restore on release |
+| **Scene pad** | Same as presets | Global 5-bus snapshot (FX, on/off, CC, sync) |
+| **Scene pad** | Shift+stored | No-op (grab not implemented) |
+| **CC 91–95** | Tap | Toggle FX bus on/off |
+| **CC 91–95** | Shift+hold | Momentary grab |
+| **CC 91–95** | Undo+hold | Recall effect defaults |
+
+Scene recall uses `bus_group:notify('set_fx', { fxNum, fxName, false, true })` — 3rd arg closes chooser, 4th `sceneLoad` skips recent-value recall; then fader `new_value` + `sync_current_bus`. Storage: `scene_manager` children `01`–`16` label tags (JSON per scene).
+
+### LED colors
+
+| Target | Empty / off | Stored / on |
+|--------|-------------|-------------|
+| Preset pads | Off | Bus color via `launchpadBusRgb()` |
+| Scene pads | Off | White via `launchpadSceneRgb()` |
+| FX bus CC 91–95 | Bus color × `LAUNCHPAD_BUS_OFF_BRIGHTNESS` (~0.02) | Full bus color |
+| Delete / Shift / Undo CC | Dim RGB | Bright RGB when active |
+
+Constants in `launchpad_led.lua`: `LAUNCHPAD_IDLE_BRIGHTNESS`, `LAUNCHPAD_ON_BRIGHTNESS`, `LAUNCHPAD_BUS_OFF_BRIGHTNESS`.
 
 ## Layout backups and bus UI sync
 

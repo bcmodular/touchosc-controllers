@@ -13,18 +13,26 @@ local function hideSelector()
   end
 end
 
+local function showSelector(busNum)
+  local selectorLabel = self:findByName("fx_selector_label")
+  local selectorButtons = self:findByName("fx_selector_button_group")
+  if not selectorLabel or not selectorButtons then
+    return
+  end
+  selectorLabel.values.text = "Choose FX for Bus " .. tostring(busNum)
+  selectorButtons.tag = tostring(busNum)
+  selectorButtons:notify("setup_ui")
+  self.visible = true
+end
+
 function onReceiveNotify(key, value)
-  if key == "toggle_visibility" then
+  if key == "show" then
+    showSelector(value)
+  elseif key == "toggle_visibility" then
     if self.visible == true then
       hideSelector()
     else
-      local busNum = value
-      local selectorLabel = self:findByName("fx_selector_label")
-      selectorLabel.values.text = "Choose FX for Bus " .. tostring(busNum)
-      local selectorButtons = self:findByName("fx_selector_button_group")
-      selectorButtons.tag = tostring(busNum)
-      selectorButtons:notify("setup_ui")
-      self.visible = true
+      showSelector(value)
     end
   elseif key == "hide" then
     hideSelector()

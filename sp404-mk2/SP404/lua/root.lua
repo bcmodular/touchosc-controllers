@@ -33,6 +33,8 @@ end
 
 local presetNoteMap = buildPresetNoteMap()
 
+local sceneNoteToScene = buildLaunchpadSceneNoteToSceneMap()
+
 -- Launchpad Pro: port 3 — LAUNCHPAD_MIDI_CONNECTION in launchpad_led.lua (include)
 
 -- Bus chrome (preset area, edit strip, effect chooser, perform faders). Canonical ARGB hex per bus.
@@ -155,7 +157,7 @@ end
 
 local function refreshBusButtonLED(busNum)
   local ccLed = 90 + busNum
-  local brightness = LAUNCHPAD_IDLE_BRIGHTNESS
+  local brightness = LAUNCHPAD_BUS_OFF_BRIGHTNESS
   if busGrabPress[busNum] or isBusFxOn(busNum) then
     brightness = LAUNCHPAD_ON_BRIGHTNESS
   end
@@ -206,6 +208,10 @@ local function setLaunchpadDeleteMode(deleteMode)
     if grid then
       grid:notify("toggle_delete_mode", deleteMode)
     end
+  end
+  local sceneGrid = root:findByName("scene_grid", true)
+  if sceneGrid then
+    sceneGrid:notify("toggle_delete_mode", deleteMode)
   end
 end
 
@@ -531,6 +537,20 @@ function onReceiveMIDI(message, connections)
     local note = message[2]
     local velocity = message[3]
 
+    local sceneNum = sceneNoteToScene[note]
+    if sceneNum then
+      local sceneGrid = root:findByName("scene_grid", true)
+      local pad = sceneGrid and sceneGrid:findByName(tostring(sceneNum))
+      if pad then
+        if velocity > 0 then
+          pad.values.x = 1
+        else
+          pad.values.x = 0
+        end
+      end
+      return
+    end
+
     local noteIndex = nil
     for i = 1, #presetNoteMap do
       if presetNoteMap[i] == note then
@@ -603,4 +623,7 @@ function init()
     sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
   end
   refreshAllBusButtonLEDs()
+  if root.children.scene_manager then
+    root.children.scene_manager:notify("refresh_all_scenes")
+  end
 end

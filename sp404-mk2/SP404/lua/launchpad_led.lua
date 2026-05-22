@@ -9,6 +9,8 @@ LAUNCHPAD_MIDI_CONNECTION = { false, false, true }
 LAUNCHPAD_IDLE_BRIGHTNESS = 0.18
 LAUNCHPAD_ON_BRIGHTNESS = 1.0
 LAUNCHPAD_PRESS_BRIGHTNESS = 0.88
+-- FX bus round buttons (CC 91–95) when effect is off — very low; ~1 step on Launchpad RGB.
+LAUNCHPAD_BUS_OFF_BRIGHTNESS = 0.02
 
 -- Saturated RGBCMY-style primaries for buses (Launchpad only; TouchOSC UI keeps its own hex).
 local LAUNCHPAD_BUS_RGB = {
@@ -78,4 +80,25 @@ end
 
 function launchpadDeleteRgb(brightness)
   return launchpadRgb255(255, 0, 0, brightness)
+end
+
+function launchpadSceneRgb(brightness)
+  return launchpadRgb255(255, 255, 255, brightness)
+end
+
+-- Programmer layout: note = 10 * row + col (row 1 = bottom, row 8 = top).
+-- Scene slot 1 = top → same shape as preset note = bus + 80 - (slot - 1) * 10.
+function launchpadSceneNote(sceneNum)
+  sceneNum = tonumber(sceneNum) or 1
+  local col = (sceneNum <= 8) and 7 or 8
+  local slot = ((sceneNum - 1) % 8) + 1
+  return col + 80 - (slot - 1) * 10
+end
+
+function buildLaunchpadSceneNoteToSceneMap()
+  local map = {}
+  for sceneNum = 1, 16 do
+    map[launchpadSceneNote(sceneNum)] = sceneNum
+  end
+  return map
 end
