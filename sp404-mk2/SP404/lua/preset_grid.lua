@@ -9,12 +9,14 @@ function onReceiveNotify(key, value)
     manager:notify(key, {busNum, value})
   elseif key == 'toggle_delete_mode' then
     manager:notify(key, value)
+  elseif key == 'toggle_grab_mode' then
+    manager:notify(key, value)
   elseif key == 'store_defaults' then
     manager:notify(key, busNum)
   elseif key == 'recall_defaults' then
     manager:notify(key, busNum)
   elseif key == 'button_value_changed' then
-    manager:notify(key, {busNum, value[1], value[2]})
+    manager:notify(key, {busNum, value[1], value[2], value[3]})
   elseif key == 'clear_presets' then
     manager:notify(key, busNum)
   end

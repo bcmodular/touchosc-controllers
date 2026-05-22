@@ -1,5 +1,8 @@
 local fxNums = {}
 local deleteMode = false
+local grabMode = false
+-- busNum -> presetNum currently held in grab mode (last pressed wins per bus)
+local activeGrabByBus = {}
 
 local PRESETS_PER_BUS = 8
 local NUM_BUSES = 5
@@ -93,6 +96,122 @@ local function getGrid(busNum)
     return busGroup:findByName('preset_grid', true)
   end
   return nil
+end
+
+local function getGrabRestoreLabel(busNum)
+  return root:findByName('grab_restore_' .. tostring(busNum), true)
+end
+
+local function loadGrabRestoreCc(busNum)
+  local label = getGrabRestoreLabel(busNum)
+  if not label or label.tag == '' then
+    return nil
+  end
+  local data = json.toTable(label.tag)
+  if type(data) ~= 'table' or type(data.cc) ~= 'table' then
+    return nil
+  end
+  return data.cc
+end
+
+local function saveGrabRestoreCc(busNum, ccValues)
+  local label = getGrabRestoreLabel(busNum)
+  if label then
+    label.tag = json.fromTable({ cc = ccValues })
+  end
+end
+
+local function clearGrabRestoreCc(busNum)
+  local label = getGrabRestoreLabel(busNum)
+  if label then
+    label.tag = ''
+  end
+end
+
+local function isStoredPresetButton(busNum, presetNum)
+  local grid = getGrid(busNum)
+  if not grid then
+    return false
+  end
+  local button = grid:findByName(tostring(presetNum))
+  if not button then
+    return false
+  end
+  return Color.toHexString(button.color) == getRecallButtonColor(busNum)
+end
+
+local function getBusFaderContext(busNum)
+  local grid = getGrid(busNum)
+  if not grid then
+    return nil
+  end
+  local busGroup = grid.parent
+  local fxNum = fxNums[busNum] or 0
+  if fxNum == 0 then
+    return nil
+  end
+  local faderGroup = busGroup:findByName('faders', true)
+  local excludeMarkedPresetsButton = busGroup:findByName('exclude_tuning_from_presets_button', true)
+  local controlInfoArray = json.toTable(controlsInfo.children[fxNum].tag)
+  if not faderGroup or not controlInfoArray then
+    return nil
+  end
+  return {
+    faderGroup = faderGroup,
+    controlInfoArray = controlInfoArray,
+    excludeMarkedPresets = excludeMarkedPresetsButton and excludeMarkedPresetsButton.values.x == 1,
+  }
+end
+
+local function snapshotFadersForGrab(busNum)
+  local ctx = getBusFaderContext(busNum)
+  if not ctx then
+    return nil
+  end
+  local ccValues = {}
+  for i, controlInfo in ipairs(ctx.controlInfoArray) do
+    local _, _, isExcludable = unpack(controlInfo)
+    local fader = ctx.faderGroup:findByName(tostring(i))
+    local controlFader = fader and fader:findByName('control_fader')
+    if controlFader and (not isExcludable or not ctx.excludeMarkedPresets) then
+      ccValues[i] = floatToMIDI(controlFader.values.x)
+    end
+  end
+  return ccValues
+end
+
+local function restoreGrabFaders(busNum)
+  local ccValues = loadGrabRestoreCc(busNum)
+  if not ccValues then
+    return
+  end
+  local ctx = getBusFaderContext(busNum)
+  if not ctx then
+    return
+  end
+  for i, controlInfo in ipairs(ctx.controlInfoArray) do
+    local _, _, isExcludable = unpack(controlInfo)
+    local stored = ccValues[i]
+    if stored ~= nil and (not isExcludable or not ctx.excludeMarkedPresets) then
+      local fader = ctx.faderGroup:findByName(tostring(i))
+      local controlFader = fader and fader:findByName('control_fader')
+      if controlFader then
+        controlFader:notify('new_value', midiToFloat(stored))
+      end
+    end
+  end
+end
+
+local function endGrabForBus(busNum)
+  restoreGrabFaders(busNum)
+  clearGrabRestoreCc(busNum)
+  activeGrabByBus[busNum] = nil
+end
+
+local function restoreAllActiveGrabs()
+  for busNum, _ in pairs(activeGrabByBus) do
+    endGrabForBus(busNum)
+  end
 end
 
 local function getFxNumFromBusTag(busNum)
@@ -239,6 +358,28 @@ local function recallPreset(busNum, presetNum)
   end
 end
 
+local function beginGrabPreset(busNum, presetNum)
+  if not isStoredPresetButton(busNum, presetNum) then
+    return
+  end
+  if loadGrabRestoreCc(busNum) == nil then
+    local snapshot = snapshotFadersForGrab(busNum)
+    if snapshot then
+      saveGrabRestoreCc(busNum, snapshot)
+    end
+  end
+  activeGrabByBus[busNum] = presetNum
+  recallPreset(busNum, presetNum)
+end
+
+local function handleGrabModePad(busNum, presetNum, isPressed)
+  if isPressed then
+    beginGrabPreset(busNum, presetNum)
+  elseif activeGrabByBus[busNum] == presetNum then
+    endGrabForBus(busNum)
+  end
+end
+
 local function recallDefaults(busNum)
   local fxNum = fxNums[busNum] or 0
 
@@ -381,8 +522,34 @@ end
 
 local function toggleDeleteMode(value)
   deleteMode = value
+  if value then
+    grabMode = false
+    restoreAllActiveGrabs()
+    local grabButton = root:findByName('grab_mode_button', true)
+    if grabButton then
+      grabButton.values.x = 0
+    end
+  end
 
   -- Refresh all buses
+  for busNum, _ in pairs(fxNums) do
+    refreshPresets(busNum)
+  end
+end
+
+local function toggleGrabMode(value)
+  grabMode = value
+  if value then
+    deleteMode = false
+    restoreAllActiveGrabs()
+    local deleteButton = root:findByName('delete_button', true)
+    if deleteButton then
+      deleteButton.values.x = 0
+    end
+  else
+    restoreAllActiveGrabs()
+  end
+
   for busNum, _ in pairs(fxNums) do
     refreshPresets(busNum)
   end
@@ -414,6 +581,8 @@ function onReceiveNotify(key, value)
     end
   elseif key == 'toggle_delete_mode' then
     toggleDeleteMode(value)
+  elseif key == 'toggle_grab_mode' then
+    toggleGrabMode(value)
   elseif key == 'store_defaults' then
     local busNum = value
     if busNum then
@@ -429,6 +598,8 @@ function onReceiveNotify(key, value)
     local busNum = value[1]
     local presetNum = value[2]
     local isPressed = value[3] == 1
+    local shiftHeld = value[4] == true
+    local inGrabMode = grabMode or shiftHeld
     local fxNum = fxNums[busNum] or 0
     if fxNum == 0 then
       fxNum = syncFxNumFromBusTag(busNum)
@@ -439,6 +610,19 @@ function onReceiveNotify(key, value)
     end
 
     updateButtonMIDIHighlight(busNum, presetNum, isPressed)
+
+    if deleteMode then
+      if isPressed then
+        buttonPressed(busNum, presetNum)
+      end
+      return
+    end
+
+    if inGrabMode then
+      handleGrabModePad(busNum, presetNum, isPressed)
+      return
+    end
+
     if isPressed then
       buttonPressed(busNum, presetNum)
     end

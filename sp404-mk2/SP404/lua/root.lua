@@ -170,10 +170,33 @@ local function refreshAllBusButtonLEDs()
   end
 end
 
+local function syncLaunchpadShiftTag()
+  local tag = json.toTable(root.tag) or {}
+  tag.launchpadShiftHeld = launchpadShiftHeld
+  root.tag = json.fromTable(tag)
+end
+
+local function setLaunchpadGrabMode(grabModeOn)
+  local grabButton = root:findByName("grab_mode_button", true)
+  if grabButton then
+    grabButton.values.x = grabModeOn and 1 or 0
+  end
+  for busNum = 1, NUM_BUSES do
+    local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+    local grid = busGroup and busGroup:findByName("preset_grid", true)
+    if grid then
+      grid:notify("toggle_grab_mode", grabModeOn)
+    end
+  end
+end
+
 local function setLaunchpadDeleteMode(deleteMode)
   local deleteButton = root:findByName("delete_button", true)
   if deleteButton then
     deleteButton.values.x = deleteMode and 1 or 0
+  end
+  if deleteMode then
+    setLaunchpadGrabMode(false)
   end
   local dr, dg, db = launchpadDeleteRgb(deleteMode and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
   sendLaunchpadLedRgb(DELETE_BUTTON_LED, dr, dg, db)
@@ -238,6 +261,7 @@ end
 local function handleLaunchpadControlChange(cc, ccValue)
   if cc == SHIFT_CC then
     launchpadShiftHeld = ccValue > 63
+    syncLaunchpadShiftTag()
     local sr, sg, sb = launchpadShiftRgb(launchpadShiftHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
     debugLaunchpad(string.format("shift %s", launchpadShiftHeld and "on" or "off"))
@@ -570,6 +594,8 @@ function init()
   print('sendSysexAllPadsOff')
   sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
   setLaunchpadDeleteMode(false)
+  setLaunchpadGrabMode(false)
+  syncLaunchpadShiftTag()
   do
     local ur, ug, ub = launchpadUndoRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(UNDO_CC, ur, ug, ub)

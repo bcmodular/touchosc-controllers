@@ -34,6 +34,36 @@ local ratioFaderGroup = editCompressorSidechain:findByName('ratio_fader_group', 
 - Update existing code to follow these conventions when modified
 - Use automated tools (like linters) where possible to enforce these rules
 
+## Lua: local function order (read this before adding helpers)
+
+TouchOSC uses Lua 5.x. **`local function foo()` is only visible after its definition line.** If `bar()` calls `foo()` earlier in the file, Lua does not find the local — it looks for a **global** `foo`, gets `nil`, and you get:
+
+`attempt to call global 'foo' (a nil value)`
+
+This has bitten us more than once (e.g. `beginGrabPreset` calling `recallPreset` in `preset_grid_manager.lua` before `recallPreset` was defined).
+
+**Rules when editing manager-style scripts (`preset_grid_manager.lua`, `root.lua`, etc.):**
+
+1. **Define the callee first**, then functions that call it — keep a bottom-up order in the file (low-level helpers → higher-level orchestration → `onReceiveNotify` / `init`).
+2. Or **move** the caller below the callee (do not leave the call above the `local function` definition).
+3. Or use a **forward declaration** when mutual recursion is required:
+
+```lua
+local recallPreset  -- forward declare
+
+local function beginGrabPreset(busNum, presetNum)
+  recallPreset(busNum, presetNum)
+end
+
+local function recallPreset(busNum, presetNum)
+  -- ...
+end
+```
+
+**Do not** assume `local function` hoists like JavaScript `function` declarations — it does not.
+
+**Quick check:** before committing, grep for `local function` names and confirm every call site is **below** the definition (or behind a forward declare).
+
 ## Prefer Direct Control Over `notify`
 
 TouchOSC’s `notify` / `onReceiveNotify` pattern is useful for cross-scope messaging (e.g. root → bus group, modal → button grid), but it can be **less reliable** than working directly with controls:
@@ -147,10 +177,10 @@ BCR on/off inbound (port 2): CC 65 toggle, 66 sync (on release val=0), 73 grab, 
 | CC | Role |
 |----|------|
 | 60 | Undo (pink RGB from UI hex); + bus CC recall defaults |
-| 80 | Shift (white RGB); + bus CC momentary grab |
+| 80 | Shift (white RGB); preset grab mode while held; + bus CC momentary FX grab |
 | 50 | Delete mode (red RGB, dim/bright) |
-| 91–95 | FX bus 1–5: tap toggle; Shift+grab; Undo+recall defaults |
-| Preset pads | Saturated RGBCMY per bus via `launchpadBusRgb()` (`launchpad_led.lua`) |
+| 91–95 | FX bus 1–5: tap toggle; Shift+FX grab; Undo+recall defaults |
+| Preset pads | Store/recall/delete; Shift+stored pad or **GRAB MODE** = momentary grab (restore on pad up); RGB via `launchpadBusRgb()` |
 
 Columns 6–8 square pads and CC 1–5, 96–98 are reserved for later phases.
 

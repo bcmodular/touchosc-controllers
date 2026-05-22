@@ -6,6 +6,8 @@ function onValueChanged(key, value)
     if not manager then
       return
     end
-    manager:notify('button_value_changed', {busNum, presetNum, self.values.x})
+    local rootTag = json.toTable(root.tag) or {}
+    local shiftHeld = rootTag.launchpadShiftHeld == true
+    manager:notify('button_value_changed', {busNum, presetNum, self.values.x, shiftHeld})
   end
 end
