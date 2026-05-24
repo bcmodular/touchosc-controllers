@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -21,13 +22,23 @@ from tosc_layout_utils import (
     collect_frames_et,
     find_bus_group_block,
     find_bus_group_et,
+    find_direct_child_block,
     find_node_by_path_in_block,
     layout_diff_vs_bus1,
+    deduplicate_layout_ids,
+    ensure_script_property,
+    list_direct_children,
+    regenerate_node_ids,
+    remove_direct_child,
+    set_direct_children,
     set_frame_in_range,
     tosc_read,
     tosc_write,
     validate_tosc_xml,
 )
+
+# effect_chooser header strip (bus1 is source of truth for choose_button + colours).
+EFFECT_CHOOSER_HEADER_CHILDREN = ("choose_button", "label", "clear_button", "clear_label")
 import xml.etree.ElementTree as ET
 
 # Subtrees to keep identical across buses (relative to busN_group).
@@ -89,6 +100,92 @@ def apply_frames_to_bus(block: str, frames: dict[str, tuple[str, str, str, str]]
     return block
 
 
+def sync_effect_chooser_header(xml: str) -> str:
+    """Copy bus1 effect_chooser header nodes to all buses; preserve child order (z-index)."""
+    r1 = find_bus_group_block(xml, 1)
+    if not r1:
+        raise RuntimeError("bus1_group not found")
+    block1 = xml[r1[0] : r1[1]]
+    ec1_r = find_node_by_path_in_block(block1, ["effect_chooser"])
+    if not ec1_r:
+        raise RuntimeError("bus1 effect_chooser not found")
+    ec1 = block1[ec1_r[0] : ec1_r[1]]
+
+    ref_child_xmls: list[str] = []
+    for name, node_xml in list_direct_children(ec1):
+        if name == "background":
+            continue
+        if name == "choose_button":
+            node_xml = ensure_script_property(node_xml)
+        ref_child_xmls.append(node_xml)
+
+    for bus_num in range(1, 6):
+        rb = find_bus_group_block(xml, bus_num)
+        if not rb:
+            continue
+        block = xml[rb[0] : rb[1]]
+        ec_r = find_node_by_path_in_block(block, ["effect_chooser"])
+        if not ec_r:
+            print(f"  WARNING: bus{bus_num} effect_chooser not found", file=sys.stderr)
+            continue
+        ec = block[ec_r[0] : ec_r[1]]
+        child_xmls = [
+            regenerate_node_ids(node_xml) for node_xml in ref_child_xmls
+        ]
+        ec = apply_header_children(ec, child_xmls)
+        block = block[: ec_r[0]] + ec + block[ec_r[1] :]
+        xml = xml[: rb[0]] + block + xml[rb[1] :]
+        print(f"  Synced effect_chooser header bus{bus_num}")
+    return xml
+
+
+def apply_header_children(ec_block: str, child_xmls: list[str]) -> str:
+    ec_block = remove_direct_child(ec_block, "background")
+    for name in EFFECT_CHOOSER_HEADER_CHILDREN:
+        ec_block = remove_direct_child(ec_block, name)
+    return set_direct_children(ec_block, child_xmls)
+
+
+def validate_unique_node_ids(xml: str) -> list[str]:
+    from collections import Counter
+
+    ids = re.findall(r"<node ID='([^']+)'", xml)
+    dupes = [uid for uid, n in Counter(ids).items() if n > 1]
+    if not dupes:
+        return []
+    return [f"{len(dupes)} duplicate node ID(s), e.g. {dupes[0]}"]
+
+
+def validate_effect_chooser_header_order(xml: str) -> list[str]:
+    """Return problem messages if effect_chooser child order/names differ across buses."""
+    r1 = find_bus_group_block(xml, 1)
+    if not r1:
+        return ["bus1_group not found"]
+    block1 = xml[r1[0] : r1[1]]
+    ec1_r = find_node_by_path_in_block(block1, ["effect_chooser"])
+    if not ec1_r:
+        return ["bus1 effect_chooser not found"]
+    ec1 = block1[ec1_r[0] : ec1_r[1]]
+    ref_order = [n for n, _ in list_direct_children(ec1) if n != "background"]
+    problems: list[str] = []
+    for bus_num in range(2, 6):
+        rb = find_bus_group_block(xml, bus_num)
+        if not rb:
+            continue
+        block = xml[rb[0] : rb[1]]
+        ec_r = find_node_by_path_in_block(block, ["effect_chooser"])
+        if not ec_r:
+            problems.append(f"bus{bus_num}: effect_chooser missing")
+            continue
+        ec = block[ec_r[0] : ec_r[1]]
+        order = [n for n, _ in list_direct_children(ec) if n != "background"]
+        if order != ref_order:
+            problems.append(f"bus{bus_num} effect_chooser child order {order} != bus1 {ref_order}")
+        if find_direct_child_block(ec, "background"):
+            problems.append(f"bus{bus_num}: legacy effect_chooser/background still present")
+    return problems
+
+
 def sync_bus(xml: str, bus_num: int, frames: dict) -> str:
     r = find_bus_group_block(xml, bus_num)
     if not r:
@@ -129,6 +226,20 @@ def main() -> int:
     if args.diff_only:
         n = print_diff_report(xml)
         print(f"\nTotal diffs (buses 2-5 vs bus1): {n}")
+        header_issues = validate_effect_chooser_header_order(xml)
+        id_issues = validate_unique_node_ids(xml)
+        if header_issues:
+            print("\n=== effect_chooser header issues ===")
+            for msg in header_issues:
+                print(f"  {msg}")
+        else:
+            print("\neffect_chooser header order: OK (all buses match bus1)")
+        if id_issues:
+            print("\n=== node ID issues ===")
+            for msg in id_issues:
+                print(f"  {msg}")
+        else:
+            print("node IDs: OK (all unique)")
         return 0
 
     n_before = sum(len(layout_diff_vs_bus1(xml, b, prefixes=SYNC_PREFIXES)) for b in range(2, 6))
@@ -137,6 +248,11 @@ def main() -> int:
     if not args.no_backup:
         backup = backup_tosc(path)
         print(f"Backup: {backup}")
+
+    xml = sync_effect_chooser_header(xml)
+    xml, n_dup_ids = deduplicate_layout_ids(xml)
+    if n_dup_ids:
+        print(f"  Regenerated {n_dup_ids} duplicate node ID(s)")
 
     frames = get_reference_frames(xml)
     print(f"Reference frames from bus1: {len(frames)} nodes under {SYNC_PREFIXES}")
@@ -154,6 +270,20 @@ def main() -> int:
 
     n_after = sum(len(layout_diff_vs_bus1(xml, b, prefixes=SYNC_PREFIXES)) for b in range(2, 6))
     print(f"Frame diffs after sync: {n_after}")
+    header_issues = validate_effect_chooser_header_order(xml)
+    id_issues = validate_unique_node_ids(xml)
+    if header_issues:
+        print("effect_chooser header validation FAILED:", file=sys.stderr)
+        for msg in header_issues:
+            print(f"  {msg}", file=sys.stderr)
+        return 1
+    if id_issues:
+        print("node ID validation FAILED:", file=sys.stderr)
+        for msg in id_issues:
+            print(f"  {msg}", file=sys.stderr)
+        return 1
+    print("effect_chooser header order: OK")
+    print("node IDs: OK")
     print(f"Wrote {path}")
     return 0 if n_after == 0 else 0  # still success if warnings only
 

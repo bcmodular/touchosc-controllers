@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import uuid
 import zlib
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -129,6 +130,128 @@ def find_direct_child_block(parent_block: str, child_name: str) -> tuple[int, in
         else:
             i += 1
     return None
+
+
+_SCRIPT_PROP_SNIPPET = (
+    "<property type='s'><key><![CDATA[script]]></key>"
+    "<value><![CDATA[function init() end]]></value></property>"
+)
+
+
+_NODE_ID_RE = re.compile(r"<node ID='([^']+)' type='([^']+)'")
+
+
+def regenerate_node_ids(node_xml: str) -> str:
+    """Assign fresh TouchOSC node IDs to a node subtree (required when cloning XML)."""
+
+    def repl(m: re.Match[str]) -> str:
+        return f"<node ID='{uuid.uuid4()}' type='{m.group(2)}'"
+
+    return _NODE_ID_RE.sub(repl, node_xml)
+
+
+def deduplicate_layout_ids(xml: str) -> tuple[str, int]:
+    """Ensure every node ID appears once (fixes editor jumping to wrong control)."""
+    seen: set[str] = set()
+    fixed = 0
+
+    def repl(m: re.Match[str]) -> str:
+        nonlocal fixed
+        uid = m.group(1)
+        if uid not in seen:
+            seen.add(uid)
+            return m.group(0)
+        fixed += 1
+        new_id = str(uuid.uuid4())
+        while new_id in seen:
+            new_id = str(uuid.uuid4())
+        seen.add(new_id)
+        return f"<node ID='{new_id}' type='{m.group(2)}'"
+
+    return _NODE_ID_RE.sub(repl, xml), fixed
+
+
+def ensure_script_property(node_xml: str) -> str:
+    """Ensure a node has a script property so toscbuild can inject Lua."""
+    if re.search(
+        r"<property type='s'><key><!\[CDATA\[script\]\]></key>",
+        node_xml,
+    ):
+        return node_xml
+    idx = node_xml.rfind("</properties>")
+    if idx < 0:
+        return node_xml
+    return node_xml[:idx] + _SCRIPT_PROP_SNIPPET + node_xml[idx:]
+
+
+def list_direct_children(parent_block: str) -> list[tuple[str, str]]:
+    """Return direct child nodes as (name, node_xml) in document order."""
+    section_bounds = find_children_section(parent_block)
+    if not section_bounds:
+        return []
+    pos, children_close = section_bounds
+    section = parent_block[pos:children_close]
+    out: list[tuple[str, str]] = []
+    i = 0
+    while i < len(section):
+        if section.startswith("<node", i) and (i + 5 >= len(section) or section[i + 5] in " >"):
+            node_start = i
+            depth = 0
+            j = i
+            while j < len(section):
+                if section.startswith("<node", j) and (j + 5 >= len(section) or section[j + 5] in " >"):
+                    depth += 1
+                    j += 5
+                    continue
+                if section.startswith("</node>", j):
+                    depth -= 1
+                    j += 7
+                    if depth == 0:
+                        node_xml = section[node_start:j]
+                        name_pat = NAME_PROP.format(name=r"([^]]+)")
+                        m = re.search(
+                            r"<property type='s'><key><!\[CDATA\[name\]\]></key>"
+                            r"<value><!\[CDATA\[([^\]]+)\]\]></value>",
+                            node_xml,
+                        )
+                        if m:
+                            out.append((m.group(1), node_xml))
+                        i = j
+                        break
+                    continue
+                j += 1
+            else:
+                break
+        else:
+            i += 1
+    return out
+
+
+def set_direct_children(parent_block: str, child_xmls: list[str]) -> str:
+    """Replace all direct child nodes (preserves draw/touch order)."""
+    section_bounds = find_children_section(parent_block)
+    if not section_bounds:
+        return parent_block
+    pos, end = section_bounds
+    return parent_block[:pos] + "".join(child_xmls) + parent_block[end:]
+
+
+def remove_direct_child(parent_block: str, child_name: str) -> str:
+    r = find_direct_child_block(parent_block, child_name)
+    if not r:
+        return parent_block
+    return parent_block[: r[0]] + parent_block[r[1] :]
+
+
+def replace_direct_child(parent_block: str, child_name: str, new_child_xml: str) -> str:
+    r = find_direct_child_block(parent_block, child_name)
+    if r:
+        return parent_block[: r[0]] + new_child_xml + parent_block[r[1] :]
+    section = find_children_section(parent_block)
+    if not section:
+        return parent_block
+    pos, end = section
+    return parent_block[:end] + new_child_xml + parent_block[end:]
 
 
 def find_node_by_path_in_block(block: str, path_parts: list[str]) -> tuple[int, int] | None:

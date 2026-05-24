@@ -245,11 +245,10 @@ local function setChooserState(isOpen, skipBcr)
   end
 
   if isOpen then
-    for _, btn in ipairs(root:findAllByName('choose_button', true)) do
-      btn.values.x = 0
-    end
-    if chooseButton then
-      chooseButton.values.x = 1
+    local busGroup = getBusGroup()
+    local busChooseButtons = busGroup and busGroup:findAllByName('choose_button', true) or {}
+    for _, btn in ipairs(busChooseButtons) do
+      btn.values.x = 1
     end
 
     local selectorLabel = fxSelector:findByName('fx_selector_label')
@@ -265,8 +264,12 @@ local function setChooserState(isOpen, skipBcr)
   else
     if fxSelector.visible then
       fxSelector:notify('hide')
-    elseif chooseButton then
-      chooseButton.values.x = 0
+    else
+      local busGroup = getBusGroup()
+      local busChooseButtons = busGroup and busGroup:findAllByName('choose_button', true) or {}
+      for _, btn in ipairs(busChooseButtons) do
+        btn.values.x = 0
+      end
     end
   end
 end

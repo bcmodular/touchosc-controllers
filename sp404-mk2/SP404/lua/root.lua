@@ -13,6 +13,7 @@ local BUS_CC_LAST = 95
 
 local launchpadShiftHeld = false
 local launchpadUndoHeld = false
+local launchpadDeleteHeld = false
 -- busNum -> true while Shift+grab is held on that bus CC
 local busGrabPress = {}
 -- busNum -> true while Undo+recall is held on that bus CC
@@ -105,11 +106,15 @@ function applyBusGroupTheme(busNum)
 
   local effectChooser = busGroup:findByName("effect_chooser", true)
   if effectChooser then
-    setChromeColor(effectChooser:findByName("background", true), hex)
-  else
-    local parent = busGroup.parent
-    if parent then
-      setChromeColor(parent:findByName("background", true), hex)
+    setChromeColor(effectChooser:findByName("choose_button", true), hex)
+    setChromeColor(effectChooser:findByName("clear_button", true), hex)
+    local fxLabel = effectChooser:findByName("label", true)
+    if fxLabel then
+      fxLabel.textColor = Color.fromHexString("FFFFFFFF")
+    end
+    local clearLabel = effectChooser:findByName("clear_label", true)
+    if clearLabel then
+      clearLabel.textColor = Color.fromHexString("FFFFFFFF")
     end
   end
 
@@ -146,6 +151,19 @@ local function getOnOffGroup(busNum)
   return busGroup:findByName("on_off_button_group", true)
 end
 
+local function getBusFxNum(busNum)
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  if not busGroup then
+    return 0
+  end
+  local settings = json.toTable(busGroup.tag) or {}
+  return tonumber(settings.fxNum) or 0
+end
+
+local function busHasFxLoaded(busNum)
+  return getBusFxNum(busNum) ~= 0
+end
+
 local function isBusFxOn(busNum)
   local onOff = getOnOffGroup(busNum)
   if not onOff then
@@ -158,7 +176,7 @@ end
 local function refreshBusButtonLED(busNum)
   local ccLed = 90 + busNum
   local brightness = LAUNCHPAD_BUS_OFF_BRIGHTNESS
-  if busGrabPress[busNum] or isBusFxOn(busNum) then
+  if busHasFxLoaded(busNum) and (busGrabPress[busNum] or isBusFxOn(busNum)) then
     brightness = LAUNCHPAD_ON_BRIGHTNESS
   end
   local r, g, b = launchpadBusRgb(busNum, brightness)
@@ -193,6 +211,7 @@ local function setLaunchpadGrabMode(grabModeOn)
 end
 
 local function setLaunchpadDeleteMode(deleteMode)
+  launchpadDeleteHeld = deleteMode
   local deleteButton = root:findByName("delete_button", true)
   if deleteButton then
     deleteButton.values.x = deleteMode and 1 or 0
@@ -230,13 +249,27 @@ local function handleLaunchpadBusCc(busNum, pressed)
   end
 
   if pressed then
-    if launchpadUndoHeld then
+    if launchpadDeleteHeld then
+      local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+      if busGroup then
+        busGroup:notify("clear_bus")
+        refreshBusButtonLED(busNum)
+        debugLaunchpad(string.format("bus %d delete+clear", busNum))
+      end
+    elseif not busHasFxLoaded(busNum) then
+      debugLaunchpad(string.format("bus %d ignored (no FX loaded)", busNum))
+    elseif launchpadUndoHeld then
       busUndoPress[busNum] = true
       local recallBtn = getRecallDefaultsButton(busNum)
       if recallBtn then
         recallBtn.values.x = 1
       end
-      debugLaunchpad(string.format("bus %d undo+press (recall UI on)", busNum))
+      local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+      local presetGrid = busGroup and busGroup:findByName("preset_grid", true)
+      if presetGrid then
+        presetGrid:notify("recall_defaults", busNum)
+      end
+      debugLaunchpad(string.format("bus %d undo+press (recall defaults)", busNum))
     elseif launchpadShiftHeld then
       busGrabPress[busNum] = true
       onOff:notify("set_grab_state", true)

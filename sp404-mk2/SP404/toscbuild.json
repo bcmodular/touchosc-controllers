@@ -35,7 +35,13 @@
     {"lua": "toggle_button.lua", "node_name": "toggle_button"},
     {"lua": "grab_button.lua", "node_name": "grab_button"},
     {"lua": "sync_button.lua", "node_name": "sync_button"},
-    {"lua": "choose_button.lua", "node_name": "choose_button"},
+    {"lua": "choose_button.lua", "under_name": "on_off_button_group", "node_names": ["choose_button"]},
+    {"lua": "choose_button.lua", "under_name": "effect_chooser", "node_names": ["choose_button"]},
+    {
+      "lua": "clear_button.lua",
+      "under_name": "effect_chooser",
+      "node_names": ["clear_button"]
+    },
     {"lua": "fx_selector_group.lua", "node_name": "fx_selector_group"},
     {"lua": "close_fx_selector_button.lua", "node_name": "close_fx_selector_button"},
     {

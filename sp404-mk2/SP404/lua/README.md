@@ -232,12 +232,15 @@ note = col + 80 - (slot - 1) * 10   -- 87,77,…,17 and 88,78,…,18
 | **Preset pad** | Delete mode + tap | Delete |
 | **Preset pad** | Shift+stored or GRAB MODE | Momentary preview; restore on release |
 | **Scene pad** | Same as presets | Global 5-bus snapshot (FX, on/off, CC, sync) |
-| **Scene pad** | Shift+stored | No-op (grab not implemented) |
-| **CC 91–95** | Tap | Toggle FX bus on/off |
-| **CC 91–95** | Shift+hold | Momentary grab |
-| **CC 91–95** | Undo+hold | Recall effect defaults |
+| **Scene pad** | Shift+stored | Momentary scene preview; restore full performance on release |
+| **CC 91–95** | Tap | Toggle FX bus on/off (no-op if bus has no effect loaded) |
+| **CC 91–95** | Delete+tap | Clear bus (same as TouchOSC clear button) |
+| **CC 91–95** | Shift+hold | Momentary grab (no-op if no effect) |
+| **CC 91–95** | Undo+hold | Recall effect defaults (no-op if no effect) |
 
-Scene recall uses `bus_group:notify('set_fx', { fxNum, fxName, false, true })` — 3rd arg closes chooser, 4th `sceneLoad` skips recent-value recall; then fader `new_value` + `sync_current_bus`. Storage: `scene_manager` children `01`–`16` label tags (JSON per scene).
+Clearing/unloading a bus turns the effect off on the SP-404, BCR2000 (FX toggle CC), and Launchpad bus LED via `on_off_button_group` `set_state` / `set_grab_state`.
+
+Scene recall uses `bus_group:notify('set_fx', { fxNum, fxName, false, true })` — 3rd arg closes chooser, 4th `sceneLoad` skips recent-value recall; then all stored fader CCs via `new_value` + `sync_current_bus` (full state reload; preset exclude-tuning does not apply). Storage: `scene_manager` children `01`–`16` label tags (JSON per scene).
 
 ### LED colors
 
@@ -255,7 +258,7 @@ Constants in `launchpad_led.lua`: `LAUNCHPAD_IDLE_BRIGHTNESS`, `LAUNCHPAD_ON_BRI
 Do not use git to recover `.tosc` layout work — committed snapshots are often stale.
 
 - **`toscbuild`** writes timestamped backups to `SP404/backups/SP404_YYYYMMDD_HHMMSS.tosc` before each build.
-- **`tools/sync_bus1_ui_to_buses.py`** copies frames from `bus1_group` to buses 2–5 (`control_group` + `effect_chooser`), with its own timestamped backup first.
+- **`tools/sync_bus1_ui_to_buses.py`** copies frames from `bus1_group` to buses 2–5 (`control_group` + `effect_chooser`), syncs the `effect_chooser` header (`choose_button`, `label`, `clear_*`) from bus 1, removes the legacy `background` box on other buses, preserves child **order** (z-index), assigns **new node IDs** per bus, and deduplicates any remaining duplicate IDs. TouchOSC’s editor uses node `ID` (not `name`) for selection — duplicate IDs cause “jump to wrong bus” when editing; duplicate `name`s are fine for Lua (`findByName` under a parent).
 - **`tools/sync_bus1_ui_to_buses.py --diff-only`** lists frame differences vs bus1 without writing.
 
 After editing bus 1 in TouchOSC Editor, run sync then build:

@@ -7,6 +7,9 @@ local NUM_BUSES = 5
 local defaultCCValues = { 0, 0, 0, 0, 0, 0 }
 
 local deleteMode = false
+local activeSceneGrab = nil
+
+local SCENE_GRAB_TAG_KEY = "sceneGrabRestore"
 
 local BUTTON_STATE_COLORS = {
   AVAILABLE = "8D8D8AFF",
@@ -312,13 +315,32 @@ local function recallBusFx(busNum, busState)
   busGroup:notify("set_fx", { busState.fxNum, fxName, false, true })
 end
 
-local function recallScene(sceneNum)
-  local data = loadSceneData(sceneNum)
+local function loadSceneGrabSnapshot()
+  local tag = json.toTable(root.tag) or {}
+  local data = tag[SCENE_GRAB_TAG_KEY]
+  if type(data) == "table" and data.buses then
+    return data
+  end
+  return nil
+end
+
+local function saveSceneGrabSnapshot(data)
+  local tag = json.toTable(root.tag) or {}
+  tag[SCENE_GRAB_TAG_KEY] = data
+  root.tag = json.fromTable(tag)
+end
+
+local function clearSceneGrabSnapshot()
+  local tag = json.toTable(root.tag) or {}
+  tag[SCENE_GRAB_TAG_KEY] = nil
+  root.tag = json.fromTable(tag)
+end
+
+local function applyGlobalState(data)
   if not data or not data.buses then
     return
   end
 
-  -- Per bus: init FX → apply scene CC/sync → on/off → push all CCs to SP-404.
   for busNum = 1, NUM_BUSES do
     local busState = data.buses[tostring(busNum)]
     if busState then
@@ -334,6 +356,42 @@ local function recallScene(sceneNum)
   local fxSelector = root:findByName("fx_selector_group", true)
   if fxSelector then
     fxSelector:notify("hide")
+  end
+end
+
+local function recallScene(sceneNum)
+  local data = loadSceneData(sceneNum)
+  if not data then
+    return
+  end
+  applyGlobalState(data)
+end
+
+local function endSceneGrab()
+  local snapshot = loadSceneGrabSnapshot()
+  if snapshot then
+    applyGlobalState(snapshot)
+  end
+  clearSceneGrabSnapshot()
+  activeSceneGrab = nil
+end
+
+local function beginSceneGrab(sceneNum)
+  if not isStoredSceneButton(sceneNum) then
+    return
+  end
+  if loadSceneGrabSnapshot() == nil then
+    saveSceneGrabSnapshot(captureGlobalState())
+  end
+  activeSceneGrab = sceneNum
+  recallScene(sceneNum)
+end
+
+local function handleSceneGrabPad(sceneNum, isPressed)
+  if isPressed then
+    beginSceneGrab(sceneNum)
+  elseif activeSceneGrab == sceneNum then
+    endSceneGrab()
   end
 end
 
@@ -402,6 +460,9 @@ end
 
 local function toggleDeleteMode(value)
   deleteMode = value
+  if value then
+    endSceneGrab()
+  end
   refreshAllSceneButtons()
 end
 
@@ -422,14 +483,15 @@ function onReceiveNotify(key, value)
 
     updateSceneMidiPressHighlight(sceneNum, isPressed)
 
-    if shiftHeld and isStoredSceneButton(sceneNum) then
-      return
-    end
-
     if deleteMode then
       if isPressed then
         sceneButtonPressed(sceneNum)
       end
+      return
+    end
+
+    if shiftHeld then
+      handleSceneGrabPad(sceneNum, isPressed)
       return
     end
 

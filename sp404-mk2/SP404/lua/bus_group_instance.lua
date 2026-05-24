@@ -100,7 +100,12 @@ local function clearBus()
   self.tag = json.fromTable({fxNum = fxNum, fxName = fxName, busNum = busNum})
 
   effectChooser.children.label.values.text = fxName
-  sendOffMIDI()
+
+  if onOffButtonGroup then
+    onOffButtonGroup:notify("set_grab_state", false)
+    onOffButtonGroup:notify("set_state", false)
+  end
+
   local bcrCh = tonumber(faders.tag)
   if bcrCh and controlMapper then
     controlMapper:notify('bcr_zero_slots', { bcrCh, 1, 6 })
