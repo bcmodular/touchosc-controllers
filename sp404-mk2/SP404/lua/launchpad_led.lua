@@ -75,7 +75,7 @@ function launchpadUndoRgb(brightness)
 end
 
 function launchpadClickRgb(brightness)
-  return launchpadRgb255(0, 200, 255, brightness)
+  return launchpadRgb255(0, 255, 0, brightness)
 end
 
 function launchpadShiftRgb(brightness)

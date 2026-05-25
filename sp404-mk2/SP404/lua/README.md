@@ -251,7 +251,7 @@ Scene recall uses `bus_group:notify('set_fx', { fxNum, fxName, false, true })` �
 | Preset pads | Off | Bus color via `launchpadBusRgb()` |
 | Scene pads | Off | White via `launchpadSceneRgb()` |
 | FX bus CC 91–95 | Bus color × `LAUNCHPAD_BUS_OFF_BRIGHTNESS` (~0.02) | Full bus color |
-| Delete / Shift / Click / Undo CC | Dim RGB | Bright RGB when active (Click = cyan, Undo = magenta) |
+| Delete / Shift / Click / Undo CC | Dim RGB | Bright RGB when active (Click = green, Undo = magenta) |
 
 Constants in `launchpad_led.lua`: `LAUNCHPAD_IDLE_BRIGHTNESS`, `LAUNCHPAD_ON_BRIGHTNESS`, `LAUNCHPAD_BUS_OFF_BRIGHTNESS`.
 
