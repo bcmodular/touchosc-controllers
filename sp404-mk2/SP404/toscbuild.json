@@ -9,6 +9,12 @@
     {"lua": "pointers.lua", "node_name": "pointers_scripts"},
     {"lua": "controls_info.lua", "node_name": "controls_info"},
     {"lua": "preset_manager.lua", "node_name": "preset_manager"},
+    {"lua": "backup_manager.lua", "node_name": "backup_manager"},
+    {"lua": "backup_import_group.lua", "node_name": "backup_import_group"},
+    {"lua": "backup_import_confirm_button.lua", "node_name": "backup_import_button"},
+    {"lua": "backup_import_exit_button.lua", "node_name": "backup_import_exit_button"},
+    {"lua": "backup_export_button.lua", "node_name": "backup_export_button"},
+    {"lua": "backup_import_open_button.lua", "node_name": "backup_import_open_button"},
     {
       "lua": "scene_manager.lua",
       "node_name": "scene_manager",

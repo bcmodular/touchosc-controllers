@@ -127,6 +127,10 @@ end
 local function applyFx(fxNumIn, fxNameIn, sceneLoad)
   fxNum = tonumber(fxNumIn) or 0
   fxName = fxNameIn or "Choose FX..."
+  if fxNum == 0 then
+    clearBus()
+    return
+  end
   self.tag = json.fromTable({ fxNum = fxNum, fxName = fxName, busNum = busNum })
   print("set_fx", busNum, fxNum, fxName, sceneLoad and "scene" or "")
   showBus(sceneLoad == true)

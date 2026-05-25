@@ -581,6 +581,42 @@ local function setLaunchpadLayout(layout)
   sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
 end
 
+local function oscArgString(arguments, index)
+  local arg = arguments and arguments[index]
+  if arg == nil then
+    return nil
+  end
+  if type(arg) == "string" then
+    return arg
+  end
+  if type(arg) == "table" and arg.value ~= nil then
+    return tostring(arg.value)
+  end
+  return tostring(arg)
+end
+
+-- TouchOSC always invokes root onReceiveOSC first (hidden import group OSC routing is unreliable).
+function onReceiveOSC(message, connections)
+  local path = message[1]
+  if path ~= "/sp404/backup" then
+    return false
+  end
+
+  local jsonBackup = oscArgString(message[2], 1)
+  if not jsonBackup or jsonBackup == "" then
+    print("root: /sp404/backup missing string argument")
+    return true
+  end
+
+  local importGroup = root:findByName("backup_import_group", true)
+  if importGroup then
+    importGroup:notify("osc_backup_received", jsonBackup)
+  else
+    print("root: backup_import_group not found")
+  end
+  return true
+end
+
 function onReceiveMIDI(message, connections)
   -- Filter out SysEx messages to avoid processing our own messages
   if message[1] == MIDIMessageType.SYSTEMEXCLUSIVE + 1 then

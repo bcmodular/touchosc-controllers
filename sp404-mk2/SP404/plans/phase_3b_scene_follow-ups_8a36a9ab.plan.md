@@ -10,13 +10,13 @@ todos:
     status: completed
   - id: phase3b-backup-lua
     content: "3b-3a: backup_manager.lua + /sp404/backup export/import + layout buttons + toscbuild"
-    status: pending
+    status: completed
   - id: phase3b-python-utility
     content: "3b-3b: Extend preset-manager.py for unified dump capture/replay + requirements.txt + dumps/"
-    status: pending
+    status: completed
   - id: phase3b-docs
     content: Update lua/README.md and parent plan deferred/phase 3b status
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -53,7 +53,7 @@ flowchart TB
 |-------|--------|------|
 | **3b-1** | **Declined** | ~~Exclude-tuning on scene recall~~ — see decision below |
 | **3b-2** | **Done** | Scene grab: Shift+stored pad = momentary full-performance preview |
-| **3b-3** | Pending | Unified OSC backup + Mac utility for store/replay |
+| **3b-3** | **Done** | Unified OSC backup + Mac utility for store/replay |
 
 Deferred items **not** in 3b (unchanged): per-scene colors, custom scene names.
 

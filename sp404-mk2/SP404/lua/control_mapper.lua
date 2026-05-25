@@ -1177,6 +1177,10 @@ local function setUpPerformFader(faderNum, controlFader, spChannel, bcrChannel, 
 end
 
 local function setUpPerformFaders(fxNum, channel, faderGroups)
+  fxNum = tonumber(fxNum) or 0
+  if fxNum == 0 or not controlsInfo.children[tostring(fxNum)] then
+    return
+  end
   -- print('Initialising perform faders')
   local controlInfo = json.toTable(controlsInfo.children[tostring(fxNum)].tag)
   local bcrChannel = tonumber(faderGroups.tag)

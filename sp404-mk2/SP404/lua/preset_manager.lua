@@ -14,31 +14,9 @@ local function deleteAllPresetsForAllFX()
   end
 end
 
-local function exportPresetsToOSC()
-  local fullPresetArray = {}
-  for fxNum = 1, 46 do
-    local presetArray = json.toTable(self.children[tostring(fxNum)].tag) or {}
-    fullPresetArray[fxNum] = presetArray
-  end
-
-  local jsonPresets = json.fromTable(fullPresetArray)
-  sendOSC('/presets', jsonPresets)
-end
-
-local function importPresetsFromOSC(fullPresetArray)
-  for fxNum = 1, 46 do
-    local presetArray = fullPresetArray[fxNum]
-    self.children[tostring(fxNum)].tag = presetArray
-  end
-end
-
 function onReceiveNotify(key, value)
   if key == 'delete_all_presets_for_all_fx' then
     deleteAllPresetsForAllFX()
-  elseif key == 'export_presets_to_osc' then
-    exportPresetsToOSC()
-  elseif key == 'import_presets_from_osc' then
-    importPresetsFromOSC(value)
   end
 end
 
