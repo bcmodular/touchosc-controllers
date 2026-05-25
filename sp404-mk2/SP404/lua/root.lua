@@ -6,16 +6,20 @@ local NUM_BUSES = 5
 
 -- Launchpad Programmer round buttons (MIDI ch noteMidiChannel).
 local SHIFT_CC = 80
+local CLICK_CC = 70
 local UNDO_CC = 60
 local DELETE_CC = 50
 local BUS_CC_FIRST = 91
 local BUS_CC_LAST = 95
 
 local launchpadShiftHeld = false
+local launchpadClickHeld = false
 local launchpadUndoHeld = false
 local launchpadDeleteHeld = false
 -- busNum -> true while Shift+grab is held on that bus CC
 local busGrabPress = {}
+-- busNum -> true while Click+store is held on that bus CC
+local busClickPress = {}
 -- busNum -> true while Undo+recall is held on that bus CC
 local busUndoPress = {}
 
@@ -242,6 +246,14 @@ local function getRecallDefaultsButton(busNum)
   return busGroup:findByName("recall_defaults_button", true)
 end
 
+local function getStoreDefaultsButton(busNum)
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  if not busGroup then
+    return nil
+  end
+  return busGroup:findByName("store_defaults_button", true)
+end
+
 local function handleLaunchpadBusCc(busNum, pressed)
   local onOff = getOnOffGroup(busNum)
   if not onOff then
@@ -258,6 +270,18 @@ local function handleLaunchpadBusCc(busNum, pressed)
       end
     elseif not busHasFxLoaded(busNum) then
       debugLaunchpad(string.format("bus %d ignored (no FX loaded)", busNum))
+    elseif launchpadClickHeld then
+      busClickPress[busNum] = true
+      local storeBtn = getStoreDefaultsButton(busNum)
+      if storeBtn then
+        storeBtn.values.x = 1
+      end
+      local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+      local presetGrid = busGroup and busGroup:findByName("preset_grid", true)
+      if presetGrid then
+        presetGrid:notify("store_defaults", busNum)
+      end
+      debugLaunchpad(string.format("bus %d click+press (store defaults)", busNum))
     elseif launchpadUndoHeld then
       busUndoPress[busNum] = true
       local recallBtn = getRecallDefaultsButton(busNum)
@@ -282,6 +306,13 @@ local function handleLaunchpadBusCc(busNum, pressed)
       refreshBusButtonLED(busNum)
       debugLaunchpad(string.format("bus %d toggle -> %s", busNum, tostring(newOn)))
     end
+  elseif busClickPress[busNum] then
+    busClickPress[busNum] = nil
+    local storeBtn = getStoreDefaultsButton(busNum)
+    if storeBtn then
+      storeBtn.values.x = 0
+    end
+    debugLaunchpad(string.format("bus %d click+release store defaults", busNum))
   elseif busUndoPress[busNum] then
     busUndoPress[busNum] = nil
     local recallBtn = getRecallDefaultsButton(busNum)
@@ -304,6 +335,14 @@ local function handleLaunchpadControlChange(cc, ccValue)
     local sr, sg, sb = launchpadShiftRgb(launchpadShiftHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
     debugLaunchpad(string.format("shift %s", launchpadShiftHeld and "on" or "off"))
+    return true
+  end
+
+  if cc == CLICK_CC then
+    launchpadClickHeld = ccValue > 63
+    local cr, cg, cb = launchpadClickRgb(launchpadClickHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(CLICK_CC, cr, cg, cb)
+    debugLaunchpad(string.format("click %s", launchpadClickHeld and "on" or "off"))
     return true
   end
 
@@ -652,6 +691,8 @@ function init()
   do
     local ur, ug, ub = launchpadUndoRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(UNDO_CC, ur, ug, ub)
+    local cr, cg, cb = launchpadClickRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(CLICK_CC, cr, cg, cb)
     local sr, sg, sb = launchpadShiftRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
   end
