@@ -3,6 +3,8 @@ local deleteMode = false
 local grabMode = false
 -- busNum -> presetNum currently held in grab mode (last pressed wins per bus)
 local activeGrabByBus = {}
+-- busNum -> morph session (Quantise + stored preset + aftertouch)
+local activeMorphByBus = {}
 
 local PRESETS_PER_BUS = 8
 local NUM_BUSES = 5
@@ -212,6 +214,162 @@ local function restoreAllActiveGrabs()
   for busNum, _ in pairs(activeGrabByBus) do
     endGrabForBus(busNum)
   end
+end
+
+local function lerpMidi(source, target, amount)
+  return math.floor(source + (target - source) * amount / 127 + 0.5)
+end
+
+local function applyCcValuesToFaders(busNum, ccValues, lastAppliedCc)
+  local ctx = getBusFaderContext(busNum)
+  if not ctx or not ccValues then
+    return
+  end
+  for i, controlInfo in ipairs(ctx.controlInfoArray) do
+    local _, _, isExcludable = unpack(controlInfo)
+    local stored = ccValues[i]
+    if stored ~= nil and (not isExcludable or not ctx.excludeMarkedPresets) then
+      if lastAppliedCc and lastAppliedCc[i] == stored then
+        -- skip duplicate CC (reduces SP-404 MIDI load during morph aftertouch)
+      else
+        local fader = ctx.faderGroup:findByName(tostring(i))
+        local controlFader = fader and fader:findByName('control_fader')
+        if controlFader then
+          controlFader:notify('new_value', midiToFloat(stored))
+          if lastAppliedCc then
+            lastAppliedCc[i] = stored
+          end
+        end
+      end
+    end
+  end
+end
+
+local function loadPresetCcValues(busNum, presetNum)
+  local fxNum = fxNums[busNum] or 0
+  if fxNum == 0 then
+    return nil
+  end
+  local presetManagerChild = presetManager.children[tostring(fxNum)]
+  if not presetManagerChild then
+    return nil
+  end
+  local presetArray = json.toTable(presetManagerChild.tag) or {}
+  local presetValues = presetArray[formatPresetNum(presetNum)]
+  if presetValues == nil then
+    return nil
+  end
+  local ctx = getBusFaderContext(busNum)
+  if not ctx then
+    return nil
+  end
+  local targetCc = {}
+  for i, controlInfo in ipairs(ctx.controlInfoArray) do
+    local _, _, isExcludable = unpack(controlInfo)
+    if not isExcludable or not ctx.excludeMarkedPresets then
+      targetCc[i] = presetValues[i]
+    end
+  end
+  return targetCc
+end
+
+local function clearMorphSession(busNum, restoreSource)
+  local session = activeMorphByBus[busNum]
+  if not session then
+    return
+  end
+  if restoreSource and not session.pendingCommit then
+    applyCcValuesToFaders(busNum, session.sourceCc, session.lastAppliedCc)
+  end
+  activeMorphByBus[busNum] = nil
+end
+
+local function cancelAllMorphSessions()
+  for busNum, _ in pairs(activeMorphByBus) do
+    clearMorphSession(busNum, true)
+  end
+end
+
+local function applyMorphBlend(busNum, amount)
+  local session = activeMorphByBus[busNum]
+  if not session then
+    return
+  end
+  amount = math.max(0, math.min(127, math.floor(amount)))
+  session.lastAmount = amount
+  local ctx = getBusFaderContext(busNum)
+  if not ctx then
+    return
+  end
+  local blended = {}
+  for i, controlInfo in ipairs(ctx.controlInfoArray) do
+    local _, _, isExcludable = unpack(controlInfo)
+    local src = session.sourceCc[i]
+    local tgt = session.targetCc[i]
+    if src ~= nil and tgt ~= nil and (not isExcludable or not ctx.excludeMarkedPresets) then
+      blended[i] = lerpMidi(src, tgt, amount)
+    end
+  end
+  applyCcValuesToFaders(busNum, blended, session.lastAppliedCc)
+end
+
+local function beginMorphPreset(busNum, presetNum, initialAmount)
+  if not isStoredPresetButton(busNum, presetNum) then
+    return
+  end
+  clearMorphSession(busNum, true)
+  local sourceCc = snapshotFadersForGrab(busNum)
+  local targetCc = loadPresetCcValues(busNum, presetNum)
+  if not sourceCc or not targetCc then
+    return
+  end
+  local lastAppliedCc = {}
+  for i, cc in pairs(sourceCc) do
+    lastAppliedCc[i] = cc
+  end
+  activeMorphByBus[busNum] = {
+    presetNum = presetNum,
+    sourceCc = sourceCc,
+    targetCc = targetCc,
+    lastAmount = 0,
+    pendingCommit = false,
+    lastAppliedCc = lastAppliedCc,
+  }
+  applyMorphBlend(busNum, initialAmount or 0)
+end
+
+local function endMorphPad(busNum, presetNum)
+  local session = activeMorphByBus[busNum]
+  if not session or session.presetNum ~= presetNum then
+    return
+  end
+  applyCcValuesToFaders(busNum, session.sourceCc, session.lastAppliedCc)
+  session.pendingCommit = true
+end
+
+local function commitMorphSessions()
+  for busNum, session in pairs(activeMorphByBus) do
+    if session.pendingCommit then
+      applyMorphBlend(busNum, session.lastAmount)
+    end
+    activeMorphByBus[busNum] = nil
+  end
+end
+
+local function handleMorphPad(busNum, presetNum, isPressed, initialAmount)
+  if isPressed then
+    beginMorphPreset(busNum, presetNum, initialAmount)
+  else
+    endMorphPad(busNum, presetNum)
+  end
+end
+
+local function handleMorphPressure(busNum, presetNum, amount)
+  local session = activeMorphByBus[busNum]
+  if not session or session.presetNum ~= presetNum or session.pendingCommit then
+    return
+  end
+  applyMorphBlend(busNum, amount)
 end
 
 local function getFxNumFromBusTag(busNum)
@@ -524,6 +682,7 @@ local function toggleDeleteMode(value)
   deleteMode = value
   if value then
     grabMode = false
+    cancelAllMorphSessions()
     restoreAllActiveGrabs()
     local grabButton = root:findByName('grab_mode_button', true)
     if grabButton then
@@ -541,6 +700,7 @@ local function toggleGrabMode(value)
   grabMode = value
   if value then
     deleteMode = false
+    cancelAllMorphSessions()
     restoreAllActiveGrabs()
     local deleteButton = root:findByName('delete_button', true)
     if deleteButton then
@@ -599,6 +759,8 @@ function onReceiveNotify(key, value)
     local presetNum = value[2]
     local isPressed = value[3] == 1
     local shiftHeld = value[4] == true
+    local quantiseHeld = value[5] == true
+    local noteVelocity = tonumber(value[6]) or 0
     local inGrabMode = grabMode or shiftHeld
     local fxNum = fxNums[busNum] or 0
     if fxNum == 0 then
@@ -618,6 +780,11 @@ function onReceiveNotify(key, value)
       return
     end
 
+    if quantiseHeld then
+      handleMorphPad(busNum, presetNum, isPressed, noteVelocity)
+      return
+    end
+
     if inGrabMode then
       handleGrabModePad(busNum, presetNum, isPressed)
       return
@@ -629,9 +796,22 @@ function onReceiveNotify(key, value)
   elseif key == 'clear_presets' then
     local busNum = value
     if busNum then
+      clearMorphSession(busNum, true)
       fxNums[busNum] = 0
       initialiseButtons(busNum)
     end
+  elseif key == 'morph_pressure' then
+    if type(value) ~= 'table' then return end
+    local busNum = value[1]
+    local presetNum = value[2]
+    local amount = value[3]
+    if busNum and presetNum and amount ~= nil then
+      handleMorphPressure(busNum, presetNum, amount)
+    end
+  elseif key == 'commit_morph_sessions' then
+    commitMorphSessions()
+  elseif key == 'cancel_morph_sessions' then
+    cancelAllMorphSessions()
   end
 end
 

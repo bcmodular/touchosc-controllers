@@ -1,6 +1,6 @@
 ---
 name: Launchpad Pro enhancements
-overview: Phased Launchpad Pro rollout. Phases 1–3 implemented; Phase 4 (bus lock) and scene follow-ups below are deferred in this plan until the next pass.
+overview: Phased Launchpad Pro rollout. Phases 1–3 and Phase 3b (scene grab + unified backup) done; Phase 4 (bus lock) is next.
 todos:
   - id: phase1-shift-cc
     content: "Phase 1: CC 80 Shift + CC 91-95 handlers + dim/bright bus-color LED refresh in root.lua"
@@ -24,14 +24,14 @@ todos:
     content: "Deferred: custom scene names on pads (v1 = numbers only)"
     status: pending
   - id: deferred-scene-exclude-tuning
-    content: "Deferred: exclude-tuning fader rules when scenes store different FX per bus"
-    status: pending
+    content: "Deferred → Phase 3b: exclude-tuning on scene recall — declined"
+    status: cancelled
   - id: deferred-scene-grab
-    content: "Deferred: scene grab (Shift+stored pad preview/restore, like preset grab)"
-    status: pending
+    content: "Deferred → Phase 3b: scene grab (Shift+stored pad preview/restore)"
+    status: completed
   - id: deferred-scene-osc
-    content: "Deferred: OSC export/import for scenes (like preset_manager)"
-    status: pending
+    content: "Deferred → Phase 3b: unified /sp404/backup (presets + scenes + defaults + recent + buses)"
+    status: completed
 isProject: false
 ---
 
@@ -46,6 +46,7 @@ isProject: false
 - **Phase 1**: Shift CC 80, Undo CC 60, bus CC 91–95 (toggle / Shift+grab / Undo+defaults), RGB LEDs; bus-off uses `LAUNCHPAD_BUS_OFF_BRIGHTNESS` (~0.02).
 - **Phase 2**: Preset grab via Shift+stored pad and GRAB MODE button.
 - **Phase 3**: `scene_manager` + TouchOSC `scene_grid` (2×8) + Launchpad cols 7–8; storage in `scene_manager` children `01`–`16` tags; `set_fx` with `showChooser` + `sceneLoad` flags; SP-404 sync via `new_value` + `sync_current_bus`.
+- **Phase 3b** ([phase_3b_scene_follow-ups_8a36a9ab.plan.md](phase_3b_scene_follow-ups_8a36a9ab.plan.md)): scene grab, unified `/sp404/backup` + Mac preset-manager utility — **complete**.
 - **Phase 4**: not started (see below).
 
 ## Current state (Launchpad ch 10)
@@ -308,15 +309,15 @@ Each phase: implement → `python3 tools/toscbuild.py build sp404-mk2/SP404` →
 
 ## Deferred (this Launchpad rollout — not Phase 4)
 
-From Phase 3 pre-implementation Q&A. Keep here until done or moved to a durable repo backlog (e.g. GitHub issue) if this plan is archived.
+From Phase 3 pre-implementation Q&A. Scene grab and OSC backup moved to **Phase 3b** (complete). Remaining backlog:
 
-| Item | Notes |
-|------|--------|
-| **Per-scene colors** | v1 = single white on Launchpad + TouchOSC; later optional palette picker per scene |
-| **Custom scene names** | v1 = pad numbers only (`tabLabel` 1–16) |
-| **Exclude-tuning on store/recall** | Presets respect `exclude_tuning_from_presets`; scenes currently store all 6 CCs — revisit when buses can have different FX in one scene |
-| **Scene grab** | Shift+stored scene pad = preview/restore whole performance (like preset grab); code path reserved (`shiftHeld` no-op on stored pads) |
-| **OSC export/import** | Mirror `preset_manager` `/presets` pattern for scene JSON |
+| Item | Status | Notes |
+|------|--------|--------|
+| **Per-scene colors** | Open | v1 = single white on Launchpad + TouchOSC; later optional palette picker per scene |
+| **Custom scene names** | Open | v1 = pad numbers only (`tabLabel` 1–16) |
+| **Exclude-tuning on scene recall** | **Declined** (3b-1) | Scenes stay full-state reload; see [phase_3b plan](phase_3b_scene_follow-ups_8a36a9ab.plan.md) |
+| ~~**Scene grab**~~ | **Done** (3b-2) | Shift+stored scene pad preview/restore |
+| ~~**OSC backup**~~ | **Done** (3b-3) | `/sp404/backup` — presets, scenes, defaults, recent, buses; Mac utility |
 
 ### Phase 3 design choices (locked for v1, not backlog)
 

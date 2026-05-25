@@ -82,6 +82,10 @@ function launchpadShiftRgb(brightness)
   return launchpadRgb255(255, 255, 255, brightness)
 end
 
+function launchpadQuantiseRgb(brightness)
+  return launchpadRgb255(255, 128, 0, brightness)
+end
+
 function launchpadDeleteRgb(brightness)
   return launchpadRgb255(255, 0, 0, brightness)
 end

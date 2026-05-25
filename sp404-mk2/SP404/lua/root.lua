@@ -9,6 +9,7 @@ local SHIFT_CC = 80
 local CLICK_CC = 70
 local UNDO_CC = 60
 local DELETE_CC = 50
+local QUANTISE_CC = 40
 local BUS_CC_FIRST = 91
 local BUS_CC_LAST = 95
 
@@ -16,6 +17,7 @@ local launchpadShiftHeld = false
 local launchpadClickHeld = false
 local launchpadUndoHeld = false
 local launchpadDeleteHeld = false
+local launchpadQuantiseHeld = false
 -- busNum -> true while Shift+grab is held on that bus CC
 local busGrabPress = {}
 -- busNum -> true while Click+store is held on that bus CC
@@ -37,6 +39,16 @@ local function buildPresetNoteMap()
 end
 
 local presetNoteMap = buildPresetNoteMap()
+
+local function presetNoteToBusPreset(note)
+  for i = 1, #presetNoteMap do
+    if presetNoteMap[i] == note then
+      local presetIndex = i - 1
+      return math.floor(presetIndex / PRESETS_PER_BUS) + 1, (presetIndex % PRESETS_PER_BUS) + 1
+    end
+  end
+  return nil, nil
+end
 
 local sceneNoteToScene = buildLaunchpadSceneNoteToSceneMap()
 
@@ -194,10 +206,22 @@ local function refreshAllBusButtonLEDs()
   end
 end
 
-local function syncLaunchpadShiftTag()
+local function syncLaunchpadModifierTags()
   local tag = json.toTable(root.tag) or {}
   tag.launchpadShiftHeld = launchpadShiftHeld
+  tag.launchpadQuantiseHeld = launchpadQuantiseHeld
   root.tag = json.fromTable(tag)
+end
+
+local function getPresetGridManager()
+  return root.children.preset_grid_manager
+end
+
+local function notifyPresetGridManager(key, value)
+  local manager = getPresetGridManager()
+  if manager then
+    manager:notify(key, value)
+  end
 end
 
 local function setLaunchpadGrabMode(grabModeOn)
@@ -222,6 +246,7 @@ local function setLaunchpadDeleteMode(deleteMode)
   end
   if deleteMode then
     setLaunchpadGrabMode(false)
+    notifyPresetGridManager("cancel_morph_sessions")
   end
   local dr, dg, db = launchpadDeleteRgb(deleteMode and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
   sendLaunchpadLedRgb(DELETE_BUTTON_LED, dr, dg, db)
@@ -329,9 +354,21 @@ local function handleLaunchpadBusCc(busNum, pressed)
 end
 
 local function handleLaunchpadControlChange(cc, ccValue)
+  if cc == QUANTISE_CC then
+    launchpadQuantiseHeld = ccValue > 63
+    syncLaunchpadModifierTags()
+    local qr, qg, qb = launchpadQuantiseRgb(launchpadQuantiseHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(QUANTISE_CC, qr, qg, qb)
+    if not launchpadQuantiseHeld then
+      notifyPresetGridManager("commit_morph_sessions")
+    end
+    debugLaunchpad(string.format("quantise %s", launchpadQuantiseHeld and "on" or "off"))
+    return true
+  end
+
   if cc == SHIFT_CC then
     launchpadShiftHeld = ccValue > 63
-    syncLaunchpadShiftTag()
+    syncLaunchpadModifierTags()
     local sr, sg, sb = launchpadShiftRgb(launchpadShiftHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
     debugLaunchpad(string.format("shift %s", launchpadShiftHeld and "on" or "off"))
@@ -671,19 +708,29 @@ function onReceiveMIDI(message, connections)
       return
     end
 
-    print('onReceiveMIDI', note, velocity, noteIndex)
-
     local presetIndex = noteIndex - 1
     local busIndex = math.floor(presetIndex / PRESETS_PER_BUS)
     local presetNumber = (presetIndex % PRESETS_PER_BUS) + 1
-    print('onReceiveMIDI', busIndex, presetNumber)
 
     local presetGridEntry = root:findByName('bus'..tostring(busIndex + 1)..'_group', true):findByName('preset_grid', true).children[tostring(presetNumber)]
 
     if velocity > 0 then
+      local tag = json.toTable(root.tag) or {}
+      tag.launchpadLastNoteVelocity = velocity
+      root.tag = json.fromTable(tag)
       presetGridEntry.values.x = 1
     else
       presetGridEntry.values.x = 0
+    end
+  elseif message[1] == MIDIMessageType.POLYPRESSURE + noteMidiChannel - 1 then
+    local note = message[2]
+    local pressure = message[3]
+    if sceneNoteToScene[note] then
+      return
+    end
+    local busNum, presetNum = presetNoteToBusPreset(note)
+    if busNum and launchpadQuantiseHeld then
+      notifyPresetGridManager("morph_pressure", { busNum, presetNum, pressure })
     end
   elseif message[1] == MIDIMessageType.CONTROLCHANGE + noteMidiChannel - 1 then
     handleLaunchpadControlChange(message[2], message[3])
@@ -723,7 +770,8 @@ function init()
   sendMIDI(sysexMessage, LAUNCHPAD_MIDI_CONNECTION)
   setLaunchpadDeleteMode(false)
   setLaunchpadGrabMode(false)
-  syncLaunchpadShiftTag()
+  launchpadQuantiseHeld = false
+  syncLaunchpadModifierTags()
   do
     local ur, ug, ub = launchpadUndoRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(UNDO_CC, ur, ug, ub)
@@ -731,6 +779,8 @@ function init()
     sendLaunchpadLedRgb(CLICK_CC, cr, cg, cb)
     local sr, sg, sb = launchpadShiftRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
+    local qr, qg, qb = launchpadQuantiseRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(QUANTISE_CC, qr, qg, qb)
   end
   refreshAllBusButtonLEDs()
   if root.children.scene_manager then

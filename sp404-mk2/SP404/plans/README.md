@@ -5,7 +5,7 @@ Design and roadmap documents from Cursor planning sessions. Kept in-repo for his
 | Plan | Topic |
 |------|--------|
 | [launchpad_pro_enhancements_13f97bae.plan.md](launchpad_pro_enhancements_13f97bae.plan.md) | Launchpad Pro phased rollout (bus CCs, presets, scenes, deferred items) |
-| [phase_3b_scene_follow-ups_8a36a9ab.plan.md](phase_3b_scene_follow-ups_8a36a9ab.plan.md) | Phase 3b: scene grab, OSC backup; 3b-1 exclude-tuning **declined** |
+| [phase_3b_scene_follow-ups_8a36a9ab.plan.md](phase_3b_scene_follow-ups_8a36a9ab.plan.md) | Phase 3b **complete**: scene grab, `/sp404/backup`, Mac utility; 3b-1 exclude-tuning **declined** |
 | [launchpad_click_ideas_6ae4c1b9.plan.md](launchpad_click_ideas_6ae4c1b9.plan.md) | Launchpad Click → store defaults (implemented) |
 | [8-preset_grid_refactor_d9d7b06f.plan.md](8-preset_grid_refactor_d9d7b06f.plan.md) | 8-slot preset grid refactor |
 | [preset_migration_cleanup_05fdb80e.plan.md](preset_migration_cleanup_05fdb80e.plan.md) | 16→8 preset migration cleanup + build-time grid scripts |

@@ -186,7 +186,7 @@ TouchOSC listens on **port 3** (`{ false, false, true }`). Layout must be **Prog
          70 │ 71  72  73  74  75  76  77  78 │ 79
          60 │ 61  62  63  64  65  66  67  68 │ 69
          50 │ 51  52  53  54  55  56  57  58 │ 59   ← Delete = CC 50 (left)
-         40 │ 41  42  43  44  45  46  47  48 │ 49
+         40 │ 41  42  43  44  45  46  47  48 │ 49   ← Quantise = CC 40 (left)
          30 │ 31  32  33  34  35  36  37  38 │ 39
          20 │ 21  22  23  24  25  26  27  28 │ 29
          10 │ 11  12  13  14  15  16  17  18 │ 19   ← row 1 (bottom)
@@ -203,6 +203,7 @@ TouchOSC listens on **port 3** (`{ false, false, true }`). Layout must be **Prog
 | **Click** | CC **70** (left, row 7) | 127/0 | `root.lua` → bus defaults via `preset_grid` `store_defaults` |
 | **Undo** | CC **60** (left) | 127/0 | `root.lua` → bus defaults via `preset_grid` `recall_defaults` |
 | **Delete** | CC **50** (left) | 127/0 | `delete_button` + preset/scene delete mode |
+| **Quantise** | CC **40** (left, row 4) | 127/0 | `root.lua` → preset morph via poly aftertouch |
 | **FX bus** | CC **91–95** | 127/0 | `root.lua` → `on_off_button_group` (toggle / Shift+grab / Click+store / Undo+recall) |
 | **Spare** | Col **6**, CC 6–8, 96–98, side 19–89 | — | — |
 | **Bus lock** | CC **1–5** (bottom) | — | Not implemented yet |
@@ -232,6 +233,7 @@ note = col + 80 - (slot - 1) * 10   -- 87,77,…,17 and 88,78,…,18
 | **Preset pad** | Tap empty / stored | Store / recall (per bus, per current FX) |
 | **Preset pad** | Delete mode + tap | Delete |
 | **Preset pad** | Shift+stored or GRAB MODE | Momentary preview; restore on release |
+| **Preset pad** | Quantise+stored | Morph toward preset via pad aftertouch (0 = current, 127 = preset); pad release restores; Quantise release commits last blend |
 | **Scene pad** | Same as presets | Global 5-bus snapshot (FX, on/off, CC, sync) |
 | **Scene pad** | Shift+stored | Momentary scene preview; restore full performance on release |
 | **CC 91–95** | Tap | Toggle FX bus on/off (no-op if bus has no effect loaded) |
@@ -251,7 +253,7 @@ Scene recall uses `bus_group:notify('set_fx', { fxNum, fxName, false, true })` �
 | Preset pads | Off | Bus color via `launchpadBusRgb()` |
 | Scene pads | Off | White via `launchpadSceneRgb()` |
 | FX bus CC 91–95 | Bus color × `LAUNCHPAD_BUS_OFF_BRIGHTNESS` (~0.02) | Full bus color |
-| Delete / Shift / Click / Undo CC | Dim RGB | Bright RGB when active (Click = green, Undo = magenta) |
+| Delete / Shift / Click / Undo / Quantise CC | Dim RGB | Bright RGB when active (Click = green, Undo = magenta, Quantise = orange) |
 
 Constants in `launchpad_led.lua`: `LAUNCHPAD_IDLE_BRIGHTNESS`, `LAUNCHPAD_ON_BRIGHTNESS`, `LAUNCHPAD_BUS_OFF_BRIGHTNESS`.
 

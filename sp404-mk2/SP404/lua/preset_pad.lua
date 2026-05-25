@@ -8,6 +8,13 @@ function onValueChanged(key, value)
     end
     local rootTag = json.toTable(root.tag) or {}
     local shiftHeld = rootTag.launchpadShiftHeld == true
-    manager:notify('button_value_changed', {busNum, presetNum, self.values.x, shiftHeld})
+    local quantiseHeld = rootTag.launchpadQuantiseHeld == true
+    local noteVelocity = 0
+    if quantiseHeld and self.values.x == 1 then
+      noteVelocity = tonumber(rootTag.launchpadLastNoteVelocity) or 0
+    end
+    manager:notify('button_value_changed', {
+      busNum, presetNum, self.values.x, shiftHeld, quantiseHeld, noteVelocity,
+    })
   end
 end

@@ -1,6 +1,6 @@
 ---
 name: Phase 3b Scene follow-ups
-overview: "Phase 3b: scene grab (done), unified OSC backup (pending). Exclude-tuning on scene recall was tried and declined — scenes stay full-state reload."
+overview: "Phase 3b complete: scene grab, unified /sp404/backup (TouchOSC + Mac utility), exclude-tuning declined."
 todos:
   - id: phase3b-exclude-tuning
     content: "3b-1: Per-bus exclude-tuning on scene recall — declined after testing"
@@ -12,17 +12,22 @@ todos:
     content: "3b-3a: backup_manager.lua + /sp404/backup export/import + layout buttons + toscbuild"
     status: completed
   - id: phase3b-python-utility
-    content: "3b-3b: Extend preset-manager.py for unified dump capture/replay + requirements.txt + dumps/"
+    content: "3b-3b: preset-manager.py — capture/replay, config library, rename/delete, window geometry"
+    status: completed
+  - id: phase3b-import-fx-off
+    content: "3b-3c: backup import forces FX off per bus (on/off not stored in dumps)"
     status: completed
   - id: phase3b-docs
-    content: Update lua/README.md and parent plan deferred/phase 3b status
+    content: Update lua/README.md, preset-manager README, and plan completion status
     status: completed
 isProject: false
 ---
 
 # Phase 3b: Scene follow-ups + unified backup
 
-Extends [launchpad_pro_enhancements_13f97bae.plan.md](launchpad_pro_enhancements_13f97bae.plan.md) after completed Phases 1–3. Phase 4 (bus lock) stays separate; 3b should call a shared `isBusLocked(busNum)` helper once Phase 4 lands so recall/grab/backup-import respect locks.
+**Status: complete** (committed `42bae1a`, May 2026).
+
+Extends [launchpad_pro_enhancements_13f97bae.plan.md](launchpad_pro_enhancements_13f97bae.plan.md) after completed Phases 1–3. Phase 4 (bus lock) stays separate; when Phase 4 lands, recall/grab/backup-import should call a shared `isBusLocked(busNum)` helper.
 
 **PyQt5:** No reason to change — it already works on Mac, dependencies are light (`PyQt5`, `python-osc`, `psutil`). Keep and extend [`preset-manager/python/preset-manager.py`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/preset-manager.py).
 
@@ -34,7 +39,7 @@ Extends [launchpad_pro_enhancements_13f97bae.plan.md](launchpad_pro_enhancements
 flowchart TB
   subgraph touchosc [TouchOSC SP404]
     SM[scene_manager.lua]
-    BM[backup_manager.lua new]
+    BM[backup_manager.lua]
   end
   subgraph osc [OSC]
     ADDR["/sp404/backup JSON"]
@@ -90,7 +95,16 @@ Do not re-open 3b-1 unless requirements change explicitly (e.g. per-scene exclud
 
 ---
 
-## 3b-3: Unified OSC backup + Mac utility
+## 3b-3: Unified OSC backup + Mac utility — done
+
+### Shipped (beyond original sketch)
+
+| Area | Delivered |
+|------|-----------|
+| **TouchOSC** | `backup_manager.lua`, export/import UI, `/sp404/backup` via `root.lua` `onReceiveOSC`; legacy `/presets` layout removed |
+| **Import** | Restores presets, scenes, defaults, recent, buses; **FX on/off forced off** per loaded bus (not in dump) |
+| **Mac utility** | Always-on listener; Settings + Backup tabs; config library (`name`, `configVersion`, `createdAt`); newest-first sort; rename/delete (context menu); window position in `settings.json`; `run-backup.sh` |
+| **Tools** | `inject_backup_layout.py`, `remove_legacy_preset_osc_layout.py`; `.gitignore` for `dumps/` and local `settings.json` |
 
 ### What to include in one dump
 
@@ -113,7 +127,8 @@ Add [`backup_manager.lua`](sp404-mk2/SP404/lua/backup_manager.lua) (root child n
 ```json
 {
   "version": 1,
-  "name": "optional user label from TouchOSC or empty",
+  "name": "config display name (set by Mac utility on capture)",
+  "configVersion": 1,
   "createdAt": "2026-05-24T12:00:00Z",
   "presets": { "1": {}, ... },
   "scenes": { "01": {}, ... },
@@ -123,48 +138,41 @@ Add [`backup_manager.lua`](sp404-mk2/SP404/lua/backup_manager.lua) (root child n
 }
 ```
 
-- **Import:** `onReceiveOSC` on a layout `backup_import_group` stores blob in tag; confirm button notifies `import_backup_from_osc` → write all sections → refresh:
-  - All `preset_grid` → `refresh_presets_list`
-  - `scene_manager` → `refresh_all_scenes`
-  - Bus groups may need `set_fx` refresh if bus tags change (evaluate during impl)
+- **Import:** `root.lua` receives `/sp404/backup` → `backup_import_group` → confirm → `import_backup_from_osc` → write sections → `turnOffBusEffectsAfterImport` → refresh preset grids + scenes.
+- **Export:** layout **Export** button → `export_backup_to_osc`.
 
-**TouchOSC layout:** One **Export backup** button (notify `export_backup_to_osc`), reuse import-group pattern from existing preset export/import (layout scripts live in [`SP404.tosc`](sp404-mk2/SP404/SP404.tosc) — mirror via backup or `toscbuild tree`).
-
-**Leave [`preset_manager.lua`](sp404-mk2/SP404/lua/preset_manager.lua) `/presets` path intact** for backward compatibility; new work uses `/sp404/backup` only.
-
-**Opportunistic fix:** `importPresetsFromOSC` should `json.toTable(value)` if import receives a string; call `refresh_presets_list` after import (known gap).
+**TouchOSC layout:** Export/Import buttons + `backup_import_group` (see [`SP404.tosc`](sp404-mk2/SP404/SP404.tosc)); built via `toscbuild` + layout inject scripts.
 
 ### Mac utility ([`preset-manager.py`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/preset-manager.py))
 
-Stay simple; extend in place:
+See [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/README.md). Summary:
 
 | Feature | Detail |
 |---------|--------|
-| **Defaults** | Listen/send `127.0.0.1`, port from settings; OSC address `/sp404/backup` |
-| **Capture** | Listen → parse args[0] → validate `version` + sections → save to `dumps/{name}_{YYYYMMDD_HHMMSS}.json` (sanitize name; default name `untitled`) |
-| **Replay** | Pick file from list or file dialog → `send_message('/sp404/backup', [json])` |
-| **UI** | Name field + “Capture” / “Replay” + log pane; drop generic multi-address cruft or hide behind “Advanced” |
-| **Deps** | Add [`preset-manager/python/requirements.txt`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/requirements.txt): `PyQt5`, `python-osc`, `psutil` |
-
-TouchOSC connection: user configures OSC receive/send ports in TouchOSC app to match utility (document in preset-manager README snippet).
+| **OSC** | Listen `/sp404/backup` (TouchOSC outgoing); replay to TouchOSC incoming |
+| **Capture** | Name prompt per capture; `dumps/{key}_{version}_{stamp}.json` (filename internal) |
+| **Library** | Configs + versions from JSON metadata; double-click replay; right-click rename/delete |
+| **Settings** | `settings.json` (gitignored): ports, `lastConfigName`, `nextConfigVersionByKey`, `windowGeometry` |
+| **Deps** | [`requirements.txt`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/requirements.txt): `PyQt5`, `python-osc`, `psutil` |
 
 ---
 
-## Build & docs
+## Build & docs — done
 
-- [`toscbuild.json`](sp404-mk2/SP404/toscbuild.json): map `backup_manager.lua` → `backup_manager` node (layout node added manually or via inject script).
+- [`toscbuild.json`](sp404-mk2/SP404/toscbuild.json): backup script mappings
 - `python3 tools/toscbuild.py build sp404-mk2/SP404`
-- Update [`sp404-mk2/SP404/lua/README.md`](sp404-mk2/SP404/lua/README.md): scene grab, backup OSC address (exclude-tuning on scenes: **not** planned).
-- Update parent plan deferred table: move grab/OSC to Phase 3b status; mark exclude as declined.
+- [`sp404-mk2/SP404/lua/README.md`](sp404-mk2/SP404/lua/README.md): scene grab, `/sp404/backup`, import FX-off behaviour
+- [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/README.md): utility workflow
+- Parent plan deferred table updated in [launchpad_pro_enhancements_13f97bae.plan.md](launchpad_pro_enhancements_13f97bae.plan.md)
 
 ---
 
-## Suggested implementation order (remaining)
+## Implementation order — complete
 
 1. ~~**3b-1** exclude-tuning~~ — **declined**
 2. ~~**3b-2** scene grab~~ — **done**
-3. **3b-3a** `backup_manager.lua` + layout export/import
-4. **3b-3b** Python utility (unblocks automated round-trip testing)
+3. ~~**3b-3a** TouchOSC backup~~ — **done**
+4. ~~**3b-3b** Mac utility~~ — **done**
 
 ---
 
@@ -173,6 +181,6 @@ TouchOSC connection: user configures OSC receive/send ports in TouchOSC app to m
 - ~~Exclude on + scene recall~~ — N/A (declined)
 - Shift+scene preview: full performance changes; release restores exact prior state — **done**
 - Shift+empty scene: no-op — **done**
-- Export → Python saves file with metadata → Import restores presets, scenes, defaults, recent, bus FX selections — **pending 3b-3**
-- Legacy `/presets` export still works — **pending 3b-3**
+- Export → utility saves dump with `name` / `configVersion` / `createdAt` → Import restores presets, scenes, defaults, recent, bus FX; loaded buses start **FX off** — **done**
+- Utility: config library, rename, delete, window position restore — **done**
 - Delete mode cancels scene grab mid-hold — **done**
