@@ -22,7 +22,7 @@ TouchOSC layout for the Roland SP-404 MKII sampler, with optional **Behringer BC
    - Optionally set **Buses 1+2** to serial or parallel routing.
 4. In TouchOSC, on each bus: tap **Choose** to select an effect, then tap the bus **FX** button to switch the effect on.
 
-Optional: add BCR2000 and Launchpad Pro Mk1 after SP-404 control is working.
+**Optional:** add Launchpad Pro Mk1 (connection 3). For **BCR2000** (connection 2), import [`SP404-mk2-BCR2000.syx`](SP404-mk2-BCR2000.syx) into each unit first — see [BCR2000](#bcr2000) below.
 
 ---
 
@@ -73,7 +73,11 @@ Bus N
 - Morph controls: morph enable + morph amount
 ```
 
-Import the BCR preset from **[`SP404-mk2-BCR2000.syx`](SP404-mk2-BCR2000.syx)** (send the file to each BCR2000 via a SysEx tool such as MIDI-OX or SysEx Librarian). The file encodes the per-bus layout above; CC details are not duplicated in this guide.
+Import **[`SP404-mk2-BCR2000.syx`](SP404-mk2-BCR2000.syx)** into each BCR2000. The file encodes the per-bus layout above; CC details are not duplicated in this guide.
+
+The recommended tool is **[BC Manager](https://mountainutilities.eu/bcmanager)** (Mountain Utilities) — open the `.syx` file and send it to the controller over USB MIDI. Other SysEx utilities (MIDI-OX, SysEx Librarian, etc.) also work.
+
+BC Manager is free to use; if you rely on it, please **[donate to Mountain Utilities](https://mountainutilities.eu/donate)** to support continued development.
 
 ---
 
@@ -224,6 +228,7 @@ Turning morph off commits the current blend.
 
 | Resource | Purpose |
 |----------|---------|
+| [`SP404-mk2-BCR2000.syx`](SP404-mk2-BCR2000.syx) | BCR2000 SysEx preset (import via [BC Manager](https://mountainutilities.eu/bcmanager)) |
 | [`lua/README.md`](lua/README.md) | Naming, grid/tag patterns, layout sync tooling |
 | [`toscbuild.json`](toscbuild.json) | Build manifest (script → node mappings) |
 | [`tools/`](tools/) | SP404-specific layout scripts |
