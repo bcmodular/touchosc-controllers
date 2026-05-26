@@ -31,6 +31,7 @@
     {"lua": "preset_grab_mode_button.lua", "node_name": "grab_mode_button"},
     {"lua": "preset_grid.lua", "node_name": "preset_grid"},
     {"lua": "preset_pad.lua", "under_name": "preset_grid", "node_names": ["1", "2", "3", "4", "5", "6", "7", "8"]},
+    {"lua": "morph_amount_fader.lua", "node_names": ["morph_amount_fader"]},
     {"lua": "default_manager.lua", "node_name": "default_manager"},
     {"lua": "recent_values.lua", "node_name": "recent_values"},
     {
@@ -41,7 +42,7 @@
     {"lua": "toggle_button.lua", "node_name": "toggle_button"},
     {"lua": "grab_button.lua", "node_name": "grab_button"},
     {"lua": "sync_button.lua", "node_name": "sync_button"},
-    {"lua": "choose_button.lua", "under_name": "on_off_button_group", "node_names": ["choose_button"]},
+    {"lua": "morph_choose_button.lua", "under_name": "on_off_button_group", "node_names": ["morph_button"]},
     {"lua": "choose_button.lua", "under_name": "effect_chooser", "node_names": ["choose_button"]},
     {
       "lua": "clear_button.lua",

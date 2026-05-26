@@ -7,10 +7,6 @@ end
 local function hideSelector()
   self.visible = false
   resetAllChooseButtons()
-  local selectorButtons = self:findByName("fx_selector_button_group")
-  if selectorButtons then
-    selectorButtons:notify("midi_reset")
-  end
 end
 
 local function showSelector(busNum)

@@ -2,7 +2,6 @@ local effects = EFFECT_NAMES
 
 local NUM_COLUMNS = 8
 local NUM_ROWS = 6
-local ENCODER_STEPS_PER_SLOT = 10
 
 local COLOR_UNAVAILABLE = "8D8D8AFF"
 local COLOR_AVAILABLE = "F79000FF"
@@ -14,7 +13,6 @@ local busNum = 1
 local midiIndex = 1
 local activeColumn = 1
 local columnRow = 1
-local columnAccumulator = {}
 local columnEffects = {}
 
 local buttonScript = [[
@@ -104,14 +102,7 @@ local function getPendingFxIndex()
   return available[row]
 end
 
-local function resetColumnAccumulators()
-  for col = 1, NUM_COLUMNS do
-    columnAccumulator[col] = 0
-  end
-end
-
 local function initPendingSelection()
-  resetColumnAccumulators()
   activeColumn = 1
   columnRow = 1
 
@@ -122,16 +113,6 @@ local function initPendingSelection()
 end
 
 local paintAllButtons
-
-local function activateColumn(col)
-  if col == activeColumn then
-    return
-  end
-  activeColumn = col
-  columnRow = 1
-  columnAccumulator[col] = 0
-  paintAllButtons()
-end
 
 paintAllButtons = function()
   local labelGroup = self.parent:findByName("fx_selector_label_group")
@@ -164,55 +145,6 @@ paintAllButtons = function()
   end
 end
 
-local function stepWithinColumn(delta)
-  local available = getAvailableForColumn(activeColumn)
-  if #available == 0 then
-    return
-  end
-
-  columnRow = columnRow + delta
-  if columnRow > #available then
-    columnRow = 1
-  elseif columnRow < 1 then
-    columnRow = #available
-  end
-  paintAllButtons()
-end
-
-local function encoderValueToDirection(value)
-  if value == 0 then
-    return 0
-  end
-  if value == 1 then
-    return 1
-  end
-  if value == 127 then
-    return -1
-  end
-  if value >= 64 then
-    return -1
-  end
-  return 1
-end
-
-local function accumulateColumnTick(col, direction)
-  if direction == 0 then
-    return
-  end
-
-  activateColumn(col)
-
-  columnAccumulator[col] = (columnAccumulator[col] or 0) + direction
-
-  if columnAccumulator[col] >= ENCODER_STEPS_PER_SLOT then
-    stepWithinColumn(1)
-    columnAccumulator[col] = 0
-  elseif columnAccumulator[col] <= -ENCODER_STEPS_PER_SLOT then
-    stepWithinColumn(-1)
-    columnAccumulator[col] = 0
-  end
-end
-
 -- TouchOSC does not fire onValueChanged when values are set from script (see lua/README.md).
 local function selectEffectByIndex(fxIdx)
   local fxName = effects[fxIdx]
@@ -229,18 +161,6 @@ local function selectEffectByIndex(fxIdx)
   busGroup:notify("set_fx", { fxIdx, fxName, false })
 end
 
-local function confirmColumnSelection(col)
-  if col ~= activeColumn then
-    activeColumn = col
-    columnRow = 1
-  end
-
-  local fxIdx = getPendingFxIndex()
-  if fxIdx then
-    selectEffectByIndex(fxIdx)
-  end
-end
-
 local function setupUI()
   busNum = tonumber(self.tag) or 1
   midiIndex = getMidiIndexForBus(busNum)
@@ -252,19 +172,6 @@ end
 function onReceiveNotify(key, value)
   if key == "setup_ui" then
     setupUI()
-  elseif key == "midi_column_tick" then
-    local col = value.col
-    local direction = encoderValueToDirection(value.ccValue)
-    if col and col >= 1 and col <= NUM_COLUMNS then
-      accumulateColumnTick(col, direction)
-    end
-  elseif key == "midi_column_confirm" then
-    local col = value.col
-    if col and col >= 1 and col <= NUM_COLUMNS then
-      confirmColumnSelection(col)
-    end
-  elseif key == "midi_reset" then
-    resetColumnAccumulators()
   end
 end
 

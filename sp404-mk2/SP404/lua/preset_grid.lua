@@ -19,5 +19,8 @@ function onReceiveNotify(key, value)
     manager:notify(key, {busNum, value[1], value[2], value[3]})
   elseif key == 'clear_presets' then
     manager:notify(key, busNum)
+  elseif key == 'set_morph_enabled' or key == 'set_morph_amount' or key == 'set_morph_target'
+      or key == 'sync_morph_ui' or key == 'toggle_morph_enabled' then
+    manager:notify(key, value)
   end
 end

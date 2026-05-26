@@ -167,7 +167,7 @@ python3 tools/toscbuild.py build sp404-mk2/SP404
 
 The patch **removes** `<midi>` from `control_fader` and on/off button nodes entirely (matching bus 1).
 
-BCR on/off inbound (port 2): CC 65 toggle, 66 sync (on release val=0), 73 grab, 74 choose → `on_off_button_group` via `bcr_*` notifies. BCR buttons: **127 = on, 0 = off**.
+BCR on/off inbound (port 2): CC 65 toggle, 66 sync (on release val=0), 73 grab → `on_off_button_group` via `bcr_*` notifies. BCR buttons: **127 = on, 0 = off**. FX chooser is TouchOSC-only until Launchpad control is added.
 
 ## Launchpad Pro (Programmer layout, MIDI channel 10)
 
@@ -203,7 +203,7 @@ TouchOSC listens on **port 3** (`{ false, false, true }`). Layout must be **Prog
 | **Click** | CC **70** (left, row 7) | 127/0 | `root.lua` → bus defaults via `preset_grid` `store_defaults` |
 | **Undo** | CC **60** (left) | 127/0 | `root.lua` → bus defaults via `preset_grid` `recall_defaults` |
 | **Delete** | CC **50** (left) | 127/0 | `delete_button` + preset/scene delete mode |
-| **Quantise** | CC **40** (left, row 4) | 127/0 | `root.lua` → preset morph via poly aftertouch |
+| **Quantise** | CC **40** (left, row 4) | 127/0 | `root.lua` → modifier (Quantise+bus CC toggles morph) |
 | **FX bus** | CC **91–95** | 127/0 | `root.lua` → `on_off_button_group` (toggle / Shift+grab / Click+store / Undo+recall) |
 | **Spare** | Col **6**, CC 6–8, 96–98, side 19–89 | — | — |
 | **Bus lock** | CC **1–5** (bottom) | — | Not implemented yet |
@@ -233,7 +233,8 @@ note = col + 80 - (slot - 1) * 10   -- 87,77,…,17 and 88,78,…,18
 | **Preset pad** | Tap empty / stored | Store / recall (per bus, per current FX) |
 | **Preset pad** | Delete mode + tap | Delete |
 | **Preset pad** | Shift+stored or GRAB MODE | Momentary preview; restore on release |
-| **Preset pad** | Quantise+stored | Morph toward preset via pad aftertouch (0 = current, 127 = preset); pad release restores; Quantise release commits last blend |
+| **Preset pad** | Morph on + tap stored | Set morph target (stored pads highlight magenta; target on `morph_target_label`) |
+| **Preset pad** | Morph on + poly aftertouch | Blend amount 0–127 (0 = live faders, 127 = target preset) |
 | **Scene pad** | Same as presets | Global 5-bus snapshot (FX, on/off, CC, sync) |
 | **Scene pad** | Shift+stored | Momentary scene preview; restore full performance on release |
 | **CC 91–95** | Tap | Toggle FX bus on/off (no-op if bus has no effect loaded) |
@@ -241,8 +242,32 @@ note = col + 80 - (slot - 1) * 10   -- 87,77,…,17 and 88,78,…,18
 | **CC 91–95** | Shift+hold | Momentary grab (no-op if no effect) |
 | **CC 91–95** | Click+hold | Store effect defaults (no-op if no effect) |
 | **CC 91–95** | Undo+hold | Recall effect defaults (no-op if no effect) |
+| **CC 91–95** | Quantise+tap | Toggle morph on/off for that bus (no store/recall while morph on) |
 
 Clearing/unloading a bus turns the effect off on the SP-404, BCR2000 (FX toggle CC), and Launchpad bus LED via `on_off_button_group` `set_state` / `set_grab_state`.
+
+**Pad gesture priority** (first match wins): delete → morph on (target tap) → grab/Shift preview → normal store/recall.
+
+### TouchOSC morph UI (`control_group` / `morph_group`)
+
+Per-bus controls at the bottom of the perform area:
+
+| Control | Action |
+|---------|--------|
+| **on_off `morph_button`** | Toggle morph on/off; turning **off** commits the last blend |
+| **morph_amount_fader** | Blend amount 0–127 (visible only when morph on **and** target selected) |
+| **morph_target_label** | `CHOOSE A TARGET PRESET` or `TARGET PRESET: N` |
+
+`effect_chooser` **`choose_button`** still opens the TouchOSC FX modal (not morph).
+
+Persistent state lives in `busN_group.tag`: `morphEnabled`, `morphTargetPreset`, `morphAmount`. Runtime blending uses `activeUiMorphByBus` in `preset_grid_manager.lua`.
+
+### BCR morph (`root.lua` + `on_off_button_group.lua`)
+
+| Control | MIDI | Action |
+|---------|------|--------|
+| Morph on/off | CC **74** on bus on/off channel (5+N) | Toggle morph (mirrors perform `morph_button`) |
+| Morph amount | CC **1** on perform channel (5+N) | Absolute blend 0–127 (only while morph on) |
 
 Scene recall uses `bus_group:notify('set_fx', { fxNum, fxName, false, true })` — 3rd arg closes chooser, 4th `sceneLoad` skips recent-value recall; then all stored fader CCs via `new_value` + `sync_current_bus` (full state reload; preset exclude-tuning does not apply). Storage: `scene_manager` children `01`–`16` label tags (JSON per scene).
 

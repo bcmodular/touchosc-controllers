@@ -117,7 +117,8 @@ function applyBusGroupTheme(busNum)
 
   local onOffButtonGroup = busGroup:findByName("on_off_button_group", true)
   if onOffButtonGroup then
-    setChromeColor(onOffButtonGroup:findByName("choose_button", true), hex)
+    setChromeColor(onOffButtonGroup:findByName("toggle_button", true), hex)
+    setChromeColor(onOffButtonGroup:findByName("morph_button", true), "FFFF00FF")
   end
 
   local effectChooser = busGroup:findByName("effect_chooser", true)
@@ -131,6 +132,18 @@ function applyBusGroupTheme(busNum)
     local clearLabel = effectChooser:findByName("clear_label", true)
     if clearLabel then
       clearLabel.textColor = Color.fromHexString("FFFFFFFF")
+    end
+  end
+
+  local morphGroup = busGroup:findByName("control_group", true)
+  morphGroup = morphGroup and morphGroup:findByName("morph_group", true)
+  if morphGroup then
+    setChromeColor(morphGroup, hex)
+    local morphChildren = morphGroup.children
+    if morphChildren then
+      for i = 1, #morphChildren do
+        setChromeColor(morphChildren[i], hex)
+      end
     end
   end
 
@@ -224,6 +237,15 @@ local function notifyPresetGridManager(key, value)
   end
 end
 
+local function busMorphEnabled(busNum)
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  if not busGroup then
+    return false
+  end
+  local tag = json.toTable(busGroup.tag) or {}
+  return tag.morphEnabled == true
+end
+
 local function setLaunchpadGrabMode(grabModeOn)
   local grabButton = root:findByName("grab_mode_button", true)
   if grabButton then
@@ -246,7 +268,7 @@ local function setLaunchpadDeleteMode(deleteMode)
   end
   if deleteMode then
     setLaunchpadGrabMode(false)
-    notifyPresetGridManager("cancel_morph_sessions")
+    notifyPresetGridManager("disable_all_morph")
   end
   local dr, dg, db = launchpadDeleteRgb(deleteMode and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
   sendLaunchpadLedRgb(DELETE_BUTTON_LED, dr, dg, db)
@@ -324,6 +346,13 @@ local function handleLaunchpadBusCc(busNum, pressed)
       onOff:notify("set_grab_state", true)
       refreshBusButtonLED(busNum)
       debugLaunchpad(string.format("bus %d shift+grab on", busNum))
+    elseif launchpadQuantiseHeld then
+      local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+      local presetGrid = busGroup and busGroup:findByName("preset_grid", true)
+      if presetGrid then
+        presetGrid:notify("toggle_morph_enabled", busNum)
+      end
+      debugLaunchpad(string.format("bus %d quantise+morph toggle", busNum))
     else
       local toggle = onOff:findByName("toggle_button", true)
       local newOn = not (toggle and toggle.values.x == 1)
@@ -359,9 +388,6 @@ local function handleLaunchpadControlChange(cc, ccValue)
     syncLaunchpadModifierTags()
     local qr, qg, qb = launchpadQuantiseRgb(launchpadQuantiseHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(QUANTISE_CC, qr, qg, qb)
-    if not launchpadQuantiseHeld then
-      notifyPresetGridManager("commit_morph_sessions")
-    end
     debugLaunchpad(string.format("quantise %s", launchpadQuantiseHeld and "on" or "off"))
     return true
   end
@@ -464,17 +490,59 @@ end
 local BCR_TOGGLE_CC = 65
 local BCR_SYNC_CC = 66
 local BCR_GRAB_CC = 73
-local BCR_CHOOSE_CC = 74
-
+local BCR_MORPH_CC = 74
 local BCR_ON_OFF_CC_HANDLERS = {
   [BCR_TOGGLE_CC] = "bcr_toggle",
   [BCR_SYNC_CC] = "bcr_sync",
   [BCR_GRAB_CC] = "bcr_grab",
-  [BCR_CHOOSE_CC] = "bcr_choose",
+  [BCR_MORPH_CC] = "bcr_morph",
 }
 
--- BCR top-row encoders for FX selector modal (fixed MIDI channel 6).
-local FX_SELECTOR_BCR_CHANNEL = 5
+-- Morph amount: top-row encoder CC 1 on each bus perform channel (bus N = ch 5+N).
+local MORPH_BCR_AMOUNT_CC = 1
+
+local function busHasPerformVisible(busNum)
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  if not busGroup then
+    return false
+  end
+  local controlGroup = busGroup:findByName("control_group", true)
+  return controlGroup and controlGroup.visible
+end
+
+local function handleBcrMorphMidi(message)
+  local status = message[1]
+  local cc = message[2]
+  local ccValue = message[3]
+  local msgType = status - (status % 16)
+  local msgChannel = status % 16
+
+  if msgType ~= MIDIMessageType.CONTROLCHANGE then
+    return false
+  end
+
+  if cc ~= MORPH_BCR_AMOUNT_CC then
+    return false
+  end
+
+  local busNum = msgChannel - 4
+  if busNum < 1 or busNum > NUM_BUSES then
+    return false
+  end
+
+  if not busHasPerformVisible(busNum) or not busHasFxLoaded(busNum) or not busMorphEnabled(busNum) then
+    debugBcr(string.format("morph skip: bus %d (perform/fx/morph)", busNum))
+    return false
+  end
+
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  local grid = busGroup and busGroup:findByName("preset_grid", true)
+  if grid then
+    grid:notify("set_morph_amount", { busNum, ccValue, true })
+  end
+  debugBcr(string.format("morph bus %d amount %d", busNum, ccValue))
+  return true
+end
 
 local function handleBcrOnOffMidi(message)
   local status = message[1]
@@ -581,34 +649,6 @@ local function handleBcrPerformMidi(message)
   return true
 end
 
-local function handleFxSelectorBcrMidi(message)
-  local fxSelector = root:findByName('fx_selector_group', true)
-  if not fxSelector or not fxSelector.visible then
-    return
-  end
-
-  local status = message[1]
-  local cc = message[2]
-  local ccValue = message[3]
-  local msgType = status - (status % 16)
-  local msgChannel = status % 16
-
-  if msgType ~= MIDIMessageType.CONTROLCHANGE or msgChannel ~= FX_SELECTOR_BCR_CHANNEL then
-    return
-  end
-
-  local selectorButtons = fxSelector:findByName('fx_selector_button_group')
-  if not selectorButtons then
-    return
-  end
-
-  if cc >= 1 and cc <= 8 then
-    selectorButtons:notify('midi_column_tick', { col = cc, ccValue = ccValue })
-  elseif cc >= 9 and cc <= 16 and ccValue == 0 then
-    selectorButtons:notify('midi_column_confirm', { col = cc - 8 })
-  end
-end
-
 local function setLaunchpadLayout(layout)
   -- SysEx format: F0h 00h 20h 29h 02h 10h 2Ch <Layout> F7h
   -- Decimal: (240,0,32,41,2,16,44,<Layout>,247)
@@ -664,13 +704,15 @@ function onReceiveMIDI(message, connections)
     debugBcr(string.format(
       "onReceiveMIDI status=%d cc=%d val=%d connections=%s",
       message[1], message[2], message[3], connectionsToString(connections)))
+    if handleBcrMorphMidi(message) then
+      return
+    end
     if handleBcrOnOffMidi(message) then
       return
     end
     if handleBcrPerformMidi(message) then
       return
     end
-    handleFxSelectorBcrMidi(message)
     return
   end
 
@@ -729,7 +771,7 @@ function onReceiveMIDI(message, connections)
       return
     end
     local busNum, presetNum = presetNoteToBusPreset(note)
-    if busNum and launchpadQuantiseHeld then
+    if busNum and busMorphEnabled(busNum) then
       notifyPresetGridManager("morph_pressure", { busNum, presetNum, pressure })
     end
   elseif message[1] == MIDIMessageType.CONTROLCHANGE + noteMidiChannel - 1 then

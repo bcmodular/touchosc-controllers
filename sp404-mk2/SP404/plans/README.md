@@ -10,5 +10,6 @@ Design and roadmap documents from Cursor planning sessions. Kept in-repo for his
 | [8-preset_grid_refactor_d9d7b06f.plan.md](8-preset_grid_refactor_d9d7b06f.plan.md) | 8-slot preset grid refactor |
 | [preset_migration_cleanup_05fdb80e.plan.md](preset_migration_cleanup_05fdb80e.plan.md) | 16→8 preset migration cleanup + build-time grid scripts |
 | [bcr_fx_selector_midi_b40af042.plan.md](bcr_fx_selector_midi_b40af042.plan.md) | BCR2000 effect selector MIDI |
+| [touchosc_bcr_morph_ui_6601d4d4.plan.md](touchosc_bcr_morph_ui_6601d4d4.plan.md) | TouchOSC morph UI + BCR top-row (ch 6/7, CCs per bus) |
 
 File names include Cursor plan IDs for traceability. Paths inside plans are relative to the **repository root** unless noted otherwise.

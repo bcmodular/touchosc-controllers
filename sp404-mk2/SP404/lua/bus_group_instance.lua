@@ -69,6 +69,7 @@ local function showBus(sceneLoad)
     recallValues()
     onOffButtonGroup:notify('switch_to_effect')
   end
+  presetGrid:notify('sync_morph_ui', busNum)
 end
 
 local function sendOffMIDI()
@@ -97,7 +98,17 @@ local function clearBus()
   controlGroup.visible = false
   fxNum = 0
   fxName = "Choose FX..."
-  self.tag = json.fromTable({fxNum = fxNum, fxName = fxName, busNum = busNum})
+  local tag = json.toTable(self.tag) or {}
+  tag.fxNum = fxNum
+  tag.fxName = fxName
+  tag.busNum = busNum
+  if tag.morphEnabled == nil then
+    tag.morphEnabled = false
+  end
+  if tag.morphAmount == nil then
+    tag.morphAmount = 0
+  end
+  self.tag = json.fromTable(tag)
 
   effectChooser.children.label.values.text = fxName
 
@@ -111,6 +122,7 @@ local function clearBus()
     controlMapper:notify('bcr_zero_slots', { bcrCh, 1, 6 })
   end
   presetGrid:notify('clear_presets')
+  presetGrid:notify('sync_morph_ui', busNum)
 end
 
 local function setSelectedBusHighlight(isSelected)
@@ -131,7 +143,17 @@ local function applyFx(fxNumIn, fxNameIn, sceneLoad)
     clearBus()
     return
   end
-  self.tag = json.fromTable({ fxNum = fxNum, fxName = fxName, busNum = busNum })
+  local tag = json.toTable(self.tag) or {}
+  tag.fxNum = fxNum
+  tag.fxName = fxName
+  tag.busNum = busNum
+  if tag.morphEnabled == nil then
+    tag.morphEnabled = false
+  end
+  if tag.morphAmount == nil then
+    tag.morphAmount = 0
+  end
+  self.tag = json.fromTable(tag)
   print("set_fx", busNum, fxNum, fxName, sceneLoad and "scene" or "")
   showBus(sceneLoad == true)
 end
@@ -170,7 +192,17 @@ function init()
   fxNum = tonumber(settings.fxNum) or 0
   fxName = settings.fxName or 'Choose FX...'
 
-  self.tag = json.fromTable({fxNum = fxNum, fxName = fxName, busNum = busNum})
+  local tag = json.toTable(self.tag) or {}
+  tag.fxNum = fxNum
+  tag.fxName = fxName
+  tag.busNum = busNum
+  if tag.morphEnabled == nil then
+    tag.morphEnabled = false
+  end
+  if tag.morphAmount == nil then
+    tag.morphAmount = 0
+  end
+  self.tag = json.fromTable(tag)
 
   presetGrid.tag = busNum
 

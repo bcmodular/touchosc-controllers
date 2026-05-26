@@ -7,7 +7,8 @@ local BCR_MIDI_OUT = { false, true, false }
 local BCR_TOGGLE_CC = 65
 local BCR_SYNC_CC = 66
 local BCR_GRAB_CC = 73
-local BCR_CHOOSE_CC = 74
+local BCR_MORPH_CC = 74
+local BCR_MORPH_AMOUNT_CC = 1
 
 local function sendBcrCc(cc, value)
   local ch = tonumber(self.tag)
@@ -87,6 +88,42 @@ local function getBusNum()
   end
 
   return 1
+end
+
+local function getMorphChooseButton()
+  return self:findByName('morph_button', true)
+end
+
+local function getPresetGrid()
+  local busGroup = getBusGroup()
+  return busGroup and busGroup:findByName('preset_grid', true)
+end
+
+local function setMorphEnabledState(enabled, skipBcr)
+  local grid = getPresetGrid()
+  if grid then
+    grid:notify('set_morph_enabled', { getBusNum(), enabled })
+  end
+  local morphBtn = getMorphChooseButton()
+  if morphBtn then
+    morphBtn.values.x = enabled and 1 or 0
+  end
+  if not skipBcr then
+    sendBcrCc(BCR_MORPH_CC, enabled and 127 or 0)
+  end
+end
+
+local function getBcrPerformChannel()
+  local busGroup = getBusGroup()
+  local faders = busGroup and busGroup:findByName('faders', true)
+  return faders and tonumber(faders.tag)
+end
+
+local function sendBcrPerformCc(cc, value)
+  local ch = getBcrPerformChannel()
+  if ch then
+    sendMIDI({ MIDIMessageType.CONTROLCHANGE + ch, cc, value }, BCR_MIDI_OUT)
+  end
 end
 
 local function notifyLaunchpadBusLedRefresh()
@@ -231,18 +268,13 @@ local function setGrabState(buttonDown, skipBcrGrabEcho)
   notifyLaunchpadBusLedRefresh()
 end
 
-local function setChooserState(isOpen, skipBcr)
+local function setChooserState(isOpen)
   local fxSelector = root:findByName('fx_selector_group', true)
   if not fxSelector then
     return
   end
 
   local busNum = getBusNum()
-  local chooseButton = self:findByName('choose_button')
-
-  if not skipBcr then
-    sendBcrCc(BCR_CHOOSE_CC, isOpen and 127 or 0)
-  end
 
   if isOpen then
     local busGroup = getBusGroup()
@@ -304,7 +336,7 @@ function onReceiveNotify(key, value)
   elseif key == 'set_grab_state' then
     setGrabState(value, false)
   elseif key == 'set_chooser_state' then
-    setChooserState(value, false)
+    setChooserState(value)
   elseif key == 'bcr_toggle' then
     local on = bcrButtonOn(value)
     debugOnOff(string.format('bcr_toggle bus=%d on=%s val=%d', getBusNum(), tostring(on), value))
@@ -326,7 +358,16 @@ function onReceiveNotify(key, value)
     if value == 0 then
       syncCurrentBusToDevice(true)
     end
-  elseif key == 'bcr_choose' then
-    setChooserState(bcrButtonOn(value), true)
+  elseif key == 'set_morph_state' then
+    if type(value) ~= 'table' then
+      return
+    end
+    setMorphEnabledState(value[1] == true, value[2] == true)
+  elseif key == 'echo_morph_bcr' then
+    sendBcrCc(BCR_MORPH_CC, value and 127 or 0)
+  elseif key == 'echo_morph_amount_bcr' then
+    sendBcrPerformCc(BCR_MORPH_AMOUNT_CC, math.max(0, math.min(127, math.floor(value))))
+  elseif key == 'bcr_morph' then
+    setMorphEnabledState(bcrButtonOn(value), true)
   end
 end

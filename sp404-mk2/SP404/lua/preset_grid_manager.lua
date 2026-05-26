@@ -3,8 +3,21 @@ local deleteMode = false
 local grabMode = false
 -- busNum -> presetNum currently held in grab mode (last pressed wins per bus)
 local activeGrabByBus = {}
--- busNum -> morph session (Quantise + stored preset + aftertouch)
-local activeMorphByBus = {}
+-- busNum -> morph blend runtime while morphEnabled (source/target CC)
+local activeUiMorphByBus = {}
+
+-- Set false to silence morph UI logs in TouchOSC console.
+local MORPH_DEBUG = true
+
+local function debugMorph(msg)
+  if MORPH_DEBUG then
+    print('[Morph]', msg)
+  end
+end
+
+-- Forward declarations: morph helpers call these before their definitions below.
+local refreshPresets
+local setMorphEnabled
 
 local PRESETS_PER_BUS = 8
 local NUM_BUSES = 5
@@ -26,7 +39,9 @@ local PRESET_LED_EMPTY_PRESS_BRIGHTNESS = 0.35
 
 local BUTTON_STATE_COLORS = {
   AVAILABLE = "FFFFFFFF",
-  DELETE = "FF0000FF"
+  DELETE = "FF0000FF",
+  -- Magenta: target-pick mode only (not bus 5 green, not delete red).
+  MORPH_SELECT = "FF44CCFF",
 }
 
 local defaultCCValues = {0, 0, 0, 0, 0, 0}
@@ -92,12 +107,97 @@ local function sendSysexAllPadsOff(busNum)
   end
 end
 
+local function getBusGroup(busNum)
+  return root:findByName('bus' .. tostring(busNum) .. '_group', true)
+end
+
 local function getGrid(busNum)
-  local busGroup = root:findByName('bus' .. tostring(busNum) .. '_group', true)
+  local busGroup = getBusGroup(busNum)
   if busGroup then
     return busGroup:findByName('preset_grid', true)
   end
   return nil
+end
+
+local function readBusTag(busNum)
+  local busGroup = getBusGroup(busNum)
+  if not busGroup then
+    return {}
+  end
+  return json.toTable(busGroup.tag) or {}
+end
+
+local function writeBusTag(busNum, settings)
+  local busGroup = getBusGroup(busNum)
+  if busGroup then
+    busGroup.tag = json.fromTable(settings)
+  end
+end
+
+local function getMorphTargetPreset(busNum)
+  local tag = readBusTag(busNum)
+  local preset = tonumber(tag.morphTargetPreset)
+  if preset and preset >= 1 and preset <= PRESETS_PER_BUS then
+    return preset
+  end
+  return nil
+end
+
+local function isMorphEnabled(busNum)
+  local tag = readBusTag(busNum)
+  return tag.morphEnabled == true
+end
+
+local function echoMorphAmountBcr(busNum, amount)
+  local busGroup = getBusGroup(busNum)
+  local controlGroup = busGroup and busGroup:findByName('control_group', true)
+  local onOff = controlGroup and controlGroup:findByName('on_off_button_group', true)
+  if onOff then
+    onOff:notify('echo_morph_amount_bcr', amount)
+  end
+end
+
+local function syncMorphControlsUi(busNum)
+  local busGroup = getBusGroup(busNum)
+  if not busGroup then
+    debugMorph(string.format('syncMorphControlsUi bus %d: bus group not found', busNum))
+    return
+  end
+  local tag = readBusTag(busNum)
+  local enabled = tag.morphEnabled == true
+  local target = getMorphTargetPreset(busNum)
+  local amount = tonumber(tag.morphAmount) or 0
+
+  local controlGroup = busGroup:findByName('control_group', true)
+  local onOff = controlGroup and controlGroup:findByName('on_off_button_group', true)
+  if onOff then
+    local morphBtn = onOff:findByName('morph_button', true)
+    if morphBtn then
+      morphBtn.values.x = enabled and 1 or 0
+    end
+    onOff:notify('echo_morph_bcr', enabled)
+  end
+
+  local morphGroup = controlGroup and controlGroup:findByName('morph_group', true)
+  if morphGroup then
+    morphGroup.visible = enabled
+    if enabled then
+      local amountFader = morphGroup:findByName('morph_amount_fader', true)
+      local targetLabel = morphGroup:findByName('morph_target_label', true)
+      local showFader = target ~= nil
+      if amountFader then
+        amountFader.visible = showFader
+        if showFader then
+          amountFader.values.x = amount / 127
+        end
+      end
+      if targetLabel then
+        targetLabel.values.text = target
+          and ('TARGET PRESET: ' .. tostring(target))
+          or 'CHOOSE A TARGET PRESET'
+      end
+    end
+  end
 end
 
 local function getGrabRestoreLabel(busNum)
@@ -131,15 +231,27 @@ local function clearGrabRestoreCc(busNum)
 end
 
 local function isStoredPresetButton(busNum, presetNum)
-  local grid = getGrid(busNum)
-  if not grid then
+  -- Use preset_manager data, not pad color (morph/delete modes change button.color).
+  local fxNum = fxNums[busNum] or 0
+  if fxNum == 0 or not presetManager then
     return false
   end
-  local button = grid:findByName(tostring(presetNum))
-  if not button then
+  local presetManagerChild = presetManager.children[tostring(fxNum)]
+  if not presetManagerChild then
     return false
   end
-  return Color.toHexString(button.color) == getRecallButtonColor(busNum)
+  local presetArray = json.toTable(presetManagerChild.tag) or {}
+  return presetArray[formatPresetNum(presetNum)] ~= nil
+end
+
+local function listStoredPresets(busNum)
+  local list = {}
+  for preset = 1, PRESETS_PER_BUS do
+    if isStoredPresetButton(busNum, preset) then
+      table.insert(list, preset)
+    end
+  end
+  return list
 end
 
 local function getBusFaderContext(busNum)
@@ -273,30 +385,53 @@ local function loadPresetCcValues(busNum, presetNum)
   return targetCc
 end
 
-local function clearMorphSession(busNum, restoreSource)
-  local session = activeMorphByBus[busNum]
-  if not session then
-    return
-  end
-  if restoreSource and not session.pendingCommit then
-    applyCcValuesToFaders(busNum, session.sourceCc, session.lastAppliedCc)
-  end
-  activeMorphByBus[busNum] = nil
-end
-
-local function cancelAllMorphSessions()
-  for busNum, _ in pairs(activeMorphByBus) do
-    clearMorphSession(busNum, true)
+local function disableMorphAllBuses()
+  for busNum = 1, NUM_BUSES do
+    if isMorphEnabled(busNum) then
+      setMorphEnabled(busNum, false)
+    end
   end
 end
 
-local function applyMorphBlend(busNum, amount)
-  local session = activeMorphByBus[busNum]
+local function clearUiMorphRuntime(busNum)
+  activeUiMorphByBus[busNum] = nil
+end
+
+local function rebuildUiMorphSession(busNum)
+  local targetPreset = getMorphTargetPreset(busNum)
+  if not targetPreset then
+    debugMorph(string.format('rebuildUiMorphSession bus %d: no morph target preset', busNum))
+    return false
+  end
+  local sourceCc = snapshotFadersForGrab(busNum)
+  local targetCc = loadPresetCcValues(busNum, targetPreset)
+  if not sourceCc or not targetCc then
+    debugMorph(string.format(
+      'rebuildUiMorphSession bus %d target %d: snapshot=%s targetCc=%s fxNum=%d',
+      busNum, targetPreset, sourceCc and 'ok' or 'nil', targetCc and 'ok' or 'nil', fxNums[busNum] or 0
+    ))
+    return false
+  end
+  local lastAppliedCc = {}
+  for i, cc in pairs(sourceCc) do
+    lastAppliedCc[i] = cc
+  end
+  activeUiMorphByBus[busNum] = {
+    sourceCc = sourceCc,
+    targetCc = targetCc,
+    lastAppliedCc = lastAppliedCc,
+  }
+  debugMorph(string.format('rebuildUiMorphSession bus %d: target preset %d', busNum, targetPreset))
+  return true
+end
+
+local function applyUiMorphBlend(busNum, amount)
+  local session = activeUiMorphByBus[busNum]
   if not session then
+    debugMorph(string.format('applyUiMorphBlend bus %d: no active session (amount=%d)', busNum, amount))
     return
   end
   amount = math.max(0, math.min(127, math.floor(amount)))
-  session.lastAmount = amount
   local ctx = getBusFaderContext(busNum)
   if not ctx then
     return
@@ -313,63 +448,90 @@ local function applyMorphBlend(busNum, amount)
   applyCcValuesToFaders(busNum, blended, session.lastAppliedCc)
 end
 
-local function beginMorphPreset(busNum, presetNum, initialAmount)
-  if not isStoredPresetButton(busNum, presetNum) then
-    return
+function setMorphEnabled(busNum, enabled)
+  debugMorph(string.format('setMorphEnabled bus %d -> %s', busNum, enabled and 'on' or 'off'))
+  local tag = readBusTag(busNum)
+  if (fxNums[busNum] or 0) == 0 then
+    debugMorph(string.format('setMorphEnabled bus %d: rejected (no FX loaded, fxNum=0)', busNum))
+    syncMorphControlsUi(busNum)
+    return false
   end
-  clearMorphSession(busNum, true)
-  local sourceCc = snapshotFadersForGrab(busNum)
-  local targetCc = loadPresetCcValues(busNum, presetNum)
-  if not sourceCc or not targetCc then
-    return
-  end
-  local lastAppliedCc = {}
-  for i, cc in pairs(sourceCc) do
-    lastAppliedCc[i] = cc
-  end
-  activeMorphByBus[busNum] = {
-    presetNum = presetNum,
-    sourceCc = sourceCc,
-    targetCc = targetCc,
-    lastAmount = 0,
-    pendingCommit = false,
-    lastAppliedCc = lastAppliedCc,
-  }
-  applyMorphBlend(busNum, initialAmount or 0)
-end
-
-local function endMorphPad(busNum, presetNum)
-  local session = activeMorphByBus[busNum]
-  if not session or session.presetNum ~= presetNum then
-    return
-  end
-  applyCcValuesToFaders(busNum, session.sourceCc, session.lastAppliedCc)
-  session.pendingCommit = true
-end
-
-local function commitMorphSessions()
-  for busNum, session in pairs(activeMorphByBus) do
-    if session.pendingCommit then
-      applyMorphBlend(busNum, session.lastAmount)
+  if enabled then
+    grabMode = false
+    restoreAllActiveGrabs()
+    local grabButton = root:findByName('grab_mode_button', true)
+    if grabButton then
+      grabButton.values.x = 0
     end
-    activeMorphByBus[busNum] = nil
-  end
-end
-
-local function handleMorphPad(busNum, presetNum, isPressed, initialAmount)
-  if isPressed then
-    beginMorphPreset(busNum, presetNum, initialAmount)
+    tag.morphEnabled = true
+    writeBusTag(busNum, tag)
+    local target = getMorphTargetPreset(busNum)
+    if target and rebuildUiMorphSession(busNum) then
+      applyUiMorphBlend(busNum, tonumber(tag.morphAmount) or 0)
+    end
+    refreshPresets(busNum)
+    debugMorph(string.format('setMorphEnabled bus %d: on (target=%s)', busNum, tostring(target)))
   else
-    endMorphPad(busNum, presetNum)
+    local amount = tonumber(tag.morphAmount) or 0
+    if activeUiMorphByBus[busNum] then
+      applyUiMorphBlend(busNum, amount)
+    end
+    tag.morphEnabled = false
+    writeBusTag(busNum, tag)
+    clearUiMorphRuntime(busNum)
+    refreshPresets(busNum)
+    debugMorph(string.format('setMorphEnabled bus %d: off (commit amount=%d)', busNum, amount))
   end
+  syncMorphControlsUi(busNum)
+  return true
 end
 
-local function handleMorphPressure(busNum, presetNum, amount)
-  local session = activeMorphByBus[busNum]
-  if not session or session.presetNum ~= presetNum or session.pendingCommit then
+local function setMorphAmount(busNum, amount, skipBcrEcho)
+  amount = math.max(0, math.min(127, math.floor(amount)))
+  debugMorph(string.format('setMorphAmount bus %d -> %d', busNum, amount))
+  local tag = readBusTag(busNum)
+  tag.morphAmount = amount
+  writeBusTag(busNum, tag)
+  if tag.morphEnabled == true then
+    if not activeUiMorphByBus[busNum] then
+      rebuildUiMorphSession(busNum)
+    end
+    applyUiMorphBlend(busNum, amount)
+  end
+  if not skipBcrEcho then
+    echoMorphAmountBcr(busNum, amount)
+  end
+  syncMorphControlsUi(busNum)
+end
+
+local function setMorphTarget(busNum, presetNum)
+  debugMorph(string.format('setMorphTarget bus %d preset %d', busNum, presetNum))
+  if not isStoredPresetButton(busNum, presetNum) then
+    debugMorph(string.format(
+      'setMorphTarget bus %d preset %d: empty slot, clearing target (fx %d)',
+      busNum, presetNum, fxNums[busNum] or 0
+    ))
+    local tag = readBusTag(busNum)
+    tag.morphTargetPreset = nil
+    tag.morphAmount = 0
+    writeBusTag(busNum, tag)
+    clearUiMorphRuntime(busNum)
+    echoMorphAmountBcr(busNum, 0)
+    syncMorphControlsUi(busNum)
+    refreshPresets(busNum)
     return
   end
-  applyMorphBlend(busNum, amount)
+  local tag = readBusTag(busNum)
+  tag.morphTargetPreset = presetNum
+  tag.morphAmount = 0
+  writeBusTag(busNum, tag)
+  if tag.morphEnabled == true then
+    rebuildUiMorphSession(busNum)
+    applyUiMorphBlend(busNum, 0)
+    echoMorphAmountBcr(busNum, 0)
+  end
+  syncMorphControlsUi(busNum)
+  refreshPresets(busNum)
 end
 
 local function getFxNumFromBusTag(busNum)
@@ -416,6 +578,8 @@ local function refreshMIDIButtons(busNum)
         r, g, b = launchpadDeleteRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
       elseif buttonHex == busHex then
         r, g, b = launchpadBusRgb(busNum, LAUNCHPAD_IDLE_BRIGHTNESS)
+      elseif buttonHex == BUTTON_STATE_COLORS.MORPH_SELECT then
+        r, g, b = launchpadRgb255(255, 68, 204, LAUNCHPAD_IDLE_BRIGHTNESS)
       else
         r, g, b = nil
       end
@@ -436,7 +600,7 @@ local function refreshMIDIButtons(busNum)
   sendLaunchpadLedRgbBatch(entries)
 end
 
-local function refreshPresets(busNum, fxNum)
+function refreshPresets(busNum, fxNum)
   if fxNum ~= nil then
     fxNums[busNum] = fxNum
   end
@@ -459,13 +623,23 @@ local function refreshPresets(busNum, fxNum)
 
   initialiseButtons(busNum)
 
-  -- Set STORED state for active presets
+  local tag = readBusTag(busNum)
+  local inMorphPick = tag.morphEnabled == true
+
+  -- Set STORED state for active presets (morph target shown on morph_target_label only).
   for index, _ in pairs(presetArray) do
     local presetNum = tonumber(index)
     if presetNum and presetNum >= 1 and presetNum <= PRESETS_PER_BUS then
       local button = grid:findByName(tostring(presetNum))
       if button then
-        local color = deleteMode and BUTTON_STATE_COLORS.DELETE or getRecallButtonColor(busNum)
+        local color
+        if deleteMode then
+          color = BUTTON_STATE_COLORS.DELETE
+        elseif inMorphPick then
+          color = BUTTON_STATE_COLORS.MORPH_SELECT
+        else
+          color = getRecallButtonColor(busNum)
+        end
         button.color = color
       end
     end
@@ -648,6 +822,12 @@ local function updateButtonMIDIHighlight(busNum, presetNum, isPressed)
   elseif buttonColor == busHex then
     local brightness = isPressed and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS
     r, g, b = launchpadBusRgb(busNum, brightness)
+  elseif buttonColor == BUTTON_STATE_COLORS.MORPH_SELECT then
+    if isPressed then
+      r, g, b = launchpadRgb255(255, 68, 204, LAUNCHPAD_ON_BRIGHTNESS)
+    else
+      r, g, b = launchpadRgb255(255, 68, 204, LAUNCHPAD_IDLE_BRIGHTNESS)
+    end
   elseif buttonColor == BUTTON_STATE_COLORS.AVAILABLE then
     if isPressed then
       r, g, b = launchpadBusRgb(busNum, PRESET_LED_EMPTY_PRESS_BRIGHTNESS)
@@ -682,7 +862,7 @@ local function toggleDeleteMode(value)
   deleteMode = value
   if value then
     grabMode = false
-    cancelAllMorphSessions()
+    disableMorphAllBuses()
     restoreAllActiveGrabs()
     local grabButton = root:findByName('grab_mode_button', true)
     if grabButton then
@@ -700,7 +880,7 @@ local function toggleGrabMode(value)
   grabMode = value
   if value then
     deleteMode = false
-    cancelAllMorphSessions()
+    disableMorphAllBuses()
     restoreAllActiveGrabs()
     local deleteButton = root:findByName('delete_button', true)
     if deleteButton then
@@ -759,9 +939,8 @@ function onReceiveNotify(key, value)
     local presetNum = value[2]
     local isPressed = value[3] == 1
     local shiftHeld = value[4] == true
-    local quantiseHeld = value[5] == true
-    local noteVelocity = tonumber(value[6]) or 0
     local inGrabMode = grabMode or shiftHeld
+    local morphOn = isMorphEnabled(busNum)
     local fxNum = fxNums[busNum] or 0
     if fxNum == 0 then
       fxNum = syncFxNumFromBusTag(busNum)
@@ -780,8 +959,10 @@ function onReceiveNotify(key, value)
       return
     end
 
-    if quantiseHeld then
-      handleMorphPad(busNum, presetNum, isPressed, noteVelocity)
+    if morphOn then
+      if isPressed then
+        setMorphTarget(busNum, presetNum)
+      end
       return
     end
 
@@ -796,22 +977,50 @@ function onReceiveNotify(key, value)
   elseif key == 'clear_presets' then
     local busNum = value
     if busNum then
-      clearMorphSession(busNum, true)
+      if isMorphEnabled(busNum) then
+        setMorphEnabled(busNum, false)
+      end
+      clearUiMorphRuntime(busNum)
       fxNums[busNum] = 0
       initialiseButtons(busNum)
     end
-  elseif key == 'morph_pressure' then
-    if type(value) ~= 'table' then return end
-    local busNum = value[1]
-    local presetNum = value[2]
-    local amount = value[3]
-    if busNum and presetNum and amount ~= nil then
-      handleMorphPressure(busNum, presetNum, amount)
+  elseif key == 'disable_all_morph' then
+    disableMorphAllBuses()
+  elseif key == 'toggle_morph_enabled' then
+    local busNum = value
+    if busNum then
+      setMorphEnabled(busNum, not isMorphEnabled(busNum))
     end
-  elseif key == 'commit_morph_sessions' then
-    commitMorphSessions()
-  elseif key == 'cancel_morph_sessions' then
-    cancelAllMorphSessions()
+  elseif key == 'morph_pressure' then
+    if type(value) ~= 'table' then
+      return
+    end
+    local busNum = value[1]
+    local pressure = value[3]
+    if busNum and isMorphEnabled(busNum) then
+      setMorphAmount(busNum, pressure)
+    end
+  elseif key == 'set_morph_enabled' then
+    if type(value) ~= 'table' then
+      debugMorph('set_morph_enabled: bad value (expected table)')
+      return
+    end
+    setMorphEnabled(value[1], value[2] == true)
+  elseif key == 'set_morph_amount' then
+    if type(value) ~= 'table' then return end
+    setMorphAmount(value[1], value[2], value[3] == true)
+  elseif key == 'set_morph_target' then
+    if type(value) ~= 'table' then return end
+    setMorphTarget(value[1], value[2])
+  elseif key == 'sync_morph_ui' then
+    local busNum = value
+    if busNum then
+      syncMorphControlsUi(busNum)
+    else
+      for i = 1, NUM_BUSES do
+        syncMorphControlsUi(i)
+      end
+    end
   end
 end
 
@@ -829,5 +1038,6 @@ function init()
       fxNums[i] = tagFx
       refreshPresets(i, tagFx)
     end
+    syncMorphControlsUi(i)
   end
 end

@@ -22,6 +22,7 @@ from tosc_layout_utils import (
     collect_frames_et,
     find_bus_group_block,
     find_bus_group_et,
+    find_children_section,
     find_direct_child_block,
     find_node_by_path_in_block,
     layout_diff_vs_bus1,
@@ -42,7 +43,10 @@ EFFECT_CHOOSER_HEADER_CHILDREN = ("choose_button", "label", "clear_button", "cle
 import xml.etree.ElementTree as ET
 
 # Subtrees to keep identical across buses (relative to busN_group).
-SYNC_PREFIXES = ("control_group", "effect_chooser")
+SYNC_PREFIXES = ("control_group", "effect_chooser", "morph_group")
+
+# Perform-strip morph toggle (bus1 renames choose_* → morph_*).
+ON_OFF_MORPH_CHILDREN = ("morph_button", "morph_label")
 
 OLD_EDIT_MODE_SCRIPT = """function onValueChanged(key, value)
 
@@ -98,6 +102,85 @@ def apply_frames_to_bus(block: str, frames: dict[str, tuple[str, str, str, str]]
             continue
         block = set_frame_in_range(block, r[0], r[1], *frame)
     return block
+
+
+def sync_morph_group(xml: str) -> str:
+    """Replace morph_group on buses 2–5 with bus1 subtree (layout, labels, child nodes)."""
+    r1 = find_bus_group_block(xml, 1)
+    if not r1:
+        raise RuntimeError("bus1_group not found")
+    block1 = xml[r1[0] : r1[1]]
+    mg1_r = find_node_by_path_in_block(block1, ["control_group", "morph_group"])
+    if not mg1_r:
+        raise RuntimeError("bus1 control_group/morph_group not found")
+    ref_morph_xml = block1[mg1_r[0] : mg1_r[1]]
+
+    for bus_num in range(2, 6):
+        rb = find_bus_group_block(xml, bus_num)
+        if not rb:
+            continue
+        block = xml[rb[0] : rb[1]]
+        mg_r = find_node_by_path_in_block(block, ["control_group", "morph_group"])
+        new_morph = regenerate_node_ids(ref_morph_xml)
+        if mg_r:
+            block = block[: mg_r[0]] + new_morph + block[mg_r[1] :]
+        else:
+            cg_r = find_node_by_path_in_block(block, ["control_group"])
+            if not cg_r:
+                print(f"  WARNING: bus{bus_num} control_group not found", file=sys.stderr)
+                continue
+            cg = block[cg_r[0] : cg_r[1]]
+            cs = find_children_section(cg)
+            if cs:
+                pos, end = cs
+                cg = cg[:end] + new_morph + cg[end:]
+            else:
+                inner_close = cg.rfind("</node>")
+                cg = cg[:inner_close] + f"<children>{new_morph}</children>" + cg[inner_close:]
+            block = block[: cg_r[0]] + cg + block[cg_r[1] :]
+        xml = xml[: rb[0]] + block + xml[rb[1] :]
+        print(f"  Synced morph_group bus{bus_num}")
+    return xml
+
+
+def sync_on_off_morph_controls(xml: str) -> str:
+    """Replace choose_button/choose_label with bus1 morph_button/morph_label on buses 2–5."""
+    r1 = find_bus_group_block(xml, 1)
+    if not r1:
+        raise RuntimeError("bus1_group not found")
+    block1 = xml[r1[0] : r1[1]]
+    oo1_r = find_node_by_path_in_block(block1, ["control_group", "on_off_button_group"])
+    if not oo1_r:
+        raise RuntimeError("bus1 on_off_button_group not found")
+    oo1 = block1[oo1_r[0] : oo1_r[1]]
+    ref_morph_xmls: list[str] = []
+    for name in ON_OFF_MORPH_CHILDREN:
+        child_r = find_direct_child_block(oo1, name)
+        if not child_r:
+            raise RuntimeError(f"bus1 on_off missing {name}")
+        ref_morph_xmls.append(ensure_script_property(oo1[child_r[0] : child_r[1]]))
+
+    for bus_num in range(2, 6):
+        rb = find_bus_group_block(xml, bus_num)
+        if not rb:
+            continue
+        block = xml[rb[0] : rb[1]]
+        oo_r = find_node_by_path_in_block(block, ["control_group", "on_off_button_group"])
+        if not oo_r:
+            print(f"  WARNING: bus{bus_num} on_off_button_group not found", file=sys.stderr)
+            continue
+        oo = block[oo_r[0] : oo_r[1]]
+        kept: list[str] = []
+        for name, node_xml in list_direct_children(oo):
+            if name in ("choose_button", "choose_label", *ON_OFF_MORPH_CHILDREN):
+                continue
+            kept.append(node_xml)
+        kept.extend(regenerate_node_ids(x) for x in ref_morph_xmls)
+        oo = set_direct_children(oo, kept)
+        block = block[: oo_r[0]] + oo + block[oo_r[1] :]
+        xml = xml[: rb[0]] + block + xml[rb[1] :]
+        print(f"  Synced on_off morph controls bus{bus_num}")
+    return xml
 
 
 def sync_effect_chooser_header(xml: str) -> str:
@@ -250,6 +333,8 @@ def main() -> int:
         print(f"Backup: {backup}")
 
     xml = sync_effect_chooser_header(xml)
+    xml = sync_morph_group(xml)
+    xml = sync_on_off_morph_controls(xml)
     xml, n_dup_ids = deduplicate_layout_ids(xml)
     if n_dup_ids:
         print(f"  Regenerated {n_dup_ids} duplicate node ID(s)")
