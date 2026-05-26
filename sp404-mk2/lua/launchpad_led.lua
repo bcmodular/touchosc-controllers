@@ -94,6 +94,16 @@ function launchpadSceneRgb(brightness)
   return launchpadRgb255(255, 255, 255, brightness)
 end
 
+function launchpadLockRgb(brightness)
+  return launchpadRgb255(255, 0, 0, brightness)
+end
+
+function isBusLocked(busNum)
+  local tag = json.toTable(root.tag) or {}
+  local locks = tag.busLock
+  return type(locks) == "table" and locks[tostring(busNum)] == true
+end
+
 -- Programmer layout: note = 10 * row + col (row 1 = bottom, row 8 = top).
 -- Scene slot 1 = top → same shape as preset note = bus + 80 - (slot - 1) * 10.
 function launchpadSceneNote(sceneNum)

@@ -633,7 +633,7 @@ function refreshPresets(busNum, fxNum)
       local button = grid:findByName(tostring(presetNum))
       if button then
         local color
-        if deleteMode then
+        if deleteMode and not isBusLocked(busNum) then
           color = BUTTON_STATE_COLORS.DELETE
         elseif inMorphPick then
           color = BUTTON_STATE_COLORS.MORPH_SELECT
@@ -745,6 +745,10 @@ local function recallDefaults(busNum)
 end
 
 local function storePreset(busNum, presetNum, delete)
+  if isBusLocked(busNum) then
+    return
+  end
+
   local fxNum = fxNums[busNum] or 0
 
   if fxNum == 0 then return end
@@ -776,6 +780,10 @@ local function storePreset(busNum, presetNum, delete)
 end
 
 local function storeDefaults(busNum)
+  if isBusLocked(busNum) then
+    return
+  end
+
   local fxNum = fxNums[busNum] or 0
 
   if fxNum == 0 then return end
@@ -829,6 +837,12 @@ local function updateButtonMIDIHighlight(busNum, presetNum, isPressed)
       r, g, b = launchpadRgb255(255, 68, 204, LAUNCHPAD_IDLE_BRIGHTNESS)
     end
   elseif buttonColor == BUTTON_STATE_COLORS.AVAILABLE then
+    if isBusLocked(busNum) then
+      if not isPressed then
+        sendLaunchpadLedOff(note)
+      end
+      return
+    end
     if isPressed then
       r, g, b = launchpadBusRgb(busNum, PRESET_LED_EMPTY_PRESS_BRIGHTNESS)
     else
@@ -848,6 +862,13 @@ local function buttonPressed(busNum, presetNum)
 
   local button = grid:findByName(tostring(presetNum))
   local buttonColor = Color.toHexString(button.color)
+
+  if isBusLocked(busNum) then
+    if buttonColor == getRecallButtonColor(busNum) then
+      recallPreset(busNum, presetNum)
+    end
+    return
+  end
 
   if (buttonColor == BUTTON_STATE_COLORS.DELETE) then
     storePreset(busNum, presetNum, true)
@@ -950,10 +971,23 @@ function onReceiveNotify(key, value)
       return
     end
 
+    if isBusLocked(busNum) then
+      local grid = getGrid(busNum)
+      local button = grid and grid:findByName(tostring(presetNum))
+      if button and Color.toHexString(button.color) == BUTTON_STATE_COLORS.AVAILABLE then
+        if isPressed then
+          button.values.x = 0
+        else
+          updateButtonMIDIHighlight(busNum, presetNum, false)
+        end
+        return
+      end
+    end
+
     updateButtonMIDIHighlight(busNum, presetNum, isPressed)
 
     if deleteMode then
-      if isPressed then
+      if isPressed and not isBusLocked(busNum) then
         buttonPressed(busNum, presetNum)
       end
       return

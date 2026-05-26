@@ -186,6 +186,44 @@ def sync_on_off_morph_controls(xml: str) -> str:
     return xml
 
 
+def sync_control_group_child_order(xml: str) -> str:
+    """Match control_group direct child order (z-index) on buses 2–5 to bus1."""
+    r1 = find_bus_group_block(xml, 1)
+    if not r1:
+        raise RuntimeError("bus1_group not found")
+    block1 = xml[r1[0] : r1[1]]
+    cg1_r = find_node_by_path_in_block(block1, ["control_group"])
+    if not cg1_r:
+        raise RuntimeError("bus1 control_group not found")
+    cg1 = block1[cg1_r[0] : cg1_r[1]]
+    ref_order = [name for name, _ in list_direct_children(cg1)]
+
+    for bus_num in range(2, 6):
+        rb = find_bus_group_block(xml, bus_num)
+        if not rb:
+            continue
+        block = xml[rb[0] : rb[1]]
+        cg_r = find_node_by_path_in_block(block, ["control_group"])
+        if not cg_r:
+            print(f"  WARNING: bus{bus_num} control_group not found", file=sys.stderr)
+            continue
+        cg = block[cg_r[0] : cg_r[1]]
+        by_name = {name: node_xml for name, node_xml in list_direct_children(cg)}
+        missing = [n for n in ref_order if n not in by_name]
+        if missing:
+            print(
+                f"  WARNING: bus{bus_num} control_group missing {missing}",
+                file=sys.stderr,
+            )
+            continue
+        ordered = [by_name[name] for name in ref_order]
+        cg = set_direct_children(cg, ordered)
+        block = block[: cg_r[0]] + cg + block[cg_r[1] :]
+        xml = xml[: rb[0]] + block + xml[rb[1] :]
+        print(f"  Synced control_group child order bus{bus_num}")
+    return xml
+
+
 def sync_effect_chooser_header(xml: str) -> str:
     """Copy bus1 effect_chooser header nodes to all buses; preserve child order (z-index)."""
     r1 = find_bus_group_block(xml, 1)
@@ -336,6 +374,7 @@ def main() -> int:
         print(f"Backup: {backup}")
 
     xml = sync_effect_chooser_header(xml)
+    xml = sync_control_group_child_order(xml)
     xml = sync_morph_group(xml)
     xml = sync_on_off_morph_controls(xml)
     xml, n_dup_ids = deduplicate_layout_ids(xml)

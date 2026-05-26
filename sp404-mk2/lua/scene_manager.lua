@@ -336,12 +336,17 @@ local function clearSceneGrabSnapshot()
   root.tag = json.fromTable(tag)
 end
 
-local function applyGlobalState(data)
+local function applyGlobalState(data, options)
   if not data or not data.buses then
     return
   end
 
+  local skipLockedBuses = options and options.skipLockedBuses == true
+
   for busNum = 1, NUM_BUSES do
+    if skipLockedBuses and isBusLocked(busNum) then
+      -- skip
+    else
     local busState = data.buses[tostring(busNum)]
     if busState then
       recallBusFx(busNum, busState)
@@ -350,6 +355,7 @@ local function applyGlobalState(data)
       syncBusMidiToDevice(busNum, busState)
       updateRecentForBus(busNum, busState)
       refreshBusPresets(busNum, busState.fxNum)
+    end
     end
   end
 
@@ -364,13 +370,13 @@ local function recallScene(sceneNum)
   if not data then
     return
   end
-  applyGlobalState(data)
+  applyGlobalState(data, { skipLockedBuses = true })
 end
 
 local function endSceneGrab()
   local snapshot = loadSceneGrabSnapshot()
   if snapshot then
-    applyGlobalState(snapshot)
+    applyGlobalState(snapshot, { skipLockedBuses = true })
   end
   clearSceneGrabSnapshot()
   activeSceneGrab = nil

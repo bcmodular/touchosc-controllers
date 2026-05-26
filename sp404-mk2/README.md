@@ -36,8 +36,6 @@ TouchOSC uses up to three MIDI connections:
 | **2** | BCR2000 (one or two units) | Hands-on per-bus control |
 | **3** | Launchpad Pro Mk1 | Preset/scene performance control + LED feedback |
 
-If Mermaid previews do not render in Cursor, check this diagram on GitHub:
-
 ```mermaid
 flowchart TB
   subgraph touchosc [TouchOSC]
@@ -75,9 +73,7 @@ Bus N
 - Morph controls: morph enable + morph amount
 ```
 
-Detailed CC mappings are intentionally omitted here because a dedicated BCR preset file will be provided.
-
-**TODO:** add a `.syx` file in the repo for direct BCR setup import.
+Import the BCR preset from **[`SP404-mk2-BCR2000.syx`](SP404-mk2-BCR2000.syx)** (send the file to each BCR2000 via a SysEx tool such as MIDI-OX or SysEx Librarian). The file encodes the per-bus layout above; CC details are not duplicated in this guide.
 
 ---
 
@@ -121,6 +117,21 @@ Along the **left** edge of the pad grid:
 | **Morph** | Tap **Morph** on the bus perform strip, then choose a target preset | Hold **Quantise** + tap a **bus button** to toggle morph for that bus; tap a stored preset to set the morph target |
 
 While **morph** is on for a bus, normal preset store/recall on that bus is disabled until morph is turned off (turning morph off commits the current blend).
+
+### Bus lock
+
+Lock a bus when you want its FX and presets left alone during live performance (for example master buses 3–4 while you change other buses).
+
+| Control | Location | Action |
+|---------|----------|--------|
+| **Lock** | TouchOSC perform strip — padlock under **Edit** (in `control_group`) | Toggle lock on/off for that bus |
+| **Lock** | Launchpad bottom row **Record** buttons (CC 1–5, buses 1–5) | Same toggle; dim red = unlocked, bright red = locked |
+
+TouchOSC and Launchpad stay in sync. Lock state is **not** included in `/sp404/backup` exports.
+
+**While locked you can:** recall presets, preset/scene grab preview (scenes only change **unlocked** buses), recall defaults, morph, toggle FX on/off (bus buttons / perform strip).
+
+**While locked you cannot:** store or delete presets, store defaults, clear the bus, or apply scene recall to that bus (scene **store** still captures the locked bus as-is).
 
 ### Gesture modes
 
@@ -166,7 +177,7 @@ Enter delete mode first (see table above).
 
 | Action | TouchOSC | Launchpad Pro Mk1 |
 |--------|----------|-------------------|
-| **Store defaults** | Tap **Store defaults** on that bus | Hold **Click** + press the **bus button** for that bus |
+| **Store defaults** | Tap **Store defaults** on that bus (blocked when bus is locked) | Hold **Click** + press the **bus button** for that bus |
 | **Recall defaults** | Tap **Recall defaults** on that bus | Hold **Undo** + press the **bus button** for that bus |
 
 Useful when you have dialled in a sound and want a quick “reset to my usual starting point” without touching preset slots.

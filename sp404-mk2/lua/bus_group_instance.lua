@@ -94,6 +94,9 @@ local function storeCurrentValues()
 end
 
 local function clearBus()
+  if isBusLocked(busNum) then
+    return
+  end
   storeCurrentValues()
   controlGroup.visible = false
   fxNum = 0

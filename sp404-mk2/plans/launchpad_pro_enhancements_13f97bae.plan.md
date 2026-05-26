@@ -1,6 +1,6 @@
 ---
 name: Launchpad Pro enhancements
-overview: Phased Launchpad Pro rollout. Phases 1–3 and Phase 3b (scene grab + unified backup) done; Phase 4 (bus lock) is next.
+overview: Phased Launchpad Pro rollout. Phases 1–3, 3b, and Phase 4 (bus lock) complete.
 todos:
   - id: phase1-shift-cc
     content: "Phase 1: CC 80 Shift + CC 91-95 handlers + dim/bright bus-color LED refresh in root.lua"
@@ -16,7 +16,7 @@ todos:
     status: completed
   - id: phase4-bus-lock
     content: "Phase 4: CC 1-5 lock toggle + dim/bright red LEDs + enforce in scene/preset managers"
-    status: pending
+    status: completed
   - id: deferred-scene-colors
     content: "Deferred: per-scene Launchpad/TouchOSC colors or palette picker (v1 = single white)"
     status: pending
@@ -47,7 +47,7 @@ isProject: false
 - **Phase 2**: Preset grab via Shift+stored pad and GRAB MODE button.
 - **Phase 3**: `scene_manager` + TouchOSC `scene_grid` (2×8) + Launchpad cols 7–8; storage in `scene_manager` children `01`–`16` tags; `set_fx` with `showChooser` + `sceneLoad` flags; SP-404 sync via `new_value` + `sync_current_bus`.
 - **Phase 3b** ([phase_3b_scene_follow-ups_8a36a9ab.plan.md](phase_3b_scene_follow-ups_8a36a9ab.plan.md)): scene grab, unified `/sp404/backup` + Mac preset-manager utility — **complete**.
-- **Phase 4**: not started (see below).
+- **Phase 4**: bus lock — TouchOSC padlock under edit mode + Launchpad CC 1–5, `root.tag.busLock`, guards in preset/scene/backup (May 2026).
 
 ## Current state (Launchpad ch 10)
 

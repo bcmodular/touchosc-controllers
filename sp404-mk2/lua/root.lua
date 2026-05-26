@@ -12,6 +12,10 @@ local DELETE_CC = 50
 local QUANTISE_CC = 40
 local BUS_CC_FIRST = 91
 local BUS_CC_LAST = 95
+local LOCK_CC_FIRST = 1
+local LOCK_CC_LAST = 5
+
+local BUS_LOCK_HEX = "FF0000FF"
 
 local launchpadShiftHeld = false
 local launchpadClickHeld = false
@@ -104,14 +108,28 @@ function applyBusGroupTheme(busNum)
 
   setChromeColor(busGroup:findByName("edit_group", true), hex)
 
-  local editModeButton = busGroup:findByName("edit_mode_button", true)
+  local controlGroup = busGroup:findByName("control_group", true)
+  local editModeButton = controlGroup and controlGroup:findByName("edit_mode_button", true)
   setChromeColor(editModeButton, hex)
-  local editModeLabel = busGroup:findByName("edit_mode_label", true)
+  local editModeLabel = controlGroup and controlGroup:findByName("edit_mode_label", true)
   if editModeLabel then
     if editModeButton and editModeButton.values.x == 1 then
       editModeLabel.textColor = Color.fromHexString("000000FF")
     else
       editModeLabel.textColor = Color.fromHexString(hex)
+    end
+  end
+
+  local lockButton = controlGroup and controlGroup:findByName("bus_lock_button", true)
+  local lockLabel = controlGroup and controlGroup:findByName("bus_lock_label", true)
+  if lockButton then
+    setChromeColor(lockButton, BUS_LOCK_HEX)
+    if lockLabel then
+      if lockButton.values.x == 1 then
+        lockLabel.textColor = Color.fromHexString("000000FF")
+      else
+        lockLabel.textColor = Color.fromHexString(BUS_LOCK_HEX)
+      end
     end
   end
 
@@ -170,6 +188,71 @@ local function busCcToBusNum(cc)
     return cc - 90
   end
   return nil
+end
+
+local function lockCcToBusNum(cc)
+  if cc >= LOCK_CC_FIRST and cc <= LOCK_CC_LAST then
+    return cc
+  end
+  return nil
+end
+
+local function readBusLockTable()
+  local tag = json.toTable(root.tag) or {}
+  if type(tag.busLock) == "table" then
+    return tag.busLock
+  end
+  return {}
+end
+
+local function writeBusLockTable(locks)
+  local tag = json.toTable(root.tag) or {}
+  tag.busLock = locks
+  root.tag = json.fromTable(tag)
+end
+
+local function getBusLockButton(busNum)
+  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+  local controlGroup = busGroup and busGroup:findByName("control_group", true)
+  return controlGroup and controlGroup:findByName("bus_lock_button", true)
+end
+
+local function refreshLockButtonLED(busNum)
+  local ccLed = busNum
+  local brightness = LAUNCHPAD_IDLE_BRIGHTNESS
+  if isBusLocked(busNum) then
+    brightness = LAUNCHPAD_ON_BRIGHTNESS
+  end
+  local r, g, b = launchpadLockRgb(brightness)
+  debugLaunchpad(string.format("lock LED %d rgb %d %d %d (bus %d)", ccLed, r, g, b, busNum))
+  sendLaunchpadLedRgb(ccLed, r, g, b)
+end
+
+local function refreshAllLockButtonLEDs()
+  for busNum = 1, NUM_BUSES do
+    refreshLockButtonLED(busNum)
+  end
+end
+
+local function syncBusLockUi(busNum, locked)
+  local lockBtn = getBusLockButton(busNum)
+  if lockBtn then
+    lockBtn.values.x = locked and 1 or 0
+  end
+end
+
+local function setBusLocked(busNum, locked)
+  local locks = readBusLockTable()
+  local key = tostring(busNum)
+  if locked then
+    locks[key] = true
+  else
+    locks[key] = nil
+  end
+  writeBusLockTable(locks)
+  syncBusLockUi(busNum, locked)
+  refreshLockButtonLED(busNum)
+  applyBusGroupTheme(busNum)
 end
 
 local function getOnOffGroup(busNum)
@@ -309,15 +392,22 @@ local function handleLaunchpadBusCc(busNum, pressed)
 
   if pressed then
     if launchpadDeleteHeld then
-      local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
-      if busGroup then
-        busGroup:notify("clear_bus")
-        refreshBusButtonLED(busNum)
-        debugLaunchpad(string.format("bus %d delete+clear", busNum))
+      if isBusLocked(busNum) then
+        debugLaunchpad(string.format("bus %d delete+clear blocked (locked)", busNum))
+      else
+        local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+        if busGroup then
+          busGroup:notify("clear_bus")
+          refreshBusButtonLED(busNum)
+          debugLaunchpad(string.format("bus %d delete+clear", busNum))
+        end
       end
     elseif not busHasFxLoaded(busNum) then
       debugLaunchpad(string.format("bus %d ignored (no FX loaded)", busNum))
     elseif launchpadClickHeld then
+      if isBusLocked(busNum) then
+        debugLaunchpad(string.format("bus %d click+store blocked (locked)", busNum))
+      else
       busClickPress[busNum] = true
       local storeBtn = getStoreDefaultsButton(busNum)
       if storeBtn then
@@ -329,6 +419,7 @@ local function handleLaunchpadBusCc(busNum, pressed)
         presetGrid:notify("store_defaults", busNum)
       end
       debugLaunchpad(string.format("bus %d click+press (store defaults)", busNum))
+      end
     elseif launchpadUndoHeld then
       busUndoPress[busNum] = true
       local recallBtn = getRecallDefaultsButton(busNum)
@@ -422,6 +513,13 @@ local function handleLaunchpadControlChange(cc, ccValue)
     return true
   end
 
+  local lockBus = lockCcToBusNum(cc)
+  if lockBus and ccValue > 63 then
+    setBusLocked(lockBus, not isBusLocked(lockBus))
+    debugLaunchpad(string.format("bus %d lock -> %s", lockBus, tostring(isBusLocked(lockBus))))
+    return true
+  end
+
   local busNum = busCcToBusNum(cc)
   if busNum then
     handleLaunchpadBusCc(busNum, ccValue > 63)
@@ -442,6 +540,14 @@ function onReceiveNotify(key, value)
       refreshBusButtonLED(value)
     else
       refreshAllBusButtonLEDs()
+    end
+  elseif key == "set_bus_locked" then
+    if type(value) == "table" then
+      local busNum = value[1]
+      local locked = value[2] == true
+      if busNum then
+        setBusLocked(busNum, locked)
+      end
     end
   end
 end
@@ -797,6 +903,7 @@ function update()
     end
   end
   refreshAllBusButtonLEDs()
+  refreshAllLockButtonLEDs()
   print("startup: sync_all_buses_midi")
 end
 
@@ -825,6 +932,14 @@ function init()
     sendLaunchpadLedRgb(QUANTISE_CC, qr, qg, qb)
   end
   refreshAllBusButtonLEDs()
+  do
+    local locks = readBusLockTable()
+    for busNum = 1, NUM_BUSES do
+      local locked = locks[tostring(busNum)] == true
+      syncBusLockUi(busNum, locked)
+      refreshLockButtonLED(busNum)
+    end
+  end
   if root.children.scene_manager then
     root.children.scene_manager:notify("refresh_all_scenes")
   end

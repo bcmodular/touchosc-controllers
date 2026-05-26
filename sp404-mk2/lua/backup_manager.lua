@@ -106,11 +106,35 @@ local function writePresets(presets)
   end
 end
 
+local function mergeLockedBusesFromExisting(sceneData, sceneKey)
+  if type(sceneData) ~= "table" or not sceneData.buses then
+    return sceneData
+  end
+  local node = sceneManager.children[sceneKey]
+  if not node or not node.tag or node.tag == "" then
+    return sceneData
+  end
+  local existing = json.toTable(node.tag)
+  if type(existing) ~= "table" or type(existing.buses) ~= "table" then
+    return sceneData
+  end
+  for busNum = 1, NUM_BUSES do
+    if isBusLocked(busNum) then
+      local busKey = tostring(busNum)
+      if existing.buses[busKey] then
+        sceneData.buses[busKey] = existing.buses[busKey]
+      end
+    end
+  end
+  return sceneData
+end
+
 local function writeScenes(scenes)
   for sceneNum = 1, NUM_SCENES do
     local key = string.format("%02d", sceneNum)
     local sceneData = scenes[key] or scenes[sceneNum]
     if type(sceneData) == "table" and next(sceneData) then
+      sceneData = mergeLockedBusesFromExisting(sceneData, key)
       sceneManager.children[key].tag = json.fromTable(sceneData)
     else
       sceneManager.children[key].tag = ""
@@ -128,6 +152,9 @@ end
 
 local function writeBuses(buses)
   for busNum = 1, NUM_BUSES do
+    if isBusLocked(busNum) then
+      -- skip live bus tag / set_fx for locked buses
+    else
     local key = tostring(busNum)
     local busData = buses[key] or buses[busNum]
     local busGroup = getBusGroup(busNum)
@@ -142,12 +169,14 @@ local function writeBuses(buses)
         busGroup:notify("set_fx", { fxNum, fxName, false })
       end
     end
+    end
   end
 end
 
 local function turnOffBusEffectsAfterImport(buses)
   -- Backups store FX selection and parameters, not on/off; avoid leaving stale toggle state.
   for busNum = 1, NUM_BUSES do
+    if not isBusLocked(busNum) then
     local key = tostring(busNum)
     local busData = buses[key] or buses[busNum]
     if type(busData) == "table" then
@@ -164,6 +193,7 @@ local function turnOffBusEffectsAfterImport(buses)
           onOff:notify("set_state", false)
         end
       end
+    end
     end
   end
 end
