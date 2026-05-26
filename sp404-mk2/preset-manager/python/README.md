@@ -5,7 +5,7 @@
 `run-backup.sh` uses **system `python3`** by default (user-site PyQt5). The project `.venv` is optional and often broken on macOS for Qt.
 
 ```bash
-cd preset-manager/python
+cd sp404-mk2/preset-manager/python
 python3 -m pip install --user -r requirements.txt   # once
 ./run-backup.sh
 ```
@@ -13,7 +13,7 @@ python3 -m pip install --user -r requirements.txt   # once
 Recommended alias:
 
 ```bash
-alias sp404-backup='/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/run-backup.sh'
+alias sp404-backup='/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/run-backup.sh'
 ```
 
 ## Workflow

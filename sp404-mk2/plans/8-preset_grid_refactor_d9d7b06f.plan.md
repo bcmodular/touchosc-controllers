@@ -25,7 +25,7 @@ isProject: false
 ## Current state
 
 - **TouchOSC**: Each of the 5 `preset_grid` groups has **16** `BUTTON` children named `"1"`…`"16"` (mixed layout: large pads 1–3, then 2 columns for 4–16). Label overlay `perform_preset_label_grid` uses **gridY=8** (2-column label grid).
-- **Lua**: [`preset_grid_manager.lua`](sp404-mk2/SP404/lua/preset_grid_manager.lua) and [`root.lua`](sp404-mk2/SP404/lua/root.lua) hard-code **16** in loops and `(busNum - 1) * 16 + presetNum` indexing.
+- **Lua**: [`preset_grid_manager.lua`](sp404-mk2/lua/preset_grid_manager.lua) and [`root.lua`](sp404-mk2/lua/root.lua) hard-code **16** in loops and `(busNum - 1) * 16 + presetNum` indexing.
 - **Launchpad**: `presetNoteMap` has **64** entries = **4 buses × 16 pads** (2 columns × 8 rows per bus). **Bus 5 is broken** on hardware (indices 65–80 are out of range).
 - **Storage**: Sparse JSON in `preset_manager` child tags, keys `"01"`…`"16"` — no fixed array length; logic only limits what the UI/Launchpad expose.
 
@@ -84,7 +84,7 @@ end
 
 ## Lua changes
 
-### 1. [`preset_grid_manager.lua`](sp404-mk2/SP404/lua/preset_grid_manager.lua)
+### 1. [`preset_grid_manager.lua`](sp404-mk2/lua/preset_grid_manager.lua)
 
 - Add `PRESETS_PER_BUS = 8` (UPPER_SNAKE_CASE per project conventions).
 - Replace static `presetNoteMap` with `buildPresetNoteMap()` (same in `root.lua`; add a one-line comment in both files: *keep formula in sync*).
@@ -115,25 +115,25 @@ end
 
 - Guard `refreshPresets` coloring loop: only touch `grid.children[tostring(presetNum)]` when `presetNum` is 1..8 (defensive after purge).
 
-### 2. [`root.lua`](sp404-mk2/SP404/lua/root.lua)
+### 2. [`root.lua`](sp404-mk2/lua/root.lua)
 
 - Same `PRESETS_PER_BUS`, `buildPresetNoteMap()`, and division/modulo update in `onReceiveMIDI`.
 - Remove duplicate 64-element static table.
 
 ### 3. No changes required
 
-- [`bus_group_instance.lua`](sp404-mk2/SP404/lua/bus_group_instance.lua) — still notifies `preset_grid` by name.
-- [`preset_manager.lua`](sp404-mk2/SP404/lua/preset_manager.lua) — storage model unchanged.
+- [`bus_group_instance.lua`](sp404-mk2/lua/bus_group_instance.lua) — still notifies `preset_grid` by name.
+- [`preset_manager.lua`](sp404-mk2/lua/preset_manager.lua) — storage model unchanged.
 - Python preset-manager app — no hardcoded 16-slot assumption found.
 
-## TouchOSC layout ([`SP404.tosc`](sp404-mk2/SP404/SP404.tosc))
+## TouchOSC layout ([`SP404.tosc`](sp404-mk2/SP404.tosc))
 
 Apply the **same edit to all 5** `busN_group` → `preset_grid` groups (bus1 currently has buttons at two x positions: `x=5` and `x=49`; target is a **single column**).
 
 **Recommended workflow**: edit in **TouchOSC Editor** (visual), then run build to re-inject Lua:
 
 ```bash
-python3 tools/toscbuild.py build sp404-mk2/SP404
+python3 tools/toscbuild.py build sp404-mk2
 ```
 
 | Element | Action |
@@ -149,11 +149,11 @@ python3 tools/toscbuild.py build sp404-mk2/SP404
 ## Documentation
 
 - Update [`CLAUDE.md`](CLAUDE.md) line “16 slots per effect” → **8 slots**.
-- Optional one-liner in [`sp404-mk2/SP404/lua/README.md`](sp404-mk2/SP404/lua/README.md) documenting Launchpad column layout and free columns 6–8.
+- Optional one-liner in [`sp404-mk2/lua/README.md`](sp404-mk2/lua/README.md) documenting Launchpad column layout and free columns 6–8.
 
 ## Verification checklist
 
-1. **Build**: `python3 tools/toscbuild.py build sp404-mk2/SP404` — no errors.
+1. **Build**: `python3 tools/toscbuild.py build sp404-mk2` — no errors.
 2. **TouchOSC**: Each bus shows 8 preset pads in one column; store/recall/delete still work; labels 1–8 visible.
 3. **Launchpad**: All 5 columns light correctly per bus accent when presets stored; bus 5 works (regression fix).
 4. **Mapping**: Press top pad → preset 1, bottom → preset 8; each column maps to correct bus.

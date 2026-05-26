@@ -24,7 +24,7 @@ isProject: false
 
 ## Confirmed layout (from screenshot)
 
-The modal is **8 columns × 6 rows**, row-major. The existing [`effects`](sp404-mk2/SP404/lua/fx_selector_button_group.lua) array already matches this order, so column mapping is deterministic:
+The modal is **8 columns × 6 rows**, row-major. The existing [`effects`](sp404-mk2/lua/fx_selector_button_group.lua) array already matches this order, so column mapping is deterministic:
 
 ```lua
 -- Column col (1–8), row row (1–6): effect index = (row - 1) * 8 + col
@@ -57,11 +57,11 @@ sequenceDiagram
   Bus->>Modal: toggle_visibility close
 ```
 
-Touch path stays: button release → `set_fx` → [`bus_group_instance.lua`](sp404-mk2/SP404/lua/bus_group_instance.lua) `showBus()` + modal close.
+Touch path stays: button release → `set_fx` → [`bus_group_instance.lua`](sp404-mk2/lua/bus_group_instance.lua) `showBus()` + modal close.
 
 ## Target behavior
 
-**Only when** [`fx_selector_group`](sp404-mk2/SP404/lua/fx_selector_group.lua) is visible:
+**Only when** [`fx_selector_group`](sp404-mk2/lua/fx_selector_group.lua) is visible:
 
 | MIDI (Ch 6) | CC | Action |
 |-------------|-----|--------|
@@ -69,7 +69,7 @@ Touch path stays: button release → `set_fx` → [`bus_group_instance.lua`](sp4
 | Encoder push | 9–16 | Confirm highlighted effect in column `cc - 8` → same as UI tap (`set_fx`) |
 
 - **Ch 6** = TouchOSC channel index **5** (`MIDIMessageType.CONTROLCHANGE + 5`), fixed for the BCR top row (independent of which bus opened the modal).
-- **MIDI port**: BCR = connection 2 (`{ false, true }`), same as outbound fader sync in [`control_mapper.lua`](sp404-mk2/SP404/lua/control_mapper.lua).
+- **MIDI port**: BCR = connection 2 (`{ false, true }`), same as outbound fader sync in [`control_mapper.lua`](sp404-mk2/lua/control_mapper.lua).
 
 No conflict with perform-fader BCR mapping: faders use CC **81, 82, 89, 90, 97, 98** on the bus-specific channel (6–10), not CC 1–16.
 
@@ -130,14 +130,14 @@ Apply **only on modal buttons** (not BCR LEDs):
 |-------|-----------------|--------|
 | Unavailable | `8D8D8AFF` (existing gray) | `allMidiValues` |
 | Available (default) | `F79000FF` (existing orange) | `setupUI` |
-| **Current bus effect** | Bus accent hex | [`BUS_ACCENT_HEX`](sp404-mk2/SP404/lua/root.lua) via `root.tag.busAccentHex` |
+| **Current bus effect** | Bus accent hex | [`BUS_ACCENT_HEX`](sp404-mk2/lua/root.lua) via `root.tag.busAccentHex` |
 | **Pending (encoder highlight)** | High-contrast distinct color, e.g. `FFFFFFFF` or `00FF88FF` | New constant in `fx_selector_button_group.lua` |
 
 Paint priority: base availability → current effect → pending (pending wins if same cell).
 
 ## Implementation plan
 
-### 1. Column model + highlight state — [`fx_selector_button_group.lua`](sp404-mk2/SP404/lua/fx_selector_button_group.lua)
+### 1. Column model + highlight state — [`fx_selector_button_group.lua`](sp404-mk2/lua/fx_selector_button_group.lua)
 
 Add at module scope:
 
@@ -163,7 +163,7 @@ Helper `stepColumnHighlight(col, delta)`:
 - Build filtered list (skip `allMidiValues[i][midiIndex] == 0`).
 - Wrap index; call `paintAllButtons()`.
 
-### 2. Inbound MIDI routing — [`root.lua`](sp404-mk2/SP404/lua/root.lua)
+### 2. Inbound MIDI routing — [`root.lua`](sp404-mk2/lua/root.lua)
 
 Extend `onReceiveMIDI` (pattern from [`p6-granular/BCR2000_P6/lua/root.lua`](p6-granular/BCR2000_P6/lua/root.lua)):
 
@@ -190,7 +190,7 @@ Logic:
 
 Keep Launchpad and BCR paths mutually exclusive per message.
 
-### 3. Modal lifecycle — [`fx_selector_group.lua`](sp404-mk2/SP404/lua/fx_selector_group.lua)
+### 3. Modal lifecycle — [`fx_selector_group.lua`](sp404-mk2/lua/fx_selector_group.lua)
 
 On `hide` / `hideSelector()`: optional `selectorButtons:notify('midi_reset')` to clear pending highlights (prevents stale state if reopened).
 
@@ -199,7 +199,7 @@ No `.tosc` layout changes required.
 ### 4. Build + test
 
 ```bash
-python3 tools/toscbuild.py build sp404-mk2/SP404
+python3 tools/toscbuild.py build sp404-mk2
 ```
 
 **Manual test checklist:**
@@ -215,9 +215,9 @@ python3 tools/toscbuild.py build sp404-mk2/SP404
 
 | File | Change |
 |------|--------|
-| [`fx_selector_button_group.lua`](sp404-mk2/SP404/lua/fx_selector_button_group.lua) | Column lists, highlight state, `paintAllButtons`, MIDI notify handlers |
-| [`root.lua`](sp404-mk2/SP404/lua/root.lua) | BCR inbound CC routing when modal visible |
-| [`fx_selector_group.lua`](sp404-mk2/SP404/lua/fx_selector_group.lua) | Reset highlight on hide (small) |
+| [`fx_selector_button_group.lua`](sp404-mk2/lua/fx_selector_button_group.lua) | Column lists, highlight state, `paintAllButtons`, MIDI notify handlers |
+| [`root.lua`](sp404-mk2/lua/root.lua) | BCR inbound CC routing when modal visible |
+| [`fx_selector_group.lua`](sp404-mk2/lua/fx_selector_group.lua) | Reset highlight on hide (small) |
 
 No `toscbuild.json` mapping changes (scripts already injected).
 

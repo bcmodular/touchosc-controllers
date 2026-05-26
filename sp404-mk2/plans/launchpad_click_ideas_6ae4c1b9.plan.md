@@ -33,7 +33,7 @@ isProject: false
 
 ## Target behavior
 
-Mirror the existing Undo path in [`root.lua`](sp404-mk2/SP404/lua/root.lua) `handleLaunchpadBusCc`:
+Mirror the existing Undo path in [`root.lua`](sp404-mk2/lua/root.lua) `handleLaunchpadBusCc`:
 
 - On **press** (with FX loaded, not Delete mode):
   - If `launchpadClickHeld`: `presetGrid:notify('store_defaults', busNum)`
@@ -60,12 +60,12 @@ Mirror the existing Undo path in [`root.lua`](sp404-mk2/SP404/lua/root.lua) `han
 
 ## Code changes
 
-### 1. [`launchpad_led.lua`](sp404-mk2/SP404/lua/launchpad_led.lua)
+### 1. [`launchpad_led.lua`](sp404-mk2/lua/launchpad_led.lua)
 
 - Add `launchpadClickRgb(brightness)` — distinct from Undo (magenta) and Shift (white); suggest **cyan/teal** or **amber** so Click vs Undo is obvious on hardware.
 - Export for `root.lua` include.
 
-### 2. [`root.lua`](sp404-mk2/SP404/lua/root.lua)
+### 2. [`root.lua`](sp404-mk2/lua/root.lua)
 
 - `CLICK_CC = 70`
 - `local launchpadClickHeld = false`
@@ -75,9 +75,9 @@ Mirror the existing Undo path in [`root.lua`](sp404-mk2/SP404/lua/root.lua) `han
 - `getStoreDefaultsButton(busNum)` — `findByName('store_defaults_button', true)` under bus group (nil-safe)
 - `init()`: dim Click LED on startup (like Undo/Shift)
 
-Backend already implemented: [`preset_grid_manager.lua`](sp404-mk2/SP404/lua/preset_grid_manager.lua) `storeDefaults(busNum)` → `defaultManager` tag per `fxNum`.
+Backend already implemented: [`preset_grid_manager.lua`](sp404-mk2/lua/preset_grid_manager.lua) `storeDefaults(busNum)` → `defaultManager` tag per `fxNum`.
 
-### 3. [`README.md`](sp404-mk2/SP404/lua/README.md)
+### 3. [`README.md`](sp404-mk2/lua/README.md)
 
 - Surface table: **Click** CC 70 → store-defaults modifier
 - Gestures table: Click+hold bus CC = store defaults; note symmetry with Undo
@@ -87,7 +87,7 @@ Backend already implemented: [`preset_grid_manager.lua`](sp404-mk2/SP404/lua/pre
 ### 4. Build
 
 ```bash
-python3 tools/toscbuild.py build sp404-mk2/SP404
+python3 tools/toscbuild.py build sp404-mk2
 ```
 
 No `.tosc` layout change required unless you later add a visible `store_defaults_button` for TouchOSC feedback.
@@ -105,7 +105,7 @@ No `.tosc` layout change required unless you later add a visible `store_defaults
 
 ## Deferred: Launchpad choose effect
 
-**Goal:** Open/close FX chooser for a bus from Launchpad (same as [`choose_button.lua`](sp404-mk2/SP404/lua/choose_button.lua) / BCR CC 74 → `bcr_choose` → `set_chooser_state`).
+**Goal:** Open/close FX chooser for a bus from Launchpad (same as [`choose_button.lua`](sp404-mk2/lua/choose_button.lua) / BCR CC 74 → `bcr_choose` → `set_chooser_state`).
 
 **Not using Click** — reserved for store-defaults modifier.
 
@@ -119,7 +119,7 @@ No `.tosc` layout change required unless you later add a visible `store_defaults
 
 Candidate spare controls: CC **96–98** (top row), bottom **6–8**, side notes **71–79** (row 7 right of Click), preset **col 6**.
 
-Wire to: `on_off_button_group:notify('set_chooser_state', on)` and sync header/perform `choose_button` values (see [`on_off_button_group.lua`](sp404-mk2/SP404/lua/on_off_button_group.lua)).
+Wire to: `on_off_button_group:notify('set_chooser_state', on)` and sync header/perform `choose_button` values (see [`on_off_button_group.lua`](sp404-mk2/lua/on_off_button_group.lua)).
 
 ---
 

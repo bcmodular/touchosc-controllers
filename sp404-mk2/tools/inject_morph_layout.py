@@ -6,8 +6,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-_REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_REPO / "tools"))
+_SP404_ROOT = Path(__file__).resolve().parents[1]
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT / "tools"))
 from tosc_layout_utils import (
     backup_tosc,
     find_bus_group_block,
@@ -21,7 +22,7 @@ from tosc_layout_utils import (
 )
 from toscbuild import _build_node_xml
 
-TOSC = _REPO / "sp404-mk2" / "SP404" / "SP404.tosc"
+TOSC = _SP404_ROOT / "SP404.tosc"
 
 # Fader hidden until morph on + target selected (preset_grid_manager syncMorphControlsUi).
 MORPH_GROUP_DEF = {

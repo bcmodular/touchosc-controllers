@@ -28,9 +28,9 @@ Commit `0be91cf` reduced presets from 16 to 8 per bus. Layout migration is **alr
 
 | Item | Location | Why remove / change |
 |------|----------|---------------------|
-| Runtime tag purge | [`preset_grid_manager.lua`](sp404-mk2/SP404/lua/preset_grid_manager.lua) | `purgeLegacyPresetSlots()` strips keys `"09"`–`"16"` on every `refreshPresets`; no longer needed once data is migrated |
+| Runtime tag purge | [`preset_grid_manager.lua`](sp404-mk2/lua/preset_grid_manager.lua) | `purgeLegacyPresetSlots()` strips keys `"09"`–`"16"` on every `refreshPresets`; no longer needed once data is migrated |
 | One-off layout tool | [`tools/migrate_preset_grid_8.py`](tools/migrate_preset_grid_8.py) | Documented as one-off; layout already migrated |
-| Orphan stub | [`bus_group_instances.lua`](sp404-mk2/SP404/lua/bus_group_instances.lua) | Single comment; not in [`toscbuild.json`](sp404-mk2/SP404/toscbuild.json), not in `.tosc` |
+| Orphan stub | [`bus_group_instances.lua`](sp404-mk2/lua/bus_group_instances.lua) | Single comment; not in [`toscbuild.json`](sp404-mk2/toscbuild.json), not in `.tosc` |
 | Runtime script injection | Same manager file, `init()` lines 494–567 | User requested build-time migration; scripts are identical across grids/pads (bus comes from `self.tag` / `parent.tag`) |
 
 **Keep** (not migration leftovers):
@@ -68,7 +68,7 @@ No other logic changes in store/recall/LED paths.
 
 ## 2. Extract preset grid scripts to standalone Lua files
 
-Create two files under [`sp404-mk2/SP404/lua/`](sp404-mk2/SP404/lua/):
+Create two files under [`sp404-mk2/lua/`](sp404-mk2/lua/):
 
 - **`preset_grid.lua`** — content from current `presetGridScript` `[[...]]` block (notify relay to `preset_grid_manager`)
 - **`preset_pad.lua`** — content from current `presetButtonScript` `[[...]]` block (`onValueChanged` → `button_value_changed`)
@@ -96,7 +96,7 @@ Implementation in [`tools/toscbuild.py`](tools/toscbuild.py):
 - Update `_resolve_targets`, `_count_total_targets`, and `_inject_mapping` to handle `under_name` + `node_names`
 - Document the new mapping shape in [`docs/tosc-format.md`](docs/tosc-format.md) (build manifest section)
 
-## 4. Update [`toscbuild.json`](sp404-mk2/SP404/toscbuild.json)
+## 4. Update [`toscbuild.json`](sp404-mk2/toscbuild.json)
 
 Add mappings:
 
@@ -114,13 +114,13 @@ Add mappings:
 ## 6. Delete obsolete files
 
 - [`tools/migrate_preset_grid_8.py`](tools/migrate_preset_grid_8.py)
-- [`sp404-mk2/SP404/lua/bus_group_instances.lua`](sp404-mk2/SP404/lua/bus_group_instances.lua)
+- [`sp404-mk2/lua/bus_group_instances.lua`](sp404-mk2/lua/bus_group_instances.lua)
 
 ## 7. Rebuild and verify
 
 ```bash
-python3 tools/toscbuild.py build sp404-mk2/SP404
-python3 tools/toscbuild.py tree sp404-mk2/SP404/SP404.tosc
+python3 tools/toscbuild.py build sp404-mk2
+python3 tools/toscbuild.py tree sp404-mk2/SP404.tosc
 ```
 
 Expected build output:
@@ -137,5 +137,5 @@ Update [`CLAUDE.md`](CLAUDE.md) bullet for `preset_grid_manager.lua`: remove “
 
 ## Out of scope
 
-- Migrating [`control_mapper.lua`](sp404-mk2/SP404/lua/control_mapper.lua) runtime fader injection (separate, parameterized build-time work)
+- Migrating [`control_mapper.lua`](sp404-mk2/lua/control_mapper.lua) runtime fader injection (separate, parameterized build-time work)
 - Renaming pad nodes to globally unique names (unnecessary with `under_name` scoping)

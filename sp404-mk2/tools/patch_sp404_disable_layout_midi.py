@@ -6,7 +6,7 @@ Remove layout-level MIDI from SP404 perform controls so routing lives in Lua onl
   deletes the entire <midi>...</midi> block (keeps <local> only)
 
 Usage:
-    python3 tools/patch_sp404_disable_layout_midi.py SP404/SP404.tosc
+    python3 sp404-mk2/tools/patch_sp404_disable_layout_midi.py sp404-mk2/SP404.tosc
 """
 
 import re

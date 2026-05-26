@@ -29,7 +29,7 @@ isProject: false
 
 Extends [launchpad_pro_enhancements_13f97bae.plan.md](launchpad_pro_enhancements_13f97bae.plan.md) after completed Phases 1–3. Phase 4 (bus lock) stays separate; when Phase 4 lands, recall/grab/backup-import should call a shared `isBusLocked(busNum)` helper.
 
-**PyQt5:** No reason to change — it already works on Mac, dependencies are light (`PyQt5`, `python-osc`, `psutil`). Keep and extend [`preset-manager/python/preset-manager.py`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/preset-manager.py).
+**PyQt5:** No reason to change — it already works on Mac, dependencies are light (`PyQt5`, `python-osc`, `psutil`). Keep and extend [`preset-manager/python/preset-manager.py`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/preset-manager.py).
 
 ---
 
@@ -70,9 +70,9 @@ Deferred items **not** in 3b (unchanged): per-scene colors, custom scene names.
 
 **Why it didn’t make sense:**
 
-- Effect **presets** are per-FX, per-bus slots where “don’t recall tuning” is a deliberate performance choice (`exclude_tuning_from_presets_button` + `isExcludable` in [`preset_grid_manager.lua`](sp404-mk2/SP404/lua/preset_grid_manager.lua)).
+- Effect **presets** are per-FX, per-bus slots where “don’t recall tuning” is a deliberate performance choice (`exclude_tuning_from_presets_button` + `isExcludable` in [`preset_grid_manager.lua`](sp404-mk2/lua/preset_grid_manager.lua)).
 - **Scenes** capture the whole rig; partial recall (skip tuning on some buses) produced confusing mixes when scenes had different FX or exclude settings than when stored.
-- A prototype was added to [`scene_manager.lua`](sp404-mk2/SP404/lua/scene_manager.lua) and **reverted** after hardware testing; README documents full state reload only.
+- A prototype was added to [`scene_manager.lua`](sp404-mk2/lua/scene_manager.lua) and **reverted** after hardware testing; README documents full state reload only.
 
 **Still true for presets:** Store always saves all 6 CCs; recall may skip excludable faders when exclude is on. **Scenes:** store and recall always use all 6 CCs (no exclude gate).
 
@@ -82,7 +82,7 @@ Do not re-open 3b-1 unless requirements change explicitly (e.g. per-scene exclud
 
 ## 3b-2: Scene grab (Shift + stored scene pad) — done
 
-**Shipped:** [`scene_manager.lua`](sp404-mk2/SP404/lua/scene_manager.lua) — `applyGlobalState`, `scene_grab_restore` on `root.tag`, `handleSceneGrabPad`, delete mode cancels grab. README Launchpad gestures: Shift+stored scene = momentary preview/restore.
+**Shipped:** [`scene_manager.lua`](sp404-mk2/lua/scene_manager.lua) — `applyGlobalState`, `scene_grab_restore` on `root.tag`, `handleSceneGrabPad`, delete mode cancels grab. README Launchpad gestures: Shift+stored scene = momentary preview/restore.
 
 | Gesture | Action |
 |---------|--------|
@@ -120,7 +120,7 @@ Do not re-open 3b-1 unless requirements change explicitly (e.g. per-scene exclud
 
 ### OSC API (new; keep `/presets` working)
 
-Add [`backup_manager.lua`](sp404-mk2/SP404/lua/backup_manager.lua) (root child node, build-injected):
+Add [`backup_manager.lua`](sp404-mk2/lua/backup_manager.lua) (root child node, build-injected):
 
 - **Export:** `sendOSC('/sp404/backup', jsonString)` where decoded JSON is:
 
@@ -141,11 +141,11 @@ Add [`backup_manager.lua`](sp404-mk2/SP404/lua/backup_manager.lua) (root child n
 - **Import:** `root.lua` receives `/sp404/backup` → `backup_import_group` → confirm → `import_backup_from_osc` → write sections → `turnOffBusEffectsAfterImport` → refresh preset grids + scenes.
 - **Export:** layout **Export** button → `export_backup_to_osc`.
 
-**TouchOSC layout:** Export/Import buttons + `backup_import_group` (see [`SP404.tosc`](sp404-mk2/SP404/SP404.tosc)); built via `toscbuild` + layout inject scripts.
+**TouchOSC layout:** Export/Import buttons + `backup_import_group` (see [`SP404.tosc`](sp404-mk2/SP404.tosc)); built via `toscbuild` + layout inject scripts.
 
-### Mac utility ([`preset-manager.py`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/preset-manager.py))
+### Mac utility ([`preset-manager.py`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/preset-manager.py))
 
-See [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/README.md). Summary:
+See [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/README.md). Summary:
 
 | Feature | Detail |
 |---------|--------|
@@ -153,16 +153,16 @@ See [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/G
 | **Capture** | Name prompt per capture; `dumps/{key}_{version}_{stamp}.json` (filename internal) |
 | **Library** | Configs + versions from JSON metadata; double-click replay; right-click rename/delete |
 | **Settings** | `settings.json` (gitignored): ports, `lastConfigName`, `nextConfigVersionByKey`, `windowGeometry` |
-| **Deps** | [`requirements.txt`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/requirements.txt): `PyQt5`, `python-osc`, `psutil` |
+| **Deps** | [`requirements.txt`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/requirements.txt): `PyQt5`, `python-osc`, `psutil` |
 
 ---
 
 ## Build & docs — done
 
-- [`toscbuild.json`](sp404-mk2/SP404/toscbuild.json): backup script mappings
-- `python3 tools/toscbuild.py build sp404-mk2/SP404`
-- [`sp404-mk2/SP404/lua/README.md`](sp404-mk2/SP404/lua/README.md): scene grab, `/sp404/backup`, import FX-off behaviour
-- [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/Github/touchosc-controllers/preset-manager/python/README.md): utility workflow
+- [`toscbuild.json`](sp404-mk2/toscbuild.json): backup script mappings
+- `python3 tools/toscbuild.py build sp404-mk2`
+- [`sp404-mk2/lua/README.md`](sp404-mk2/lua/README.md): scene grab, `/sp404/backup`, import FX-off behaviour
+- [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/README.md): utility workflow
 - Parent plan deferred table updated in [launchpad_pro_enhancements_13f97bae.plan.md](launchpad_pro_enhancements_13f97bae.plan.md)
 
 ---

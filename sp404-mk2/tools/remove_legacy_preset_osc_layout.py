@@ -7,11 +7,12 @@ import re
 import sys
 from pathlib import Path
 
-_REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_REPO / "tools"))
+_SP404_ROOT = Path(__file__).resolve().parents[1]
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT / "tools"))
 from tosc_layout_utils import backup_tosc, find_node_block, tosc_read, tosc_write, validate_tosc_xml
 
-TOSC = _REPO / "sp404-mk2" / "SP404" / "SP404.tosc"
+TOSC = _SP404_ROOT / "SP404.tosc"
 
 LEGACY_NODES = [
     "import_group",

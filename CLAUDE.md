@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Collection of TouchOSC controllers for hardware synthesizers/samplers, primarily the Roland SP-404 MK2. The main controller (`sp404-mk2/SP404/SP404.tosc`) is a complex TouchOSC layout with extensive Lua scripting that provides:
+Collection of TouchOSC controllers for hardware synthesizers/samplers, primarily the Roland SP-404 MK2. The main controller ([`sp404-mk2/SP404.tosc`](sp404-mk2/SP404.tosc)) is a complex TouchOSC layout with extensive Lua scripting that provides:
 
 - Full effects parameter control across 5 buses (46 effects supported)
 - Preset save/recall system with 8 slots per effect
@@ -16,7 +16,7 @@ Collection of TouchOSC controllers for hardware synthesizers/samplers, primarily
 
 ### TouchOSC + Lua Model
 
-TouchOSC `.tosc` files are zlib-compressed XML layout files. The Lua scripts in `sp404-mk2/SP404/lua/` are the source of truth for all controller logic. Scripts are injected into `.tosc` nodes at **build time** using `tools/toscbuild.py`, which performs string-level regex replacement to preserve CDATA and non-script XML byte-for-byte.
+TouchOSC `.tosc` files are zlib-compressed XML layout files. The Lua scripts in `sp404-mk2/lua/` are the source of truth for all controller logic. Scripts are injected into `.tosc` nodes at **build time** using `tools/toscbuild.py`, which performs string-level regex replacement to preserve CDATA and non-script XML byte-for-byte.
 
 Some scripts (e.g., `control_mapper.lua`) still use a **runtime injection** pattern where a "manager" node's `init()` distributes string templates to child nodes. On/off button scripts are build-time injected (`on_off_button_group.lua`, `toggle_button.lua`, etc.).
 
@@ -66,7 +66,7 @@ Python 3 CLI tool (no external dependencies) for the code-first build pipeline. 
 
 ### Build Manifest (`toscbuild.json`)
 
-Lives alongside the `.tosc` file (e.g., `sp404-mk2/SP404/toscbuild.json`). Format:
+Lives alongside the `.tosc` file (e.g., `sp404-mk2/toscbuild.json`). Format:
 
 ```json
 {
@@ -98,16 +98,16 @@ The build tool uses **string-level regex replacement** (not XML DOM) to modify s
 
 ```bash
 # Edit Lua files, then build
-python3 tools/toscbuild.py build sp404-mk2/SP404
+python3 tools/toscbuild.py build sp404-mk2
 
 # Or use watch mode for continuous rebuilds
-python3 tools/toscbuild.py dev sp404-mk2/SP404
+python3 tools/toscbuild.py dev sp404-mk2
 
 # Inspect .tosc structure
-python3 tools/toscbuild.py tree sp404-mk2/SP404/SP404.tosc
+python3 tools/toscbuild.py tree sp404-mk2/SP404.tosc
 
 # Generate a new .tosc from layout definition
-python3 tools/toscbuild.py scaffold sp404-mk2/SP404
+python3 tools/toscbuild.py scaffold sp404-mk2
 ```
 
 ### Migrating Runtime Injection to Build-Time
@@ -130,10 +130,12 @@ To convert a manager script from runtime to build-time injection:
 ## Reference Documentation
 
 - **`docs/tosc-format.md`** — Complete .tosc file format reference: XML schema, node types, property types, values, messages, Lua scripting environment/API, scaffold layout definition format, and programmatic modification techniques.
-- **`sp404-mk2/SP404/lua/README.md`** — Naming conventions, grid scope rules, tag-based state sharing patterns, and button state management.
+- **`sp404-mk2/README.md`** — End-user guide: MIDI setup, BCR2000, Launchpad Pro, presets/scenes/backup.
+- **`sp404-mk2/lua/README.md`** — Contributor guide: naming conventions, grid scope rules, tag-based state sharing, layout tooling.
 
 ## Other Components
 
-- **`preset-manager/python/`** — PyQt5 desktop app for OSC preset backup/restore. Requires `python-osc`, `psutil`, `PyQt5`.
+- **`sp404-mk2/preset-manager/python/`** — PyQt5 desktop app for OSC preset backup/restore. Requires `python-osc`, `psutil`, `PyQt5`.
+- **`sp404-mk2/tools/`** — SP404-specific layout maintenance scripts (`sync_bus1_ui_to_buses.py`, `inject_*.py`, etc.). Shared build tooling remains in repo `tools/`.
 - **`utils/`** — Launchkey Mini InControl mode scripts and MIDI tester layouts.
 - **`s-1/`** — Separate TouchOSC layout for Roland S-1 synth.

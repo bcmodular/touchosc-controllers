@@ -3,11 +3,11 @@
 Copy layout frames from bus1_group to bus2-5.
 
 Reads frames dynamically from bus1 (never hardcoded). Creates a timestamped backup
-under sp404-mk2/SP404/backups/ before writing. Validates XML after changes.
+under sp404-mk2/backups/ before writing. Validates XML after changes.
 
 Usage:
-  python3 tools/sync_bus1_ui_to_buses.py [path/to/SP404.tosc]
-  python3 tools/sync_bus1_ui_to_buses.py --diff-only [path/to/SP404.tosc]
+  python3 sp404-mk2/tools/sync_bus1_ui_to_buses.py [path/to/SP404.tosc]
+  python3 sp404-mk2/tools/sync_bus1_ui_to_buses.py --diff-only [path/to/SP404.tosc]
 """
 
 from __future__ import annotations
@@ -16,6 +16,9 @@ import argparse
 import re
 import sys
 from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT / "tools"))
 
 from tosc_layout_utils import (
     backup_tosc,
@@ -298,7 +301,7 @@ def main() -> int:
     parser.add_argument("--no-backup", action="store_true", help="Skip timestamped backup")
     args = parser.parse_args()
 
-    path = Path(args.tosc) if args.tosc else Path(__file__).resolve().parents[1] / "sp404-mk2/SP404/SP404.tosc"
+    path = Path(args.tosc) if args.tosc else Path(__file__).resolve().parents[1] / "SP404.tosc"
     if not path.is_file():
         print(f"File not found: {path}", file=sys.stderr)
         return 1

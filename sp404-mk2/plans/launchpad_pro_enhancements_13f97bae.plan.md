@@ -39,7 +39,7 @@ isProject: false
 
 ## Programmer layout & implemented behaviour
 
-**Canonical reference (diagram, note formulas, gestures, LEDs):** `sp404-mk2/SP404/lua/README.md` → **Launchpad Pro** section. Update README when layout or mappings change; keep this plan for phase/deferred tracking only.
+**Canonical reference (diagram, note formulas, gestures, LEDs):** `sp404-mk2/lua/README.md` → **Launchpad Pro** section. Update README when layout or mappings change; keep this plan for phase/deferred tracking only.
 
 ## Implementation status (Phases 1–3 done)
 
@@ -74,7 +74,7 @@ flowchart LR
 
 ## Shared infrastructure (do once in Phase 1)
 
-Add a small Launchpad layer in [`root.lua`](sp404-mk2/SP404/lua/root.lua) (or extract `launchpad_handler.lua` later if it grows):
+Add a small Launchpad layer in [`root.lua`](sp404-mk2/lua/root.lua) (or extract `launchpad_handler.lua` later if it grows):
 
 | Input | MIDI | Handling |
 |-------|------|----------|
@@ -93,7 +93,7 @@ Always show **usable** controls with a **dim idle** state and a **bright active*
 | **FX bus** | 91–95 | Bus palette color, **low** brightness | Same bus color, **full** brightness |
 | **Bus lock** (Phase 4) | 1–5 | Red, dim (e.g. **7**) | Red, bright (e.g. **5**) when locked |
 
-Bus colors reuse preset column velocities: `{ 35, 15, 59, 47, 21 }` ([`preset_grid_manager.lua`](sp404-mk2/SP404/lua/preset_grid_manager.lua)). If dim bus color is too strong on hardware, use a documented dim variant (e.g. palette index **1** or `max(1, busColor - N)` — tune in Phase 1).
+Bus colors reuse preset column velocities: `{ 35, 15, 59, 47, 21 }` ([`preset_grid_manager.lua`](sp404-mk2/lua/preset_grid_manager.lua)). If dim bus color is too strong on hardware, use a documented dim variant (e.g. palette index **1** or `max(1, busColor - N)` — tune in Phase 1).
 
 Centralize in **`root.lua`**: `sendRoundButtonLED(cc, color)` + `refreshBusButtonLEDs()` / `refreshLockButtonLEDs()` called on init, state change, and after TouchOSC/BCR toggles sync back.
 
@@ -190,7 +190,7 @@ See **Scene note formula** in layout section above. Column 6 remains unused betw
 
 ### Data model (as built)
 
-**[`scene_manager.lua`](sp404-mk2/SP404/lua/scene_manager.lua)** on root; one hidden **label** child per scene (`01`–`16`), JSON in each `tag`:
+**[`scene_manager.lua`](sp404-mk2/lua/scene_manager.lua)** on root; one hidden **label** child per scene (`01`–`16`), JSON in each `tag`:
 
 ```lua
 { buses = { ["1"] = { fxNum=12, on=true, cc={...6}, sync={...6} }, ... } }
@@ -215,13 +215,13 @@ Recall per bus: `set_fx` with `{ fxNum, fxName, showChooser=false, sceneLoad=tru
 ### Files
 
 - New: `scene_manager.lua`, `scene_pad.lua` (optional, if mirroring preset pad pattern)
-- [`root.lua`](sp404-mk2/SP404/lua/root.lua): note handler for cols 7–8; keep `buildPresetNoteMap` separate or add `buildSceneNoteMap`
-- [`toscbuild.json`](sp404-mk2/SP404/toscbuild.json): inject scene manager
+- [`root.lua`](sp404-mk2/lua/root.lua): note handler for cols 7–8; keep `buildPresetNoteMap` separate or add `buildSceneNoteMap`
+- [`toscbuild.json`](sp404-mk2/toscbuild.json): inject scene manager
 - README Launchpad section update
 
 ### Scene pad LEDs (cols 7–8)
 
-Match **preset pad** behavior ([`preset_grid_manager.lua`](sp404-mk2/SP404/lua/preset_grid_manager.lua) `refreshMIDIButtons`):
+Match **preset pad** behavior ([`preset_grid_manager.lua`](sp404-mk2/lua/preset_grid_manager.lua) `refreshMIDIButtons`):
 
 - **Empty slot**: **off** (SysEx color **0** — not lit at all)
 - **Stored scene**: lit (e.g. single scene color such as white **21**, or a dedicated scene palette index — not per-bus columns)
@@ -303,7 +303,7 @@ Optional later: dim preset **note** column for locked bus (separate from round-b
 | 3 | Snapshots | Largest new subsystem |
 | 4 | Bus lock | Cross-cuts scenes + presets |
 
-Each phase: implement → `python3 tools/toscbuild.py build sp404-mk2/SP404` → hardware test on Launchpad Programmer layout ch 10.
+Each phase: implement → `python3 tools/toscbuild.py build sp404-mk2` → hardware test on Launchpad Programmer layout ch 10.
 
 ---
 

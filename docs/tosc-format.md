@@ -244,7 +244,7 @@ In GRID elements, each child runs its own script scope. Children share data via 
 
 ### Naming Conventions
 
-Per `sp404-mk2/SP404/lua/README.md`:
+Per `sp404-mk2/lua/README.md` (contributor guide) and `sp404-mk2/README.md` (user guide):
 
 - **Variables/functions:** camelCase (`controlFader`, `refreshPresets`)
 - **Constants:** UPPER_SNAKE_CASE (`BUTTON_STATE_COLORS`, `DELETE_BUTTON_LED`)
@@ -349,13 +349,13 @@ For fully code-defined controllers:
 
 ```bash
 # 1. Generate the .tosc layout from JSON definition
-python3 tools/toscbuild.py scaffold sp404-mk2/SP404
+python3 tools/toscbuild.py scaffold sp404-mk2
 
 # 2. Inject Lua scripts into the generated layout
-python3 tools/toscbuild.py build sp404-mk2/SP404
+python3 tools/toscbuild.py build sp404-mk2
 
 # 3. Open in TouchOSC to test
-open -a TouchOSC sp404-mk2/SP404/SP404.tosc
+open -a TouchOSC sp404-mk2/SP404.tosc
 ```
 
 ## Modifying .tosc Files Programmatically

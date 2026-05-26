@@ -2,10 +2,10 @@
 .DS_Store
 utils/MIDI-tester.tosc
 utils/LK-tester.tosc
-preset-manager/python/messages.json
-preset-manager/python/dumps/
-preset-manager/python/settings.json
-sp404-mk2/SP404/SP404.tosc.bak
-sp404-mk2/SP404/backups/
+sp404-mk2/preset-manager/python/messages.json
+sp404-mk2/preset-manager/python/dumps/
+sp404-mk2/preset-manager/python/settings.json
+sp404-mk2/SP404.tosc.bak
+sp404-mk2/backups/
 sp404-mk2/extracted/
 .vscode/settings.json
