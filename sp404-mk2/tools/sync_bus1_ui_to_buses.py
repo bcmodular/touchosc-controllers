@@ -27,6 +27,7 @@ from tosc_layout_utils import (
     find_bus_group_et,
     find_children_section,
     find_direct_child_block,
+    find_node_block,
     find_node_by_path_in_block,
     layout_diff_vs_bus1,
     deduplicate_layout_ids,
@@ -47,6 +48,9 @@ import xml.etree.ElementTree as ET
 
 # Subtrees to keep identical across buses (relative to busN_group).
 SYNC_PREFIXES = ("control_group", "effect_chooser", "morph_group")
+
+PRESET_GRID_PATH = ("control_group", "preset_grid")
+PRESET_BACK_NAMES = tuple(f"back_{i}" for i in range(1, 9))
 
 # Perform-strip morph toggle (bus1 renames choose_* → morph_*).
 ON_OFF_MORPH_CHILDREN = ("morph_button", "morph_label")
@@ -310,6 +314,72 @@ def validate_effect_chooser_header_order(xml: str) -> list[str]:
     return problems
 
 
+def reorder_scene_grid_back_buttons(xml: str) -> str:
+    """Order scene_grid children: background, back_*, front pads, labels (matches preset_grid)."""
+    sg_r = find_node_block(xml, "scene_grid")
+    if not sg_r:
+        raise RuntimeError("scene_grid not found")
+    sg = xml[sg_r[0] : sg_r[1]]
+    children = list_direct_children(sg)
+    backs = [node for name, node in children if name.startswith("back_")]
+    if not backs:
+        print("  scene_grid: no back_* buttons, skipping reorder", file=sys.stderr)
+        return xml
+    background = [node for name, node in children if name == "scene_grid_background_box"]
+    fronts = [node for name, node in children if name.isdigit()]
+    labels = [node for name, node in children if name == "scene_button_label_grid"]
+    merged = background + backs + fronts + labels
+    sg = set_direct_children(sg, merged)
+    return xml[: sg_r[0]] + sg + xml[sg_r[1] :]
+
+
+def sync_preset_grid_back_buttons(xml: str) -> str:
+    """Copy bus1 preset_grid back_1..back_8 highlight layers to buses 2-5."""
+    r1 = find_bus_group_block(xml, 1)
+    if not r1:
+        raise RuntimeError("bus1_group not found")
+    block1 = xml[r1[0] : r1[1]]
+    pg1_r = find_node_by_path_in_block(block1, list(PRESET_GRID_PATH))
+    if not pg1_r:
+        raise RuntimeError("bus1 control_group/preset_grid not found")
+    pg1 = block1[pg1_r[0] : pg1_r[1]]
+    children1 = list_direct_children(pg1)
+    ref_backs = [node for name, node in children1 if name in PRESET_BACK_NAMES]
+    if len(ref_backs) != len(PRESET_BACK_NAMES):
+        raise RuntimeError(
+            f"bus1 preset_grid expected {len(PRESET_BACK_NAMES)} back buttons, found {len(ref_backs)}"
+        )
+    ref_order = [name for name, _ in children1]
+    new_backs = [regenerate_node_ids(node) for node in ref_backs]
+
+    for bus_num in range(2, 6):
+        rb = find_bus_group_block(xml, bus_num)
+        if not rb:
+            continue
+        block = xml[rb[0] : rb[1]]
+        pg_r = find_node_by_path_in_block(block, list(PRESET_GRID_PATH))
+        if not pg_r:
+            print(f"  WARNING: bus{bus_num} preset_grid not found", file=sys.stderr)
+            continue
+        pg = block[pg_r[0] : pg_r[1]]
+        by_name = {name: node for name, node in list_direct_children(pg)}
+        merged: list[str] = []
+        back_idx = 0
+        for name in ref_order:
+            if name in PRESET_BACK_NAMES:
+                merged.append(new_backs[back_idx])
+                back_idx += 1
+            elif name in by_name:
+                merged.append(by_name[name])
+        if back_idx != len(new_backs):
+            raise RuntimeError(f"bus{bus_num}: preset_grid back button merge failed")
+        pg = set_direct_children(pg, merged)
+        block = block[: pg_r[0]] + pg + block[pg_r[1] :]
+        xml = xml[: rb[0]] + block + xml[rb[1] :]
+        print(f"  Synced preset_grid back buttons bus{bus_num}")
+    return xml
+
+
 def sync_bus(xml: str, bus_num: int, frames: dict) -> str:
     r = find_bus_group_block(xml, bus_num)
     if not r:
@@ -336,6 +406,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("tosc", nargs="?", help="Path to SP404.tosc")
     parser.add_argument("--diff-only", action="store_true", help="Report diffs, do not write")
+    parser.add_argument(
+        "--preset-backs-only",
+        action="store_true",
+        help="Copy bus1 preset_grid back_1..back_8 to buses 2-5 only",
+    )
     parser.add_argument("--no-backup", action="store_true", help="Skip timestamped backup")
     args = parser.parse_args()
 
@@ -346,6 +421,21 @@ def main() -> int:
 
     xml = tosc_read(path)
     validate_tosc_xml(xml)
+
+    if args.preset_backs_only:
+        if not args.no_backup:
+            backup = backup_tosc(path)
+            print(f"Backup: {backup}")
+        xml = reorder_scene_grid_back_buttons(xml)
+        print("  Reordered scene_grid back_* behind front pads")
+        xml = sync_preset_grid_back_buttons(xml)
+        xml, n_dup_ids = deduplicate_layout_ids(xml)
+        if n_dup_ids:
+            print(f"  Regenerated {n_dup_ids} duplicate node ID(s)")
+        validate_tosc_xml(xml)
+        tosc_write(path, xml)
+        print(f"Wrote {path}")
+        return 0
 
     if args.diff_only:
         n = print_diff_report(xml)
@@ -373,6 +463,8 @@ def main() -> int:
         backup = backup_tosc(path)
         print(f"Backup: {backup}")
 
+    xml = reorder_scene_grid_back_buttons(xml)
+    xml = sync_preset_grid_back_buttons(xml)
     xml = sync_effect_chooser_header(xml)
     xml = sync_control_group_child_order(xml)
     xml = sync_morph_group(xml)

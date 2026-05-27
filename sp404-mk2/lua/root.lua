@@ -11,6 +11,7 @@ local UNDO_CC = 60
 local DELETE_CC = 50
 local QUANTISE_CC = 40
 local DEVICE_CC = 97
+local USER_CC = 98
 local BUS_CC_FIRST = 91
 local BUS_CC_LAST = 95
 local LOCK_CC_FIRST = 1
@@ -23,7 +24,9 @@ local launchpadClickHeld = false
 local launchpadUndoHeld = false
 local launchpadDeleteHeld = false
 local launchpadQuantiseHeld = false
+local launchpadQuantiseArmedUntil = 0
 local launchpadDeviceHeld = false
+local launchpadUserHeld = false
 -- busNum -> true while Shift+grab is held on that bus CC
 local busGrabPress = {}
 -- busNum -> true while Click+store is held on that bus CC
@@ -185,6 +188,10 @@ local function debugLaunchpad(msg)
   end
 end
 
+local function quantiseModifierActive()
+  return launchpadQuantiseHeld or os.clock() < launchpadQuantiseArmedUntil
+end
+
 local function busCcToBusNum(cc)
   if cc >= BUS_CC_FIRST and cc <= BUS_CC_LAST then
     return cc - 90
@@ -322,9 +329,36 @@ local function refreshLaunchpadModifierLeds()
 
   local dvr, dvg, dvb = launchpadDeviceRgb(launchpadDeviceHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
   sendLaunchpadLedRgb(DEVICE_CC, dvr, dvg, dvb)
+
+  local ur, ug, ub = launchpadUserRgb(launchpadUserHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+  sendLaunchpadLedRgb(USER_CC, ur, ug, ub)
 end
 
-local function refreshAllLaunchpadControlLeds()
+local function getPresetGridManager()
+  return root.children.preset_grid_manager
+end
+
+local refreshAllLaunchpadControlLeds
+
+local function refreshAllLaunchpadGridLeds()
+  local manager = getPresetGridManager()
+  if manager then
+    manager:notify("refresh_launchpad_leds")
+  end
+  if root.children.scene_manager then
+    root.children.scene_manager:notify("refresh_all_scenes")
+  end
+  if launchpadFxChooserIsActive() then
+    refreshLaunchpadFxChooserLeds()
+  end
+end
+
+local function refreshAllLaunchpadBrightnessLeds()
+  refreshAllLaunchpadControlLeds()
+  refreshAllLaunchpadGridLeds()
+end
+
+refreshAllLaunchpadControlLeds = function()
   refreshLaunchpadModifierLeds()
   refreshAllBusButtonLEDs()
   refreshAllLockButtonLEDs()
@@ -339,10 +373,6 @@ local function syncLaunchpadModifierTags()
   tag.launchpadShiftHeld = launchpadShiftHeld
   tag.launchpadQuantiseHeld = launchpadQuantiseHeld
   root.tag = json.fromTable(tag)
-end
-
-local function getPresetGridManager()
-  return root.children.preset_grid_manager
 end
 
 local function notifyPresetGridManager(key, value)
@@ -436,6 +466,14 @@ local function handleLaunchpadBusCc(busNum, pressed)
           debugLaunchpad(string.format("bus %d delete+clear", busNum))
         end
       end
+    elseif quantiseModifierActive() then
+      local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
+      local presetGrid = busGroup and busGroup:findByName("preset_grid", true)
+      if presetGrid then
+        presetGrid:notify("toggle_morph_enabled", busNum)
+      end
+      launchpadQuantiseArmedUntil = 0
+      debugLaunchpad(string.format("bus %d quantise+morph toggle", busNum))
     elseif not busHasFxLoaded(busNum) then
       debugLaunchpad(string.format("bus %d ignored (no FX loaded)", busNum))
     elseif launchpadClickHeld then
@@ -471,13 +509,6 @@ local function handleLaunchpadBusCc(busNum, pressed)
       onOff:notify("set_grab_state", true)
       refreshBusButtonLED(busNum)
       debugLaunchpad(string.format("bus %d shift+grab on", busNum))
-    elseif launchpadQuantiseHeld then
-      local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
-      local presetGrid = busGroup and busGroup:findByName("preset_grid", true)
-      if presetGrid then
-        presetGrid:notify("toggle_morph_enabled", busNum)
-      end
-      debugLaunchpad(string.format("bus %d quantise+morph toggle", busNum))
     else
       local toggle = onOff:findByName("toggle_button", true)
       local newOn = not (toggle and toggle.values.x == 1)
@@ -519,12 +550,30 @@ local function handleLaunchpadControlChange(cc, ccValue)
     return true
   end
 
+  if cc == USER_CC then
+    local pressed = ccValue > 63
+    if pressed and not launchpadUserHeld then
+      local profile = cycleLaunchpadBrightnessProfile()
+      refreshAllLaunchpadBrightnessLeds()
+      debugLaunchpad(string.format("brightness profile -> %s", profile))
+    end
+    launchpadUserHeld = pressed
+    local ur, ug, ub = launchpadUserRgb(launchpadUserHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(USER_CC, ur, ug, ub)
+    return true
+  end
+
   if launchpadFxChooserIsActive() then
     return true
   end
 
   if cc == QUANTISE_CC then
-    launchpadQuantiseHeld = ccValue > 63
+    -- Some Launchpad firmwares send low non-zero values for Quantise; treat any non-zero as held.
+    launchpadQuantiseHeld = ccValue ~= 0
+    if launchpadQuantiseHeld then
+      -- Support quick tap-then-bus gesture as well as hold-then-bus.
+      launchpadQuantiseArmedUntil = os.clock() + 1.0
+    end
     syncLaunchpadModifierTags()
     local qr, qg, qb = launchpadQuantiseRgb(launchpadQuantiseHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(QUANTISE_CC, qr, qg, qb)
@@ -607,7 +656,7 @@ function onReceiveNotify(key, value)
       exitLaunchpadFxChooser()
     end
   elseif key == "launchpad_full_led_refresh" then
-    refreshAllLaunchpadControlLeds()
+    refreshAllLaunchpadBrightnessLeds()
   end
 end
 
@@ -976,6 +1025,7 @@ end
 
 function init()
   syncBusAccentRootTag()
+  loadLaunchpadBrightnessFromRootTag()
   for busNum = 1, 5 do
     applyBusGroupTheme(busNum)
   end
@@ -1000,6 +1050,8 @@ function init()
     sendLaunchpadLedRgb(QUANTISE_CC, qr, qg, qb)
     local dr, dg, db = launchpadDeviceRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(DEVICE_CC, dr, dg, db)
+    local ur, ug, ub = launchpadUserRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(USER_CC, ur, ug, ub)
   end
   do
     local locks = readBusLockTable()
@@ -1008,8 +1060,5 @@ function init()
       syncBusLockUi(busNum, locked)
     end
   end
-  refreshAllLaunchpadControlLeds()
-  if root.children.scene_manager then
-    root.children.scene_manager:notify("refresh_all_scenes")
-  end
+  refreshAllLaunchpadBrightnessLeds()
 end

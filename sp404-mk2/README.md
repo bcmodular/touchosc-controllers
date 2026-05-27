@@ -114,6 +114,11 @@ Along the **left** edge of the pad grid:
 | **Delete** | Delete mode for presets and scenes |
 | **Quantise** | Morph modifier (with a bus button) |
 | **Device** | Effect chooser modifier (hold + bus button) |
+| **User** | Cycle Launchpad LED brightness (4 levels; saved in layout) |
+
+### Launchpad LED brightness
+
+Idle and dim LED levels are grouped into four profiles: **very dim**, **night** (default), **normal**, and **day**. Press the **User** button (right side, CC 98) to cycle through them. The choice is stored in the layout (`root.tag`) and restored on load. TouchOSC on-screen pad colours are not affected — only Launchpad LEDs.
 
 ### How to enter each mode
 

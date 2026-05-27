@@ -5,12 +5,103 @@
 -- Must be defined here (before helpers). TouchOSC Lua does not see locals declared later in the host script.
 LAUNCHPAD_MIDI_CONNECTION = { false, false, true }
 
--- Dim vs bright: wide gap so idle is visible but clearly weaker than active.
+-- Profile order for User-button (CC 98) cycling.
+LAUNCHPAD_BRIGHTNESS_PROFILE_ORDER = { "very_dim", "night", "normal", "day" }
+
+LAUNCHPAD_BRIGHTNESS_PROFILES = {
+  very_dim = { idle = 0.08, on = 1.0, press = 0.88, busOff = 0.01, emptyPress = 0.20 },
+  night = { idle = 0.18, on = 1.0, press = 0.88, busOff = 0.02, emptyPress = 0.35 },
+  normal = { idle = 0.30, on = 1.0, press = 0.88, busOff = 0.05, emptyPress = 0.45 },
+  day = { idle = 0.45, on = 1.0, press = 0.88, busOff = 0.08, emptyPress = 0.55 },
+}
+
+local launchpadBrightnessProfileKey = "night"
+
+-- Globals updated by applyLaunchpadBrightnessProfile (read everywhere Launchpad LEDs are set).
 LAUNCHPAD_IDLE_BRIGHTNESS = 0.18
 LAUNCHPAD_ON_BRIGHTNESS = 1.0
 LAUNCHPAD_PRESS_BRIGHTNESS = 0.88
--- FX bus round buttons (CC 91–95) when effect is off — very low; ~1 step on Launchpad RGB.
 LAUNCHPAD_BUS_OFF_BRIGHTNESS = 0.02
+LAUNCHPAD_EMPTY_PRESS_BRIGHTNESS = 0.35
+
+function getLaunchpadBrightnessProfileKey()
+  return launchpadBrightnessProfileKey
+end
+
+function applyLaunchpadBrightnessProfile(key)
+  local profile = LAUNCHPAD_BRIGHTNESS_PROFILES[key]
+  if not profile then
+    key = "night"
+    profile = LAUNCHPAD_BRIGHTNESS_PROFILES.night
+  end
+  launchpadBrightnessProfileKey = key
+  LAUNCHPAD_IDLE_BRIGHTNESS = profile.idle
+  LAUNCHPAD_ON_BRIGHTNESS = profile.on
+  LAUNCHPAD_PRESS_BRIGHTNESS = profile.press
+  LAUNCHPAD_BUS_OFF_BRIGHTNESS = profile.busOff
+  LAUNCHPAD_EMPTY_PRESS_BRIGHTNESS = profile.emptyPress
+end
+
+function loadLaunchpadBrightnessFromRootTag()
+  local tag = json.toTable(root.tag) or {}
+  local key = tag.launchpadBrightnessProfile
+  if type(key) == "string" and LAUNCHPAD_BRIGHTNESS_PROFILES[key] then
+    applyLaunchpadBrightnessProfile(key)
+  else
+    applyLaunchpadBrightnessProfile("night")
+  end
+end
+
+function saveLaunchpadBrightnessToRootTag()
+  local tag = json.toTable(root.tag) or {}
+  tag.launchpadBrightnessProfile = launchpadBrightnessProfileKey
+  root.tag = json.fromTable(tag)
+end
+
+function cycleLaunchpadBrightnessProfile()
+  local order = LAUNCHPAD_BRIGHTNESS_PROFILE_ORDER
+  local currentIdx = 1
+  for i, key in ipairs(order) do
+    if key == launchpadBrightnessProfileKey then
+      currentIdx = i
+      break
+    end
+  end
+  local nextKey = order[(currentIdx % #order) + 1]
+  applyLaunchpadBrightnessProfile(nextKey)
+  saveLaunchpadBrightnessToRootTag()
+  return nextKey
+end
+
+local function activeLaunchpadBrightnessProfile()
+  local tag = json.toTable(root.tag) or {}
+  local key = tag.launchpadBrightnessProfile
+  local profile = LAUNCHPAD_BRIGHTNESS_PROFILES[key]
+  if not profile then
+    profile = LAUNCHPAD_BRIGHTNESS_PROFILES.night
+  end
+  return profile
+end
+
+function launchpadIdleBrightness()
+  return activeLaunchpadBrightnessProfile().idle
+end
+
+function launchpadOnBrightness()
+  return activeLaunchpadBrightnessProfile().on
+end
+
+function launchpadPressBrightness()
+  return activeLaunchpadBrightnessProfile().press
+end
+
+function launchpadBusOffBrightness()
+  return activeLaunchpadBrightnessProfile().busOff
+end
+
+function launchpadEmptyPressBrightness()
+  return activeLaunchpadBrightnessProfile().emptyPress
+end
 
 -- Saturated RGBCMY-style primaries for buses (Launchpad only; TouchOSC UI keeps its own hex).
 local LAUNCHPAD_BUS_RGB = {
@@ -92,6 +183,10 @@ end
 
 function launchpadDeviceRgb(brightness)
   return launchpadRgb255(51, 153, 255, brightness)
+end
+
+function launchpadUserRgb(brightness)
+  return launchpadRgb255(200, 200, 255, brightness)
 end
 
 function launchpadSceneRgb(brightness)

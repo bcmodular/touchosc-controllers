@@ -35,8 +35,6 @@ end
 
 local presetNoteMap = buildPresetNoteMap()
 
-local PRESET_LED_EMPTY_PRESS_BRIGHTNESS = 0.35
-
 local BUTTON_STATE_COLORS = {
   AVAILABLE = "FFFFFFFF",
   DELETE = "FF0000FF",
@@ -44,7 +42,15 @@ local BUTTON_STATE_COLORS = {
   MORPH_SELECT = "FF44CCFF",
 }
 
+local PRESET_STATE = {
+  AVAILABLE = "available",
+  STORED = "stored",
+  DELETE = "delete",
+  MORPH_SELECT = "morph_select",
+}
+
 local defaultCCValues = {0, 0, 0, 0, 0, 0}
+local presetStates = {}
 
 -- Launchpad port 3 — LAUNCHPAD_MIDI_CONNECTION in launchpad_led.lua (include)
 
@@ -117,6 +123,74 @@ local function getGrid(busNum)
     return busGroup:findByName('preset_grid', true)
   end
   return nil
+end
+
+local function getBackButton(busNum, presetNum)
+  local grid = getGrid(busNum)
+  return grid and grid:findByName("back_" .. tostring(presetNum))
+end
+
+local function setPresetState(busNum, presetNum, state)
+  presetStates[busNum] = presetStates[busNum] or {}
+  presetStates[busNum][presetNum] = state
+end
+
+local function getPresetState(busNum, presetNum)
+  local byBus = presetStates[busNum]
+  if not byBus then
+    return PRESET_STATE.AVAILABLE
+  end
+  return byBus[presetNum] or PRESET_STATE.AVAILABLE
+end
+
+local function scaleHexColor(hex, factor)
+  local c = Color.fromHexString(hex)
+  local function clamp01(v)
+    if v < 0 then return 0 end
+    if v > 1 then return 1 end
+    return v
+  end
+  local function to255(v)
+    return math.floor(clamp01(v) * 255 + 0.5)
+  end
+  local r = to255(c.r * factor)
+  local g = to255(c.g * factor)
+  local b = to255(c.b * factor)
+  local a = to255(c.a)
+  return string.format("%02X%02X%02X%02X", r, g, b, a)
+end
+
+local function touchoscColorForState(busNum, state, isPressed)
+  local recallHex = getRecallButtonColor(busNum)
+  local baseHex = recallHex
+  if state == PRESET_STATE.DELETE then
+    baseHex = BUTTON_STATE_COLORS.DELETE
+  elseif state == PRESET_STATE.MORPH_SELECT then
+    baseHex = BUTTON_STATE_COLORS.MORPH_SELECT
+  elseif state == PRESET_STATE.AVAILABLE then
+    baseHex = BUTTON_STATE_COLORS.AVAILABLE
+  end
+  local factor = isPressed and 1.0 or 0.75
+  return scaleHexColor(baseHex, factor)
+end
+
+local function renderPresetCell(busNum, presetNum, state, isPressed)
+  local grid = getGrid(busNum)
+  if not grid then return end
+  local front = grid:findByName(tostring(presetNum))
+  if not front then return end
+
+  local back = getBackButton(busNum, presetNum)
+  if back then
+    back.interactive = false
+    back.values.x = 1
+    back.color = Color.fromHexString(touchoscColorForState(busNum, state, isPressed == true))
+    front.background = false
+    front.color = Color.fromHexString("00000000")
+  else
+    front.background = true
+    front.color = Color.fromHexString(touchoscColorForState(busNum, state, isPressed == true))
+  end
 end
 
 local function readBusTag(busNum)
@@ -553,10 +627,8 @@ local function initialiseButtons(busNum)
   if not grid then return end
 
   for i = 1, PRESETS_PER_BUS do
-    local button = grid:findByName(tostring(i))
-    if button then
-      button.color = BUTTON_STATE_COLORS.AVAILABLE
-    end
+    setPresetState(busNum, i, PRESET_STATE.AVAILABLE)
+    renderPresetCell(busNum, i, PRESET_STATE.AVAILABLE)
   end
   sendSysexAllPadsOff(busNum)
 end
@@ -568,31 +640,25 @@ local function refreshMIDIButtons(busNum)
   local entries = {}
 
   for i = 1, PRESETS_PER_BUS do
-    local button = grid:findByName(tostring(i))
-    if button then
-      local buttonHex = Color.toHexString(button.color)
-      local r, g, b
-      local busHex = getRecallButtonColor(busNum)
+    local state = getPresetState(busNum, i)
+    local r, g, b = nil, nil, nil
 
-      if buttonHex == BUTTON_STATE_COLORS.DELETE then
-        r, g, b = launchpadDeleteRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
-      elseif buttonHex == busHex then
-        r, g, b = launchpadBusRgb(busNum, LAUNCHPAD_IDLE_BRIGHTNESS)
-      elseif buttonHex == BUTTON_STATE_COLORS.MORPH_SELECT then
-        r, g, b = launchpadRgb255(255, 68, 204, LAUNCHPAD_IDLE_BRIGHTNESS)
-      else
-        r, g, b = nil
-      end
+    if state == PRESET_STATE.DELETE then
+      r, g, b = launchpadDeleteRgb(launchpadIdleBrightness())
+    elseif state == PRESET_STATE.STORED then
+      r, g, b = launchpadBusRgb(busNum, launchpadIdleBrightness())
+    elseif state == PRESET_STATE.MORPH_SELECT then
+      r, g, b = launchpadRgb255(255, 68, 204, launchpadIdleBrightness())
+    end
 
-      if r then
-        local mapEntry = (busNum - 1) * PRESETS_PER_BUS + i
-        local note = presetNoteMap[mapEntry]
-        if note then
-          table.insert(entries, note)
-          table.insert(entries, r)
-          table.insert(entries, g)
-          table.insert(entries, b)
-        end
+    if r then
+      local mapEntry = (busNum - 1) * PRESETS_PER_BUS + i
+      local note = presetNoteMap[mapEntry]
+      if note then
+        table.insert(entries, note)
+        table.insert(entries, r)
+        table.insert(entries, g)
+        table.insert(entries, b)
       end
     end
   end
@@ -626,22 +692,18 @@ function refreshPresets(busNum, fxNum)
   local tag = readBusTag(busNum)
   local inMorphPick = tag.morphEnabled == true
 
-  -- Set STORED state for active presets (morph target shown on morph_target_label only).
+  -- Set semantic state for active presets (morph target shown on morph_target_label only).
   for index, _ in pairs(presetArray) do
     local presetNum = tonumber(index)
     if presetNum and presetNum >= 1 and presetNum <= PRESETS_PER_BUS then
-      local button = grid:findByName(tostring(presetNum))
-      if button then
-        local color
-        if deleteMode and not isBusLocked(busNum) then
-          color = BUTTON_STATE_COLORS.DELETE
-        elseif inMorphPick then
-          color = BUTTON_STATE_COLORS.MORPH_SELECT
-        else
-          color = getRecallButtonColor(busNum)
-        end
-        button.color = color
+      local state = PRESET_STATE.STORED
+      if deleteMode and not isBusLocked(busNum) then
+        state = PRESET_STATE.DELETE
+      elseif inMorphPick then
+        state = PRESET_STATE.MORPH_SELECT
       end
+      setPresetState(busNum, presetNum, state)
+      renderPresetCell(busNum, presetNum, state)
     end
   end
 
@@ -807,11 +869,7 @@ local function storeDefaults(busNum)
 end
 
 local function updateButtonMIDIHighlight(busNum, presetNum, isPressed)
-  local grid = getGrid(busNum)
-  if not grid then return end
-
-  local button = grid:findByName(tostring(presetNum))
-  local buttonColor = Color.toHexString(button.color)
+  local state = getPresetState(busNum, presetNum)
   local mapEntry = (busNum - 1) * PRESETS_PER_BUS + presetNum
   local note = presetNoteMap[mapEntry]
 
@@ -820,23 +878,21 @@ local function updateButtonMIDIHighlight(busNum, presetNum, isPressed)
   end
 
   local r, g, b
-  local busHex = getRecallButtonColor(busNum)
-
-  if buttonColor == BUTTON_STATE_COLORS.DELETE then
+  if state == PRESET_STATE.DELETE then
     if not isPressed then
       return
     end
-    r, g, b = launchpadDeleteRgb(LAUNCHPAD_ON_BRIGHTNESS)
-  elseif buttonColor == busHex then
-    local brightness = isPressed and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS
+    r, g, b = launchpadDeleteRgb(launchpadOnBrightness())
+  elseif state == PRESET_STATE.STORED then
+    local brightness = isPressed and launchpadOnBrightness() or launchpadIdleBrightness()
     r, g, b = launchpadBusRgb(busNum, brightness)
-  elseif buttonColor == BUTTON_STATE_COLORS.MORPH_SELECT then
+  elseif state == PRESET_STATE.MORPH_SELECT then
     if isPressed then
-      r, g, b = launchpadRgb255(255, 68, 204, LAUNCHPAD_ON_BRIGHTNESS)
+      r, g, b = launchpadRgb255(255, 68, 204, launchpadOnBrightness())
     else
-      r, g, b = launchpadRgb255(255, 68, 204, LAUNCHPAD_IDLE_BRIGHTNESS)
+      r, g, b = launchpadRgb255(255, 68, 204, launchpadIdleBrightness())
     end
-  elseif buttonColor == BUTTON_STATE_COLORS.AVAILABLE then
+  elseif state == PRESET_STATE.AVAILABLE then
     if isBusLocked(busNum) then
       if not isPressed then
         sendLaunchpadLedOff(note)
@@ -844,7 +900,7 @@ local function updateButtonMIDIHighlight(busNum, presetNum, isPressed)
       return
     end
     if isPressed then
-      r, g, b = launchpadBusRgb(busNum, PRESET_LED_EMPTY_PRESS_BRIGHTNESS)
+      r, g, b = launchpadBusRgb(busNum, launchpadEmptyPressBrightness())
     else
       sendLaunchpadLedOff(note)
       return
@@ -857,22 +913,18 @@ local function updateButtonMIDIHighlight(busNum, presetNum, isPressed)
 end
 
 local function buttonPressed(busNum, presetNum)
-  local grid = getGrid(busNum)
-  if not grid then return end
-
-  local button = grid:findByName(tostring(presetNum))
-  local buttonColor = Color.toHexString(button.color)
+  local state = getPresetState(busNum, presetNum)
 
   if isBusLocked(busNum) then
-    if buttonColor == getRecallButtonColor(busNum) then
+    if state == PRESET_STATE.STORED then
       recallPreset(busNum, presetNum)
     end
     return
   end
 
-  if (buttonColor == BUTTON_STATE_COLORS.DELETE) then
+  if state == PRESET_STATE.DELETE then
     storePreset(busNum, presetNum, true)
-  elseif (buttonColor == getRecallButtonColor(busNum)) then
+  elseif state == PRESET_STATE.STORED then
     recallPreset(busNum, presetNum)
   else
     storePreset(busNum, presetNum, false)
@@ -971,15 +1023,14 @@ function onReceiveNotify(key, value)
       return
     end
 
+    local presetState = getPresetState(busNum, presetNum)
+    renderPresetCell(busNum, presetNum, presetState, isPressed)
+
     if isBusLocked(busNum) then
-      local grid = getGrid(busNum)
-      local button = grid and grid:findByName(tostring(presetNum))
-      if button and Color.toHexString(button.color) == BUTTON_STATE_COLORS.AVAILABLE then
-        if isPressed then
-          button.values.x = 0
-        else
-          updateButtonMIDIHighlight(busNum, presetNum, false)
-        end
+      if presetState == PRESET_STATE.AVAILABLE then
+        -- Locked empty slots should never show pressed brightness on TouchOSC.
+        renderPresetCell(busNum, presetNum, presetState, false)
+        updateButtonMIDIHighlight(busNum, presetNum, false)
         return
       end
     end
@@ -1053,6 +1104,12 @@ function onReceiveNotify(key, value)
     else
       for i = 1, NUM_BUSES do
         syncMorphControlsUi(i)
+      end
+    end
+  elseif key == 'refresh_launchpad_leds' then
+    for busNum = 1, NUM_BUSES do
+      if (fxNums[busNum] or 0) ~= 0 then
+        refreshMIDIButtons(busNum)
       end
     end
   end

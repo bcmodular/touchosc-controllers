@@ -17,7 +17,13 @@ local BUTTON_STATE_COLORS = {
   DELETE = "FF0000FF",
 }
 
-local SCENE_LED_EMPTY_PRESS_BRIGHTNESS = 0.35
+local SCENE_STATE = {
+  AVAILABLE = "available",
+  STORED = "stored",
+  DELETE = "delete",
+}
+
+local sceneStates = {}
 
 local controlsInfo = root.children.controls_info
 local recentValues = root.children.recent_values
@@ -85,12 +91,67 @@ local function getSceneButton(sceneNum)
   return grid:findByName(tostring(sceneNum))
 end
 
-local function isStoredSceneButton(sceneNum)
+local function getSceneBackButton(sceneNum)
+  local grid = getSceneGrid()
+  if not grid then
+    return nil
+  end
+  return grid:findByName("back_" .. tostring(sceneNum))
+end
+
+local function setSceneState(sceneNum, state)
+  sceneStates[sceneNum] = state
+end
+
+local function getSceneState(sceneNum)
+  return sceneStates[sceneNum] or SCENE_STATE.AVAILABLE
+end
+
+local function scaleHexColor(hex, factor)
+  local c = Color.fromHexString(hex)
+  local function clamp01(v)
+    if v < 0 then return 0 end
+    if v > 1 then return 1 end
+    return v
+  end
+  local function to255(v)
+    return math.floor(clamp01(v) * 255 + 0.5)
+  end
+  local r = to255(c.r * factor)
+  local g = to255(c.g * factor)
+  local b = to255(c.b * factor)
+  local a = to255(c.a)
+  return string.format("%02X%02X%02X%02X", r, g, b, a)
+end
+
+local function renderSceneCell(sceneNum, state, isPressed)
   local button = getSceneButton(sceneNum)
   if not button then
-    return false
+    return
   end
-  return Color.toHexString(button.color) == BUTTON_STATE_COLORS.STORED
+  local baseHex = BUTTON_STATE_COLORS.AVAILABLE
+  if state == SCENE_STATE.STORED then
+    baseHex = BUTTON_STATE_COLORS.STORED
+  elseif state == SCENE_STATE.DELETE then
+    baseHex = BUTTON_STATE_COLORS.DELETE
+  end
+  local factor = isPressed and 1.0 or 0.75
+
+  local back = getSceneBackButton(sceneNum)
+  if back then
+    back.interactive = false
+    back.values.x = 1
+    back.color = Color.fromHexString(scaleHexColor(baseHex, factor))
+    button.background = false
+    button.color = Color.fromHexString("00000000")
+  else
+    button.background = true
+    button.color = Color.fromHexString(scaleHexColor(baseHex, factor))
+  end
+end
+
+local function isStoredSceneButton(sceneNum)
+  return getSceneState(sceneNum) == SCENE_STATE.STORED
 end
 
 local function refreshSceneMidiLed(sceneNum)
@@ -99,18 +160,13 @@ local function refreshSceneMidiLed(sceneNum)
     return
   end
 
-  local button = getSceneButton(sceneNum)
-  if not button then
-    return
-  end
-
-  local buttonColor = Color.toHexString(button.color)
+  local state = getSceneState(sceneNum)
   local r, g, b
 
-  if buttonColor == BUTTON_STATE_COLORS.DELETE then
-    r, g, b = launchpadDeleteRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
-  elseif buttonColor == BUTTON_STATE_COLORS.STORED then
-    r, g, b = launchpadSceneRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
+  if state == SCENE_STATE.DELETE then
+    r, g, b = launchpadDeleteRgb(launchpadIdleBrightness())
+  elseif state == SCENE_STATE.STORED then
+    r, g, b = launchpadSceneRgb(launchpadIdleBrightness())
   else
     sendLaunchpadLedOff(note)
     return
@@ -126,16 +182,12 @@ local function refreshAllSceneMidiLeds()
 end
 
 local function refreshSceneButton(sceneNum)
-  local button = getSceneButton(sceneNum)
-  if not button then
-    return
-  end
-
+  local state = SCENE_STATE.AVAILABLE
   if loadSceneData(sceneNum) then
-    button.color = deleteMode and BUTTON_STATE_COLORS.DELETE or BUTTON_STATE_COLORS.STORED
-  else
-    button.color = BUTTON_STATE_COLORS.AVAILABLE
+    state = deleteMode and SCENE_STATE.DELETE or SCENE_STATE.STORED
   end
+  setSceneState(sceneNum, state)
+  renderSceneCell(sceneNum, state)
 end
 
 local function refreshAllSceneButtons()
@@ -417,25 +469,20 @@ local function updateSceneMidiPressHighlight(sceneNum, isPressed)
     return
   end
 
-  local button = getSceneButton(sceneNum)
-  if not button then
-    return
-  end
-
-  local buttonColor = Color.toHexString(button.color)
+  local state = getSceneState(sceneNum)
   local r, g, b
 
-  if buttonColor == BUTTON_STATE_COLORS.DELETE then
+  if state == SCENE_STATE.DELETE then
     if not isPressed then
       return
     end
-    r, g, b = launchpadDeleteRgb(LAUNCHPAD_ON_BRIGHTNESS)
-  elseif buttonColor == BUTTON_STATE_COLORS.STORED then
-    local brightness = isPressed and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS
+    r, g, b = launchpadDeleteRgb(launchpadOnBrightness())
+  elseif state == SCENE_STATE.STORED then
+    local brightness = isPressed and launchpadOnBrightness() or launchpadIdleBrightness()
     r, g, b = launchpadSceneRgb(brightness)
-  elseif buttonColor == BUTTON_STATE_COLORS.AVAILABLE then
+  elseif state == SCENE_STATE.AVAILABLE then
     if isPressed then
-      r, g, b = launchpadSceneRgb(SCENE_LED_EMPTY_PRESS_BRIGHTNESS)
+      r, g, b = launchpadSceneRgb(launchpadEmptyPressBrightness())
     else
       sendLaunchpadLedOff(note)
       return
@@ -448,16 +495,10 @@ local function updateSceneMidiPressHighlight(sceneNum, isPressed)
 end
 
 local function sceneButtonPressed(sceneNum)
-  local button = getSceneButton(sceneNum)
-  if not button then
-    return
-  end
-
-  local buttonColor = Color.toHexString(button.color)
-
-  if buttonColor == BUTTON_STATE_COLORS.DELETE then
+  local state = getSceneState(sceneNum)
+  if state == SCENE_STATE.DELETE then
     storeScene(sceneNum, true)
-  elseif buttonColor == BUTTON_STATE_COLORS.STORED then
+  elseif state == SCENE_STATE.STORED then
     recallScene(sceneNum)
   else
     storeScene(sceneNum, false)
@@ -487,6 +528,8 @@ function onReceiveNotify(key, value)
       return
     end
 
+    local sceneState = getSceneState(sceneNum)
+    renderSceneCell(sceneNum, sceneState, isPressed)
     updateSceneMidiPressHighlight(sceneNum, isPressed)
 
     if deleteMode then
