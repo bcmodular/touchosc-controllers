@@ -96,6 +96,8 @@ The **main 8×8 pad grid** is split by column:
 
 Column 6 is unused.
 
+When Launchpad effect chooser mode is active, rows 1-6 map to effects in an 8x6 grid (46 effects total), and unavailable effects for the selected bus are unlit.
+
 ### Bus buttons (top row)
 
 **Bus buttons** are the round buttons along the **top** of the Launchpad — **Session**, **Up**, **Down**, **Left**, and **Right** (the first five map to buses 1–5). Use them for bus-level actions such as toggling FX on/off, clearing a bus, and combining with modifier buttons below.
@@ -111,11 +113,13 @@ Along the **left** edge of the pad grid:
 | **Undo** | Recall effect defaults (with a bus button) |
 | **Delete** | Delete mode for presets and scenes |
 | **Quantise** | Morph modifier (with a bus button) |
+| **Device** | Effect chooser modifier (hold + bus button) |
 
 ### How to enter each mode
 
 | Mode | TouchOSC | Launchpad Pro Mk1 |
 |------|----------|-------------------|
+| **Effect chooser** | Tap **Choose** on a bus, then tap an effect | Hold **Device** + tap a **bus button** to open. Tap a lit effect pad once to select, tap the same pad again to load (double-tap also loads). Press **Device** again to cancel. |
 | **Delete** | Tap **Delete** in the All presets area (stays on until tapped again) | Hold **Delete** (left side), then tap pads or bus buttons |
 | **Grab** | Tap **Grab mode** in the All presets area, **or** hold **Shift** while using pads | Hold **Shift** + stored preset pad (preview), **or** hold **Shift** + bus button (bus grab) |
 | **Morph** | Tap **Morph** on the bus perform strip, then choose a target preset | Hold **Quantise** + tap a **bus button** to toggle morph for that bus; tap a stored preset to set the morph target |

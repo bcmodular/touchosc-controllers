@@ -7,6 +7,7 @@ end
 local function hideSelector()
   self.visible = false
   resetAllChooseButtons()
+  root:notify("launchpad_fx_chooser_exit")
 end
 
 local function showSelector(busNum)
@@ -24,12 +25,6 @@ end
 function onReceiveNotify(key, value)
   if key == "show" then
     showSelector(value)
-  elseif key == "toggle_visibility" then
-    if self.visible == true then
-      hideSelector()
-    else
-      showSelector(value)
-    end
   elseif key == "hide" then
     hideSelector()
   end

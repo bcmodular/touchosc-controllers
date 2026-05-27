@@ -1,19 +1,11 @@
 local effects = EFFECT_NAMES
 
-local NUM_COLUMNS = 8
-local NUM_ROWS = 6
-
 local COLOR_UNAVAILABLE = "8D8D8AFF"
-local COLOR_AVAILABLE = "F79000FF"
-local COLOR_PENDING = "00FF88FF"
 local COLOR_LABEL_UNAVAILABLE = "000000FF"
 local COLOR_LABEL_AVAILABLE = "FFFFFFFF"
 
 local busNum = 1
-local midiIndex = 1
-local activeColumn = 1
-local columnRow = 1
-local columnEffects = {}
+local pendingFxNum = nil
 
 local buttonScript = [[
 function onValueChanged(key, value)
@@ -26,38 +18,8 @@ function onValueChanged(key, value)
 end
 ]]
 
-local function effectIndexForCell(col, row)
-  return (row - 1) * NUM_COLUMNS + col
-end
-
-local function buildColumnEffectLists()
-  local cols = {}
-  for col = 1, NUM_COLUMNS do
-    cols[col] = {}
-    for row = 1, NUM_ROWS do
-      local fxIdx = effectIndexForCell(col, row)
-      if fxIdx <= #effects then
-        table.insert(cols[col], fxIdx)
-      end
-    end
-  end
-  return cols
-end
-
-columnEffects = buildColumnEffectLists()
-
 local function isEffectAvailable(fxIdx)
   return isEffectOnMidiAvailable(fxIdx, busNum)
-end
-
-local function getAvailableForColumn(col)
-  local list = {}
-  for _, fxIdx in ipairs(columnEffects[col]) do
-    if isEffectAvailable(fxIdx) then
-      table.insert(list, fxIdx)
-    end
-  end
-  return list
 end
 
 local function getBusAccentHex()
@@ -66,118 +28,98 @@ local function getBusAccentHex()
   return accents[tostring(busNum)] or "00E6FFFF"
 end
 
-local function getCurrentFxNum()
-  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
-  if not busGroup then
-    return 0
+local function brightenHex(hex, mix)
+  local c = Color.fromHexString(hex)
+  local function clamp01(v)
+    if v < 0 then return 0 end
+    if v > 1 then return 1 end
+    return v
   end
-  local settings = json.toTable(busGroup.tag) or {}
-  return resolveBusFxNum(settings)
+  local function to255(v)
+    return math.floor(clamp01(v) * 255 + 0.5)
+  end
+  local r = to255(c.r + (1 - c.r) * mix)
+  local g = to255(c.g + (1 - c.g) * mix)
+  local b = to255(c.b + (1 - c.b) * mix)
+  local a = to255(c.a)
+  return string.format("%02X%02X%02X%02X", r, g, b, a)
 end
 
-local function findTopLeftAvailableFx()
-  for row = 1, NUM_ROWS do
-    for col = 1, NUM_COLUMNS do
-      local fxIdx = effectIndexForCell(col, row)
-      if fxIdx <= #effects and isEffectAvailable(fxIdx) then
-        return col, fxIdx
-      end
-    end
-  end
-  return 1, nil
-end
-
-local function getPendingFxIndex()
-  local available = getAvailableForColumn(activeColumn)
-  if #available == 0 then
-    return nil
-  end
-  local row = columnRow
-  if row < 1 then
-    row = 1
-  end
-  if row > #available then
-    row = #available
-  end
-  return available[row]
-end
-
-local function initPendingSelection()
-  activeColumn = 1
-  columnRow = 1
-
-  local startCol, _startFx = findTopLeftAvailableFx()
-  if startCol then
-    activeColumn = startCol
-  end
+local function getPendingHighlight()
+  return self:findByName("pending_fx_highlight")
 end
 
 local paintAllButtons
 
 paintAllButtons = function()
   local labelGroup = self.parent:findByName("fx_selector_label_group")
-  local currentFx = getCurrentFxNum()
-  local pendingFx = getPendingFxIndex()
   local busAccent = getBusAccentHex()
+  local pendingHighlight = getPendingHighlight()
+  local pendingButton = nil
+
+  if pendingHighlight then
+    pendingHighlight.visible = false
+    pendingHighlight.interactive = false
+    pendingHighlight.values.x = 1
+    pendingHighlight.color = Color.fromHexString(brightenHex(busAccent, 0.45))
+  end
 
   for i = 1, #effects do
     local label = labelGroup:findByName(tostring(i))
     local button = self:findByName(effects[i])
 
     label.values.text = effects[i]
+    label.background = false
     label.color = Color.fromHexString("00000000")
     button.tag = i
     button.name = effects[i]
 
-    if pendingFx and i == pendingFx then
-      button.color = Color.fromHexString(COLOR_PENDING)
-      label.textColor = Color.fromHexString(COLOR_LABEL_AVAILABLE)
-    elseif i == currentFx and isEffectAvailable(i) then
-      button.color = Color.fromHexString(busAccent)
-      label.textColor = Color.fromHexString(COLOR_LABEL_AVAILABLE)
+    if pendingFxNum == i and isEffectAvailable(i) then
+      -- Make the front button transparent so the movable highlight button behind is visible.
+      button.color = Color.fromHexString("00000000")
+      pendingButton = button
+      label.textColor = Color.fromHexString("000000FF")
     elseif isEffectAvailable(i) then
-      button.color = Color.fromHexString(COLOR_AVAILABLE)
+      button.color = Color.fromHexString(busAccent)
       label.textColor = Color.fromHexString(COLOR_LABEL_AVAILABLE)
     else
       button.color = Color.fromHexString(COLOR_UNAVAILABLE)
       label.textColor = Color.fromHexString(COLOR_LABEL_UNAVAILABLE)
     end
   end
-end
 
--- TouchOSC does not fire onValueChanged when values are set from script (see lua/README.md).
-local function selectEffectByIndex(fxIdx)
-  local fxName = effects[fxIdx]
-  if not fxName or not isEffectAvailable(fxIdx) then
-    return
+  if pendingHighlight and pendingButton then
+    pendingHighlight.visible = true
+    pendingHighlight.frame = pendingButton.frame
   end
-
-  local busGroup = root:findByName("bus" .. tostring(busNum) .. "_group", true)
-  if not busGroup then
-    print("fx_selector: bus group not found for bus", busNum)
-    return
-  end
-
-  busGroup:notify("set_fx", { fxIdx, fxName, false })
 end
 
 local function setupUI()
   busNum = tonumber(self.tag) or 1
-  midiIndex = getMidiIndexForBus(busNum)
-
-  initPendingSelection()
+  pendingFxNum = nil
   paintAllButtons()
 end
 
 function onReceiveNotify(key, value)
   if key == "setup_ui" then
     setupUI()
+  elseif key == "set_pending_fx" then
+    local fxNum = tonumber(value)
+    if fxNum and fxNum >= 1 and fxNum <= #effects and isEffectAvailable(fxNum) then
+      pendingFxNum = fxNum
+    else
+      pendingFxNum = nil
+    end
+    paintAllButtons()
   end
 end
 
 function init()
   for i = 1, #self.children do
-    self.children[i].script = buttonScript
+    local child = self.children[i]
+    if child.name ~= "pending_fx_highlight" then
+      child.script = buttonScript
+    end
   end
 
   setupUI()

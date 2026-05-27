@@ -293,6 +293,7 @@ local function setChooserState(isOpen)
     selectorButtons.tag = tostring(busNum)
     selectorButtons:notify('setup_ui')
     fxSelector.visible = true
+    root:notify("launchpad_fx_chooser_open", busNum)
   else
     if fxSelector.visible then
       fxSelector:notify('hide')

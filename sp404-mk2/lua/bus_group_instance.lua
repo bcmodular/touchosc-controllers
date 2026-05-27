@@ -128,16 +128,6 @@ local function clearBus()
   presetGrid:notify('sync_morph_ui', busNum)
 end
 
-local function setSelectedBusHighlight(isSelected)
-  local bg = effectChooser:findByName("background", true) or effectChooser.children.background
-  if not bg then return end
-  if isSelected then
-    bg.color = Color.fromHexString("FFA61AFF")
-  else
-    root:notify("apply_bus_theme", busNum)
-  end
-end
-
 ---@diagnostic disable: lowercase-global
 local function applyFx(fxNumIn, fxNameIn, sceneLoad)
   fxNum = tonumber(fxNumIn) or 0
@@ -180,8 +170,6 @@ function onReceiveNotify(key, value)
     applyChooserVisibility(value[3])
   elseif (key == "clear_bus") then
     clearBus()
-  elseif (key == "set_bus_highlight") then
-    setSelectedBusHighlight(value)
   end
 end
 

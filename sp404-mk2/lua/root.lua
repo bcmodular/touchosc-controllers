@@ -10,6 +10,7 @@ local CLICK_CC = 70
 local UNDO_CC = 60
 local DELETE_CC = 50
 local QUANTISE_CC = 40
+local DEVICE_CC = 97
 local BUS_CC_FIRST = 91
 local BUS_CC_LAST = 95
 local LOCK_CC_FIRST = 1
@@ -22,6 +23,7 @@ local launchpadClickHeld = false
 local launchpadUndoHeld = false
 local launchpadDeleteHeld = false
 local launchpadQuantiseHeld = false
+local launchpadDeviceHeld = false
 -- busNum -> true while Shift+grab is held on that bus CC
 local busGrabPress = {}
 -- busNum -> true while Click+store is held on that bus CC
@@ -302,6 +304,36 @@ local function refreshAllBusButtonLEDs()
   end
 end
 
+local function refreshLaunchpadModifierLeds()
+  local qr, qg, qb = launchpadQuantiseRgb(launchpadQuantiseHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+  sendLaunchpadLedRgb(QUANTISE_CC, qr, qg, qb)
+
+  local sr, sg, sb = launchpadShiftRgb(launchpadShiftHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+  sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
+
+  local cr, cg, cb = launchpadClickRgb(launchpadClickHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+  sendLaunchpadLedRgb(CLICK_CC, cr, cg, cb)
+
+  local ur, ug, ub = launchpadUndoRgb(launchpadUndoHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+  sendLaunchpadLedRgb(UNDO_CC, ur, ug, ub)
+
+  local dr, dg, db = launchpadDeleteRgb(launchpadDeleteHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+  sendLaunchpadLedRgb(DELETE_CC, dr, dg, db)
+
+  local dvr, dvg, dvb = launchpadDeviceRgb(launchpadDeviceHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+  sendLaunchpadLedRgb(DEVICE_CC, dvr, dvg, dvb)
+end
+
+local function refreshAllLaunchpadControlLeds()
+  refreshLaunchpadModifierLeds()
+  refreshAllBusButtonLEDs()
+  refreshAllLockButtonLEDs()
+end
+
+function refreshLaunchpadControlLeds()
+  refreshAllLaunchpadControlLeds()
+end
+
 local function syncLaunchpadModifierTags()
   local tag = json.toTable(root.tag) or {}
   tag.launchpadShiftHeld = launchpadShiftHeld
@@ -391,7 +423,9 @@ local function handleLaunchpadBusCc(busNum, pressed)
   end
 
   if pressed then
-    if launchpadDeleteHeld then
+    if launchpadDeviceHeld then
+      enterLaunchpadFxChooser(busNum)
+    elseif launchpadDeleteHeld then
       if isBusLocked(busNum) then
         debugLaunchpad(string.format("bus %d delete+clear blocked (locked)", busNum))
       else
@@ -474,6 +508,21 @@ local function handleLaunchpadBusCc(busNum, pressed)
 end
 
 local function handleLaunchpadControlChange(cc, ccValue)
+  if cc == DEVICE_CC then
+    local wasHeld = launchpadDeviceHeld
+    launchpadDeviceHeld = ccValue > 63
+    local dr, dg, db = launchpadDeviceRgb(launchpadDeviceHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(DEVICE_CC, dr, dg, db)
+    if launchpadFxChooserIsActive() and launchpadDeviceHeld and not wasHeld then
+      exitLaunchpadFxChooser()
+    end
+    return true
+  end
+
+  if launchpadFxChooserIsActive() then
+    return true
+  end
+
   if cc == QUANTISE_CC then
     launchpadQuantiseHeld = ccValue > 63
     syncLaunchpadModifierTags()
@@ -549,6 +598,16 @@ function onReceiveNotify(key, value)
         setBusLocked(busNum, locked)
       end
     end
+  elseif key == "launchpad_fx_chooser_open" then
+    if value then
+      enterLaunchpadFxChooser(value)
+    end
+  elseif key == "launchpad_fx_chooser_exit" then
+    if launchpadFxChooserIsActive() then
+      exitLaunchpadFxChooser()
+    end
+  elseif key == "launchpad_full_led_refresh" then
+    refreshAllLaunchpadControlLeds()
   end
 end
 
@@ -830,6 +889,11 @@ function onReceiveMIDI(message, connections)
     local note = message[2]
     local velocity = message[3]
 
+    if launchpadFxChooserIsActive() then
+      handleLaunchpadFxChooserNote(note, velocity)
+      return
+    end
+
     local sceneNum = sceneNoteToScene[note]
     if sceneNum then
       local sceneGrid = root:findByName("scene_grid", true)
@@ -873,6 +937,9 @@ function onReceiveMIDI(message, connections)
   elseif message[1] == MIDIMessageType.POLYPRESSURE + noteMidiChannel - 1 then
     local note = message[2]
     local pressure = message[3]
+    if launchpadFxChooserIsActive() then
+      return
+    end
     if sceneNoteToScene[note] then
       return
     end
@@ -920,6 +987,7 @@ function init()
   setLaunchpadDeleteMode(false)
   setLaunchpadGrabMode(false)
   launchpadQuantiseHeld = false
+  launchpadDeviceHeld = false
   syncLaunchpadModifierTags()
   do
     local ur, ug, ub = launchpadUndoRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
@@ -930,16 +998,17 @@ function init()
     sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
     local qr, qg, qb = launchpadQuantiseRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(QUANTISE_CC, qr, qg, qb)
+    local dr, dg, db = launchpadDeviceRgb(LAUNCHPAD_IDLE_BRIGHTNESS)
+    sendLaunchpadLedRgb(DEVICE_CC, dr, dg, db)
   end
-  refreshAllBusButtonLEDs()
   do
     local locks = readBusLockTable()
     for busNum = 1, NUM_BUSES do
       local locked = locks[tostring(busNum)] == true
       syncBusLockUi(busNum, locked)
-      refreshLockButtonLED(busNum)
     end
   end
+  refreshAllLaunchpadControlLeds()
   if root.children.scene_manager then
     root.children.scene_manager:notify("refresh_all_scenes")
   end

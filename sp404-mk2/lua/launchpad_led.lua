@@ -90,6 +90,10 @@ function launchpadDeleteRgb(brightness)
   return launchpadRgb255(255, 0, 0, brightness)
 end
 
+function launchpadDeviceRgb(brightness)
+  return launchpadRgb255(51, 153, 255, brightness)
+end
+
 function launchpadSceneRgb(brightness)
   return launchpadRgb255(255, 255, 255, brightness)
 end
