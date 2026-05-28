@@ -629,6 +629,17 @@ local function handleLaunchpadControlChange(cc, ccValue)
 end
 
 function onReceiveNotify(key, value)
+  if key == "keyboard_ui_note" or key == "keyboard_ui_chord_pad" then
+    if type(value) == "table" then
+      print(string.format("[root] onReceiveNotify %s { %s, %s }", key, tostring(value[1]), tostring(value[2])))
+    else
+      print(string.format("[root] onReceiveNotify %s value=%s", key, tostring(value)))
+    end
+  end
+  if handleKeyboardNotify and handleKeyboardNotify(key, value) then
+    return
+  end
+
   if key == "apply_bus_theme" then
     local busNum = value
     if busNum then
@@ -931,6 +942,13 @@ function onReceiveMIDI(message, connections)
     return
   end
 
+  if handleKeyboardMidi and handleKeyboardMidi(message, connections) then
+    return
+  end
+
+  -- Launchkey on connection 4: if TouchOSC also routes that input to the SP-404 output,
+  -- disable that connection routing in the layout (otherwise notes are sent twice).
+
   if not midiFromLaunchpad(connections) then
     return
   end
@@ -1062,4 +1080,7 @@ function init()
     end
   end
   refreshAllLaunchpadBrightnessLeds()
+  if initKeyboardManager then
+    initKeyboardManager()
+  end
 end

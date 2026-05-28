@@ -29,7 +29,11 @@ import xml.etree.ElementTree as ET
 _TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _TOOLS_DIR not in sys.path:
     sys.path.insert(0, _TOOLS_DIR)
-from tosc_layout_utils import find_direct_child_block, find_node_block
+from tosc_layout_utils import (
+    find_children_section,
+    find_direct_child_block,
+    find_node_block,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +170,76 @@ def _find_all_parent_blocks(xml_str, parent_name):
         blocks.append(found)
         pos = found[1]
     return blocks
+
+
+def _list_direct_child_blocks(parent_block: str):
+    """Return (child_name, start, end) for each direct child <node> in parent_block."""
+    section_bounds = find_children_section(parent_block)
+    if not section_bounds:
+        return []
+    pos, children_close = section_bounds
+    section = parent_block[pos:children_close]
+    offset = pos
+    children = []
+    i = 0
+    name_re = re.compile(
+        r"<property type='s'><key><!\[CDATA\[name\]\]></key>"
+        r"<value><!\[CDATA\[([^\]]+)\]\]></value></property>"
+    )
+    while i < len(section):
+        if section.startswith("<node", i) and (i + 5 >= len(section) or section[i + 5] in " >"):
+            node_start = i
+            depth = 0
+            j = i
+            while j < len(section):
+                if section.startswith("<node", j) and (j + 5 >= len(section) or section[j + 5] in " >"):
+                    depth += 1
+                    j += 5
+                    continue
+                if section.startswith("</node>", j):
+                    depth -= 1
+                    j += 7
+                    if depth == 0:
+                        node_xml = section[node_start:j]
+                        m = name_re.search(node_xml)
+                        child_name = m.group(1) if m else None
+                        if child_name:
+                            children.append(
+                                (child_name, offset + node_start, offset + j)
+                            )
+                        i = j
+                        break
+                    continue
+                j += 1
+            else:
+                break
+        else:
+            i += 1
+    return children
+
+
+def replace_script_under_parent_all_children(xml_str, parent_name, lua_content):
+    """Inject script into every direct child of each `parent_name` node."""
+    prop_ranges = []
+    for pstart, pend in _find_all_parent_blocks(xml_str, parent_name):
+        parent_block = xml_str[pstart:pend]
+        for _child_name, cstart, cend in _list_direct_child_blocks(parent_block):
+            props = _properties_range_for_node_block(parent_block[cstart:cend])
+            if props:
+                abs_start = pstart + cstart + props[0]
+                abs_end = pstart + cstart + props[1]
+                prop_ranges.append((abs_start, abs_end))
+
+    if not prop_ranges:
+        raise ValueError(
+            f"No direct children under parent '{parent_name}' in .tosc XML"
+        )
+
+    label = f"'{parent_name}'/*"
+    for start, end in sorted(prop_ranges, key=lambda r: r[0], reverse=True):
+        xml_str = _replace_script_in_range(xml_str, start, end, lua_content, label)
+
+    return xml_str, len(prop_ranges)
 
 
 def replace_script_under_parent(xml_str, parent_name, child_names, lua_content):
@@ -365,6 +439,8 @@ def _resolve_targets(mapping):
     """
     is_root = mapping.get("node_id") == "root"
     if mapping.get("under_name"):
+        if mapping.get("all_children"):
+            return ("under_all", mapping["under_name"])
         child_names = mapping.get("node_names") or []
         if not child_names:
             return None
@@ -388,6 +464,11 @@ def _count_total_targets(mappings, xml_str):
         kind = resolved[0]
         if kind == "root":
             total += 1
+        elif kind == "under_all":
+            _, parent_name = resolved
+            for pstart, pend in _find_all_parent_blocks(xml_str, parent_name):
+                parent_block = xml_str[pstart:pend]
+                total += len(_list_direct_child_blocks(parent_block))
         elif kind == "under":
             _, parent_name, child_names = resolved
             parents = _find_all_parent_blocks(xml_str, parent_name)
@@ -437,6 +518,17 @@ def _inject_mapping(xml_str, lua_dir, mapping, quiet=False):
             xml_str, count = replace_script(xml_str, None, lua_content, is_root=True)
             if not quiet:
                 print(f"  OK    {lua_file} → root ({len(lua_content)} chars)")
+            injected = count
+        elif kind == "under_all":
+            _, parent_name = resolved
+            xml_str, count = replace_script_under_parent_all_children(
+                xml_str, parent_name, lua_content)
+            if not quiet:
+                suffix = f" ×{count}" if count > 1 else ""
+                print(
+                    f"  OK    {lua_file} → {parent_name}/*{suffix} "
+                    f"({len(lua_content)} chars)"
+                )
             injected = count
         elif kind == "under":
             _, parent_name, child_names = resolved
