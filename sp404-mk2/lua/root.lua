@@ -18,6 +18,7 @@ local LOCK_CC_FIRST = 1
 local LOCK_CC_LAST = 5
 
 local BUS_LOCK_HEX = "FF0000FF"
+local CONTROL_FADER_VALUE_LABEL_BG_HEX = "00000060"
 
 local launchpadShiftHeld = false
 local launchpadClickHeld = false
@@ -177,7 +178,7 @@ function applyBusGroupTheme(busNum)
     end
     for _, valueLabel in ipairs(faderGroup:findAllByName("value_label", true)) do
       valueLabel.textColor = Color.fromHexString("FFFFFFFF")
-      valueLabel.color = Color.fromHexString("00000000")
+      valueLabel.color = Color.fromHexString(CONTROL_FADER_VALUE_LABEL_BG_HEX)
     end
   end
 end
