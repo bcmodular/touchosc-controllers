@@ -22,33 +22,61 @@ local function floatToMIDI(floatValue)
   return midiValue
 end
 
+local function parameterMidiAt(parameters, index)
+  if type(parameters) ~= "table" then
+    return 0
+  end
+  return tonumber(parameters[index] or parameters[tostring(index)]) or 0
+end
+
+local function findRecentParameters(fxNumIn)
+  local recentValues = json.toTable(root.children.recent_values.tag) or {}
+  local stack = recentValues[busNum] or recentValues[tostring(busNum)]
+  if type(stack) ~= "table" then
+    return nil
+  end
+  local targetFx = tonumber(fxNumIn)
+  for i = 1, #stack do
+    local effect = stack[i]
+    if type(effect) == "table" and tonumber(effect.fxNum) == targetFx then
+      return effect.parameters
+    end
+  end
+  for _, effect in pairs(stack) do
+    if type(effect) == "table" and tonumber(effect.fxNum) == targetFx then
+      return effect.parameters
+    end
+  end
+  return nil
+end
+
 local function refreshPresetList()
   if fxNum ~= 0 then
     presetGrid:notify('refresh_presets_list', fxNum)
   end
 end
 
-local function recallValues()
-
+local function recallValues(pushMidi)
   local fullDefaults = json.toTable(root.children.default_manager.tag)
   local defaultValues = fullDefaults[tostring(fxNum)] or {0, 0, 0, 0, 0, 0}
-  local valuesToRecall = defaultValues
-
-  local recentValues = json.toTable(root.children.recent_values.tag) or {}
-  local recentValuesForBus = recentValues[busNum] or {}
-
-  -- If we have recent values for this bus, use them
-  for _, effect in ipairs(recentValuesForBus) do
-    if effect.fxNum == fxNum then
-      valuesToRecall = effect.parameters
-    end
+  local recentParams = findRecentParameters(fxNum)
+  local valuesToRecall = {}
+  local source = recentParams or defaultValues
+  for i = 1, 6 do
+    valuesToRecall[i] = parameterMidiAt(source, i)
   end
 
   for i = 1, 6 do
     local fader = faders:findByName(tostring(i))
-    local controlFader = fader:findByName('control_fader')
-    controlFader:setValueField("x", ValueField.DEFAULT, midiToFloat(defaultValues[i]))
-    controlFader:setValueField("x", ValueField.CURRENT, midiToFloat(valuesToRecall[i]))
+    local controlFader = fader and fader:findByName('control_fader')
+    if controlFader then
+      local recalledFloat = midiToFloat(parameterMidiAt(valuesToRecall, i))
+      controlFader:setValueField("x", ValueField.DEFAULT, midiToFloat(parameterMidiAt(defaultValues, i)))
+      controlFader:setValueField("x", ValueField.CURRENT, recalledFloat)
+      if pushMidi and fader.visible then
+        controlFader:notify("new_value", recalledFloat)
+      end
+    end
   end
 end
 
@@ -66,8 +94,10 @@ local function showBus(sceneLoad)
   controlMapper:notify('init_perform', {fxNum, midiChannel, faders})
   onOffButtonGroup:notify('set_settings', { fxNum, midiChannel, fxName })
   if not sceneLoad then
-    recallValues()
+    recallValues(false)
     onOffButtonGroup:notify('switch_to_effect')
+    -- SP-404 applies effect after CC 83 pulse; push defaults/recent after select (scene_manager pattern).
+    recallValues(true)
   end
   presetGrid:notify('sync_morph_ui', busNum)
 end
@@ -77,20 +107,20 @@ local function sendOffMIDI()
 end
 
 local function storeCurrentValues()
-  if fxNum ~= nil then
-    --print('Storing current values')
-    local currentValues = {}
-    for i = 1, 6 do
-      local faderGroup = faders:findByName(tostring(i))
-      local controlFader = faderGroup:findByName('control_fader')
-      currentValues[i] = floatToMIDI(controlFader.values.x)
-    end
-    local recentValues = root.children.recent_values
-    recentValues:notify('update_recent_values', {busNum, fxNum, currentValues})
-    --print('Current values:', unpack(currentValues))
-  else
-    --print('No fxNum set, skipping storeCurrentValues')
+  if fxNum == 0 then
+    return
   end
+  local currentValues = {}
+  for i = 1, 6 do
+    local faderGroup = faders:findByName(tostring(i))
+    if faderGroup and faderGroup.visible then
+      local controlFader = faderGroup:findByName('control_fader')
+      if controlFader then
+        currentValues[i] = floatToMIDI(controlFader.values.x)
+      end
+    end
+  end
+  root.children.recent_values:notify('update_recent_values', { busNum, fxNum, currentValues })
 end
 
 local function clearBus()
@@ -130,12 +160,19 @@ end
 
 ---@diagnostic disable: lowercase-global
 local function applyFx(fxNumIn, fxNameIn, sceneLoad)
-  fxNum = tonumber(fxNumIn) or 0
-  fxName = fxNameIn or "Choose FX..."
-  if fxNum == 0 then
+  local newFxNum = tonumber(fxNumIn) or 0
+  local newFxName = fxNameIn or "Choose FX..."
+  if newFxNum == 0 then
     clearBus()
     return
   end
+
+  if not sceneLoad and fxNum ~= 0 then
+    storeCurrentValues()
+  end
+
+  fxNum = newFxNum
+  fxName = newFxName
   local tag = json.toTable(self.tag) or {}
   tag.fxNum = fxNum
   tag.fxName = fxName

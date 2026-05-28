@@ -1,77 +1,85 @@
+local NUM_BUSES = 5
+
+local function normalizeParameters(parameters)
+  local out = {}
+  for i = 1, 6 do
+    out[i] = tonumber(parameters[i] or parameters[tostring(i)]) or 0
+  end
+  return out
+end
+
 local function saveEffectBuses(buses)
-  local busesString = json.fromTable(buses)
-  --print('busesString', busesString)
-  self.tag = busesString
-  --print('saved buses', busesString)
+  local normalized = {}
+  for i = 1, NUM_BUSES do
+    normalized[i] = buses[i] or buses[tostring(i)] or {}
+  end
+  self.tag = json.fromTable(normalized)
 end
 
 local function loadEffectBuses()
   local buses = {}
-
   if self.tag and self.tag ~= "" then
     buses = json.toTable(self.tag) or {}
   end
+  for i = 1, NUM_BUSES do
+    buses[i] = buses[i] or buses[tostring(i)] or {}
+  end
+  return buses
+end
 
-  for i = 1, 5 do
-    if not buses[i] then
-      buses[i] = {}
+local function findEffectInStack(stack, fxNum)
+  if type(stack) ~= "table" then
+    return nil
+  end
+  local target = tonumber(fxNum)
+  for i = 1, #stack do
+    local effect = stack[i]
+    if type(effect) == "table" and tonumber(effect.fxNum) == target then
+      return effect
     end
   end
-
-  return buses
+  for _, effect in pairs(stack) do
+    if type(effect) == "table" and tonumber(effect.fxNum) == target then
+      return effect
+    end
+  end
+  return nil
 end
 
 local function pushEffectToBus(busNum, fxNum, parameters)
   local buses = loadEffectBuses()
-  local stack = buses[busNum] or {}
+  local busIndex = tonumber(busNum) or 1
+  local stack = buses[busIndex] or {}
+  local normalizedParams = normalizeParameters(parameters)
+  local targetFx = tonumber(fxNum)
 
-  --print('current buses', unpack(buses))
-  --print('current stack', unpack(stack))
-
-  local existingIndex = nil
-
-  for i, effect in ipairs(stack) do
-    if effect.fxNum == fxNum then
-      --print('found existing effect', effect.fxNum)
-      existingIndex = i
-      break
+  local existing = findEffectInStack(stack, targetFx)
+  if existing then
+    existing.parameters = normalizedParams
+    local newStack = { existing }
+    for i = 1, #stack do
+      local effect = stack[i]
+      if effect ~= existing then
+        newStack[#newStack + 1] = effect
+      end
     end
-  end
-
-  if existingIndex then
-    local effect = table.remove(stack, existingIndex)
-    effect.parameters = parameters
-    table.insert(stack, 1, effect)
+    stack = newStack
   else
-    --print('no existing effect found for fxNum', fxNum, 'on bus', busNum)
-    local newEffect = {
-      fxNum = fxNum,
-      parameters = parameters
-    }
-
-    table.insert(stack, 1, newEffect)
-
-    --print('new stack', unpack(stack))
-
+    table.insert(stack, 1, {
+      fxNum = targetFx,
+      parameters = normalizedParams,
+    })
     if #stack > 16 then
       table.remove(stack)
-      --print('stack after removing', unpack(stack))
     end
   end
 
-  buses[busNum] = stack
-
-  --print('buses after saving', unpack(buses))
-
+  buses[busIndex] = stack
   saveEffectBuses(buses)
 end
 
 function onReceiveNotify(key, value)
-  if key == 'update_recent_values' then
-    local busNum = value[1]
-    local fxNum = value[2]
-    local parameters = value[3]
-    --print('update_recent_values', busNum, fxNum, unpack(parameters))
-    pushEffectToBus(busNum, fxNum, parameters)
+  if key == "update_recent_values" then
+    pushEffectToBus(value[1], value[2], value[3])
   end
 end
