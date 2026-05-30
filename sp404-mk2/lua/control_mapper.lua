@@ -325,7 +325,7 @@ local mappingScripts = {
     local chords = {
       'Root', 'Oct', 'UpDn', 'P5',
       'm3', 'm5', 'm7', 'm7oct',
-      'm0', 'm11', 'M3', 'M5',
+      'm9', 'm11', 'M3', 'M5',
       'M7', 'M7oct', 'M9', 'M11'
     }
 
@@ -975,6 +975,8 @@ local performFaderScriptTemplate = [[
   local syncedFader = nil
   %s -- Include the mapping function definition here
   local startValues = %s
+  local busNum = %d
+  local faderName = '%s'
   local syncOn = false
   local press_time = 0
 
@@ -1080,6 +1082,10 @@ local performFaderScriptTemplate = [[
     sendBcrMidi()
   end
 
+  local function notifyKeyboardPerformCc()
+    root:notify('keyboard_perform_cc', { busNum, faderName, floatToMIDI(self.values.x) })
+  end
+
   local function initialise()
     --print('initialise', self.name)
     self.properties.response = Response.RELATIVE
@@ -1103,11 +1109,13 @@ local performFaderScriptTemplate = [[
       self.values.x = floatValue
       updateLabel(floatValue)
       sendSpMidi()
+      notifyKeyboardPerformCc()
     elseif key == 'new_cc_value' then
       local floatValue = midiToFloat(value)
       self.values.x = floatValue
       updateLabel(floatValue)
       sendSpMidi()
+      notifyKeyboardPerformCc()
     elseif key == 'sync_toggle' then
       local parent = self.parent
       syncOn = value
@@ -1126,6 +1134,7 @@ local performFaderScriptTemplate = [[
       --print('onValueChanged', self.values.x)
       updateLabel(self.values.x)
       syncMIDI()
+      notifyKeyboardPerformCc()
     end
   end
 ]]
@@ -1137,8 +1146,9 @@ local function setUpPerformValueLabel(valueLabel, labelFormat)
   end
 end
 
-local function setUpPerformFader(faderNum, controlFader, spChannel, bcrChannel, controlInfo, syncedFaderNum)
+local function setUpPerformFader(faderNum, controlFader, spChannel, bcrChannel, controlInfo, syncedFaderNum, faderName)
   local ccNumber, _, _, _, _, labelMapping, _, _, _, _, startValues, amSyncedFader, _, _, _, _ = unpack(controlInfo)
+  faderName = faderName or "unknown"
 
   if not startValues or startValues == '' then
     -- Just so we don't break the script
@@ -1164,6 +1174,8 @@ local function setUpPerformFader(faderNum, controlFader, spChannel, bcrChannel, 
     syncedFaderNum,
     mappingScripts[labelMapping],
     startValues,
+    spChannel + 1,
+    faderName,
     labelMapping,
     labelMapping,
     spChannel,
@@ -1214,10 +1226,10 @@ local function setUpPerformFaders(fxNum, channel, faderGroups)
 
       if faderName == 'sync_fader' then
         -- Set up the sync fader
-        setUpPerformFader(index, controlFader, channel, bcrChannel, control, tostring(syncedFaderNum))
+        setUpPerformFader(index, controlFader, channel, bcrChannel, control, tostring(syncedFaderNum), faderName)
       else
         -- Set up the other faders
-        setUpPerformFader(index, controlFader, channel, bcrChannel, control, '0')
+        setUpPerformFader(index, controlFader, channel, bcrChannel, control, '0', faderName)
       end
 
       setUpPerformValueLabel(valueLabel, labelFormat)

@@ -52,11 +52,12 @@
     {"lua": "chromatic_keyboard_button.lua", "node_name": "chromatic_keyboard_button"},
     {"lua": "panic_button.lua", "under_name": "keys_group", "node_names": ["panic_button"]},
     {"lua": "keys.lua", "node_name": "keys"},
+    {"lua": "octave_button.lua", "under_name": "octave_grid", "all_children": true},
     {"lua": "keyboard_key.lua", "under_name": "white", "all_children": true},
     {"lua": "keyboard_key.lua", "under_name": "black", "all_children": true},
     {"lua": "chord_grid.lua", "under_name": "keys_group", "node_names": ["chord_grid"]},
     {
-      "lua": "chord_grid.lua",
+      "lua": "chord_pad_button.lua",
       "under_name": "chord_grid",
       "node_names": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"]
     },

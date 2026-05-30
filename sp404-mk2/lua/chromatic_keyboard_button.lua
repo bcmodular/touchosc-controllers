@@ -2,5 +2,15 @@ function onValueChanged(key, value)
   if key ~= "x" then
     return
   end
-  root:notify("keyboard_chromatic_toggle", self.values.x == 1)
+
+  local tag = json.toTable(root.tag) or {}
+  if tag.keyboardHighlighting == true then
+    return
+  end
+
+  if self.values.x == 1 then
+    root:notify("keyboard_attach_chromatic", true)
+  else
+    root:notify("keyboard_detach_chromatic", true)
+  end
 end

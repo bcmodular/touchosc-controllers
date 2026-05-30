@@ -59,14 +59,67 @@ local function beginGrabPreset(busNum, presetNum)
   recallPreset(busNum, presetNum)
 end
 
-local function recallPreset(busNum, presetNum)
+recallPreset = function(busNum, presetNum)  -- assign to the forward-declared local
   -- ...
 end
 ```
 
+**Critical:** the function that fills the forward declaration **must** use `name = function(...)` (plain assignment), **not** `local function name(...)`. Using `local function` creates a *new* local that shadows the forward declaration — the original stays `nil` and any closure that captured it will fail at runtime with "attempt to call upvalue (a nil value)".
+
 **Do not** assume `local function` hoists like JavaScript `function` declarations — it does not.
 
 **Quick check:** before committing, grep for `local function` names and confirm every call site is **below** the definition (or behind a forward declare).
+
+## No Namespace Tables
+
+TouchOSC runs each node's script in its own isolated Lua environment. Scripts included together via `toscbuild.json` `"include"` are concatenated into one script for that node. **Module-style namespace tables add verbosity with no isolation benefit.**
+
+```lua
+-- Bad: unnecessary table namespace
+Keyboard = {}
+Keyboard.SUSTAIN_CC = 64
+function Keyboard.handleMidi(msg) ... end
+
+-- Good: plain locals
+local SUSTAIN_CC = 64
+local function handleMidi(msg) ... end
+```
+
+### The 200-local limit and the setup-function pattern
+
+Lua enforces a hard limit of **200 local variables per function** (or per top-level chunk). Because all `"include"` files and the main `.lua` file share one concatenated chunk, every `local` across all files counts toward the same 200. A file with many functions can easily exhaust this.
+
+**Solution:** wrap large included files in a named setup function. Each Lua function has its own independent 200-local budget. All locals defined inside the setup function become upvalues captured by the public closures — so state variables survive after the setup function returns.
+
+```lua
+function _initKeyboard()
+
+  local SUSTAIN_CC = 64
+  local keyboardAttachedBus = nil  -- survives as an upvalue
+
+  local function handleMidi(msg) ... end
+
+  -- Public entry points: assigned as globals (no 'local') so root.lua can call them.
+  -- They close over all the locals above.
+  function handleKeyboardMidi(message, connections)
+    ...
+  end
+
+end
+_initKeyboard()
+```
+
+The setup function itself is a global (no `local`), contributing 0 locals to the chunk. Public functions are assigned without `local` inside the setup function — Lua writes non-local assignments to the global environment even inside a function body.
+
+`keyboard_manager.lua` uses this pattern. Files with fewer than ~40 locals (most helper scripts) don't need it.
+
+### Rules
+
+1. **Module-internal functions and variables**: `local` (inside an IIFE if the file is large).
+2. **TouchOSC lifecycle callbacks** (`init`, `onReceiveMIDI`, `onReceiveNotify`, `onValueChanged`, `update`): plain globals — TouchOSC calls these by name.
+3. **Cross-file entry points** in included files (called by name from the main script): plain globals — assigned without `local`, even inside an IIFE.
+4. **Debug flags**: `local KEYBOARD_DEBUG = false` — easy to find and toggle.
+5. Forward-declare with `local name` when mutual references are required (see section above).
 
 ## Prefer Direct Control Over `notify`
 
@@ -141,6 +194,20 @@ if buttonState == BUTTON_STATE.RECALL then
     -- handle recall state
 end
 ```
+
+## Hyper Reso keyboard grab (`keys_group` chord pads)
+
+When keyboard grab is active on a bus running **Hyper Reso** (FX 31), `keys_group.tag.chordGridMode` is `hyper_reso_scale`. Pads **1–16** (names stay generic; top row 1–8, bottom row 9–16) select scale; the piano sends **relative NOTE** degrees (middle C = degree 1, ±1 per semitone, clamped ±18).
+
+| Pad | Role |
+|-----|------|
+| 1 | Major |
+| 2 | *(unused, hidden)* |
+| 3–4, 6–8 | Black-key roots (C#, D#, F#, G#, A#) |
+| 9 | Minor |
+| 10–16 | White-key roots (C–B) |
+
+Resonator/Vocoder/Harmony use `chord_pads` mode on the same pad indices (chord/harmony values). Constants live in `keyboard_manager.lua` (`HYPER_RESO_PAD_MAP`, `HYPER_RESO_NOTE_CC_VALUES`, `HYPER_RESO_SCALE_CC_VALUES`).
 
 ## MIDI routing (contributor notes)
 

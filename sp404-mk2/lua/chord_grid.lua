@@ -34,7 +34,9 @@ end
 
 local function chordPadActive()
   if self.parent and self.parent.parent and self.parent.parent.name == "keys_group" then
-    return true
+    local keysGroup = self.parent.parent
+    local tag = json.toTable(keysGroup.tag) or {}
+    return tag.chordGridMode == "chord_pads"
   end
   return self.parent.tag == "1"
 end

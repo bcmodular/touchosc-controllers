@@ -3,5 +3,4 @@ function onValueChanged(key, value)
     return
   end
   root:notify("keyboard_panic")
-  self.values.x = 0
 end

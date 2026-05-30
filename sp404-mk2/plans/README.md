@@ -11,5 +11,7 @@ Design and roadmap documents from Cursor planning sessions. Kept in-repo for his
 | [preset_migration_cleanup_05fdb80e.plan.md](preset_migration_cleanup_05fdb80e.plan.md) | 16→8 preset migration cleanup + build-time grid scripts |
 | [bcr_fx_selector_midi_b40af042.plan.md](bcr_fx_selector_midi_b40af042.plan.md) | BCR2000 effect selector MIDI |
 | [touchosc_bcr_morph_ui_6601d4d4.plan.md](touchosc_bcr_morph_ui_6601d4d4.plan.md) | TouchOSC morph UI + BCR top-row (ch 6/7, CCs per bus) |
+| [hyper_reso_keyboard_423aa07a.plan.md](hyper_reso_keyboard_423aa07a.plan.md) | Hyper Reso keyboard grab: scale grid, white-key NOTE mapping, perform/Launchkey sync (**implemented**) |
+| [launchkey_keyboard_feature_plan_6e3575fe.plan.md](launchkey_keyboard_feature_plan_6e3575fe.plan.md) | Launchkey 49 MK4 keyboard: attach/chromatic, effect profiles, sustain/panic, drum pads (**implemented**; encoders deferred) |
 
-File names include Cursor plan IDs for traceability. Paths inside plans are relative to the **repository root** unless noted otherwise.
+File names include Cursor plan IDs for traceability. Paths inside plans are relative to the **repository root** unless noted otherwise (`../lua/` is relative to this `plans/` folder).

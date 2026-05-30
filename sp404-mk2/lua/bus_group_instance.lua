@@ -80,6 +80,14 @@ local function recallValues(pushMidi)
   end
 end
 
+local function wasEffectToggleOn()
+  if not onOffButtonGroup then
+    return false
+  end
+  local toggle = onOffButtonGroup:findByName('toggle_button', true)
+  return toggle and toggle.values.x == 1
+end
+
 -- sceneLoad: skip recallValues + switch_to_effect (scene recall applies CC/on-off itself).
 local function showBus(sceneLoad)
 
@@ -88,6 +96,8 @@ local function showBus(sceneLoad)
 
   refreshPresetList()
 
+  local keepEffectOn = not sceneLoad and wasEffectToggleOn()
+
   -- init_perform injects fader scripts and notifies each control_fader 'initialise' (resolves
   -- sync_fader -> linked fader reference). Do not initialise before that: the old script
   -- would be replaced and the new closure would never get syncedFader set.
@@ -95,9 +105,13 @@ local function showBus(sceneLoad)
   onOffButtonGroup:notify('set_settings', { fxNum, midiChannel, fxName })
   if not sceneLoad then
     recallValues(false)
-    onOffButtonGroup:notify('switch_to_effect')
+    -- switch_to_effect: CC 83 pulse to select FX on SP-404; keepOn skips the off leg if FX was on.
+    onOffButtonGroup:notify('switch_to_effect', keepEffectOn)
     -- SP-404 applies effect after CC 83 pulse; push defaults/recent after select (scene_manager pattern).
     recallValues(true)
+    if keepEffectOn then
+      onOffButtonGroup:notify('set_state', true)
+    end
   end
   presetGrid:notify('sync_morph_ui', busNum)
 end
@@ -156,6 +170,7 @@ local function clearBus()
   end
   presetGrid:notify('clear_presets')
   presetGrid:notify('sync_morph_ui', busNum)
+  root:notify("keyboard_bus_fx_changed", busNum)
 end
 
 ---@diagnostic disable: lowercase-global
@@ -186,6 +201,7 @@ local function applyFx(fxNumIn, fxNameIn, sceneLoad)
   self.tag = json.fromTable(tag)
   print("set_fx", busNum, fxNum, fxName, sceneLoad and "scene" or "")
   showBus(sceneLoad == true)
+  root:notify("keyboard_bus_fx_changed", busNum)
 end
 
 -- value[3] = showChooser (boolean, optional): true = open FX chooser, false = close, nil = leave as-is.

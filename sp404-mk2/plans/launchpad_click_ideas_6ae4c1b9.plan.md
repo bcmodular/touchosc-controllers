@@ -7,10 +7,10 @@ todos:
     status: completed
   - id: implement-click-root
     content: Add CLICK_CC + launchpadClickHeld + store_defaults path in root.lua + launchpad_led.lua
-    status: pending
+    status: completed
   - id: doc-click-readme
     content: Update README Launchpad gestures, modifier diagram, and CC 70 row in surface table
-    status: pending
+    status: completed
   - id: deferred-launchpad-choose
     content: "(Deferred) Launchpad choose-effect on spare button — not Click; pick CC/side button later"
     status: pending

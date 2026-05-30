@@ -1,10 +1,18 @@
+local function tagTruthy(value)
+  return value == true or value == 1
+end
+
+local function pianoKeysMomentaryFromTag(tag)
+  return tagTruthy(tag.keyboardKeysMomentary) or tagTruthy(tag.keyboardChromaticAttached)
+end
+
 function onValueChanged(key, value)
   if key ~= "x" then
     return
   end
 
   local tag = json.toTable(root.tag) or {}
-  if tag.keyboardHighlighting == true then
+  if tagTruthy(tag.keyboardHighlighting) then
     return
   end
 
@@ -17,7 +25,7 @@ function onValueChanged(key, value)
   local velocity = math.floor(self.values.x * 127 + 0.5)
 
   if velocity <= 0 then
-    if tag.keyboardChromaticEnabled == true then
+    if pianoKeysMomentaryFromTag(tag) then
       root:notify("keyboard_ui_note", { note, 0 })
     end
     return

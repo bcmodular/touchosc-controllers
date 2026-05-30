@@ -204,9 +204,11 @@ local function sendEffectState(state, skipBcr)
   notifyLaunchpadBusLedRefresh()
 end
 
-local function switchToEffect()
+local function switchToEffect(keepOn)
   sendMIDIOn()
-  sendMIDIOff()
+  if not keepOn then
+    sendMIDIOff()
+  end
 end
 
 local function syncCurrentBusToDevice(skipBcr)
@@ -333,7 +335,7 @@ function onReceiveNotify(key, value)
     busFxName = value[3]
     debugOnOff(string.format('set_settings fx=%d name=%s', busFxNum, tostring(busFxName)))
   elseif key == 'switch_to_effect' then
-    switchToEffect()
+    switchToEffect(value == true or value == 1)
   elseif key == 'set_grab_state' then
     setGrabState(value, false)
   elseif key == 'set_chooser_state' then

@@ -29,7 +29,7 @@ isProject: false
 
 Extends [launchpad_pro_enhancements_13f97bae.plan.md](launchpad_pro_enhancements_13f97bae.plan.md) after completed Phases 1–3. Phase 4 (bus lock) stays separate; when Phase 4 lands, recall/grab/backup-import should call a shared `isBusLocked(busNum)` helper.
 
-**PyQt5:** No reason to change — it already works on Mac, dependencies are light (`PyQt5`, `python-osc`, `psutil`). Keep and extend [`preset-manager/python/preset-manager.py`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/preset-manager.py).
+**PyQt5:** No reason to change — it already works on Mac, dependencies are light (`PyQt5`, `python-osc`, `psutil`). Keep and extend [`../preset-manager/python/preset-manager.py`](../preset-manager/python/preset-manager.py).
 
 ---
 
@@ -143,9 +143,9 @@ Add [`backup_manager.lua`](sp404-mk2/lua/backup_manager.lua) (root child node, b
 
 **TouchOSC layout:** Export/Import buttons + `backup_import_group` (see [`SP404.tosc`](sp404-mk2/SP404.tosc)); built via `toscbuild` + layout inject scripts.
 
-### Mac utility ([`preset-manager.py`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/preset-manager.py))
+### Mac utility ([`preset-manager.py`](../preset-manager/python/preset-manager.py))
 
-See [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/README.md). Summary:
+See [`../preset-manager/python/README.md`](../preset-manager/python/README.md). Summary:
 
 | Feature | Detail |
 |---------|--------|
@@ -153,7 +153,7 @@ See [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/G
 | **Capture** | Name prompt per capture; `dumps/{key}_{version}_{stamp}.json` (filename internal) |
 | **Library** | Configs + versions from JSON metadata; double-click replay; right-click rename/delete |
 | **Settings** | `settings.json` (gitignored): ports, `lastConfigName`, `nextConfigVersionByKey`, `windowGeometry` |
-| **Deps** | [`requirements.txt`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/requirements.txt): `PyQt5`, `python-osc`, `psutil` |
+| **Deps** | [`../preset-manager/python/requirements.txt`](../preset-manager/python/requirements.txt): `PyQt5`, `python-osc`, `psutil` |
 
 ---
 
@@ -162,7 +162,7 @@ See [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/G
 - [`toscbuild.json`](sp404-mk2/toscbuild.json): backup script mappings
 - `python3 tools/toscbuild.py build sp404-mk2`
 - [`sp404-mk2/lua/README.md`](sp404-mk2/lua/README.md): scene grab, `/sp404/backup`, import FX-off behaviour
-- [`preset-manager/python/README.md`](/Users/willellis/Documents/Development/Github/touchosc-controllers/sp404-mk2/preset-manager/python/README.md): utility workflow
+- [`../preset-manager/python/README.md`](../preset-manager/python/README.md): utility workflow
 - Parent plan deferred table updated in [launchpad_pro_enhancements_13f97bae.plan.md](launchpad_pro_enhancements_13f97bae.plan.md)
 
 ---
