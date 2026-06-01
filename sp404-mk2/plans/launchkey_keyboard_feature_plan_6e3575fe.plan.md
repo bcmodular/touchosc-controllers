@@ -1,6 +1,6 @@
 ---
 name: Launchkey Keyboard Feature Plan
-overview: "Bus-attached keyboard subsystem: chromatic + effect-mapped profiles (Resonator, Hyper Reso, Vocoder live, Harmony, Auto Pitch), sustain/panic, Launchkey keybed + drum pads on MIDI connection 4. Encoders and Launchkey preset recall deferred."
+overview: "Bus-attached keyboard subsystem: chromatic + effect-mapped profiles (Resonator, Hyper Reso, Vocoder live), sustain/panic, Launchkey keybed + drum pads on MIDI connection 4. Encoders and Launchkey preset recall deferred. Auto Pitch and Harmony keyboard control dropped as out of scope."
 todos:
   - id: design-keyboard-manager
     content: keyboard_manager state model, notify contract, root tag schema
@@ -83,9 +83,9 @@ flowchart LR
 | --- | --- | --- | --- |
 | Resonator | 2 | ROOT + 16 chords | 16 chord pads |
 | Hyper Reso | 31 | White-key NOTE degrees + scale grid | Scale maj/min + roots ([detail plan](hyper_reso_keyboard_423aa07a.plan.md)) |
-| Auto Pitch | 43 | KEY only | Hidden chord grid |
 | Vocoder | 44 | Scale + 10 chords; **live** keybed on bus 5 | First 10 pads active |
-| Harmony | 45 | KEY + 10 harmony chords | First 10 pads active |
+| Auto Pitch | 43 | ~~KEY only~~ | Out of scope — no keyboard control |
+| Harmony | 45 | ~~KEY + 10 harmony chords~~ | Out of scope — no keyboard control |
 
 `chordGridMode` on `keys_group.tag`: `hyper_reso_scale` vs `chord_pads`.
 

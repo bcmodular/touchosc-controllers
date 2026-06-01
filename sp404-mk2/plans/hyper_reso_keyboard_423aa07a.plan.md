@@ -73,7 +73,7 @@ flowchart LR
 
 - Pads stay named **`1` … `16`** (top row 1–8, bottom row 9–16).
 - **When:** Keyboard grab + Hyper Reso (FX 31). `keys_group.tag.chordGridMode = "hyper_reso_scale"`.
-- **Resonator / Vocoder / Harmony:** Same pads, `chordGridMode = "chord_pads"` — chord/harmony CC tables unchanged.
+- **Resonator / Vocoder:** Same pads, `chordGridMode = "chord_pads"` — chord CC tables unchanged. (Auto Pitch and Harmony keyboard control are out of scope.)
 - **State:** `hyperResoRoot`, `hyperResoMinor` on bus `tag`; perform `scale_grid` synced via `applyFaderCc` + `setGridIndex`.
 - **Perform → UI:** `scale_fader` / `chord_fader` changes notify `keyboard_perform_cc` → pad highlights + NOTE label.
 
@@ -129,7 +129,7 @@ Original plan used semitone formula `midiNote - 59`; implementation uses **white
 | ----------- | ------------ |
 | Chromatic | hidden |
 | Hyper Reso + keyboard grab | scale picker (maj/min + roots) |
-| Resonator / Vocoder / Harmony | chord pads |
+| Resonator / Vocoder | chord pads |
 
 ## Files
 

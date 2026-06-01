@@ -7,16 +7,19 @@ todos:
     status: pending
   - id: attach-chrome
     content: "Phase 1: keyboard grab attach/detach, keys_group visibility/theme, tag persistence"
-    status: pending
+    status: done
   - id: ui-piano-octave
-    content: "Phase 2: on-screen keys, octave grid, toggle press mode, highlighting guard"
-    status: pending
+    content: "Phase 2: on-screen keys, octave grid, highlighting guard"
+    status: done
   - id: chromatic-sustain-panic
-    content: "Phase 3: chromatic ch16, sustain defer, panic flush, bus switch flush"
-    status: pending
+    content: "Phase 3: chromatic ch16, sustain defer, panic flush, bus switch flush — confirmed working"
+    status: done
+  - id: soundgen
+    content: "Phase 3b: Sound Gen mode — full range, no clamp, sustain discard, polyphony uncapped — confirmed working"
+    status: done
   - id: fx-tuning-matrix
-    content: "Phase 4: Resonator/Hyper Reso/Auto Pitch/Harmony tuning via screen + Launchkey; d9a38f9 recall regression"
-    status: pending
+    content: "Phase 4: Resonator/Hyper Reso confirmed; Vocoder still to test; Auto Pitch + Harmony out of scope"
+    status: in_progress
   - id: chord-pads
     content: "Phase 5: chord/harmony grids (keys_group + bus) + Launchkey pad map"
     status: pending
@@ -30,7 +33,7 @@ todos:
     content: "Phase 8: Launchpad/BCR/scene/morph vs keyboard attach"
     status: pending
   - id: risk-probes
-    content: "Phase 9: chromatic clamp, dual scripts, debug flags, README gap"
+    content: "Phase 9: debug flags, README gap — dual-script risk resolved by build-time injection"
     status: pending
 isProject: false
 ---
@@ -46,12 +49,14 @@ The keyboard work landed in [`ec67810`](https://github.com) (`Add Launchkey keyb
 | Central routing | `keyboard_manager.lua` → root include |
 | Bus attach | `keyboard_grab_button.lua` → `control_group/keyboard_grab_button` (×5 buses) |
 | Chromatic toggle | `chromatic_keyboard_button.lua` |
+| Sound Gen toggle | `soundgen_keyboard_button.lua` |
 | Piano (2 octaves) | `keys.lua` + build-injected `keyboard_key.lua` under `keys/white/*`, `keys/black/*` |
 | Octave UI | `keys_group/octave_grid` (notifies `keys` with `octave`) |
 | Chord pads | `chord_grid.lua` on bus + mirrored `keys_group/chord_grid` (pads 1–16) |
 | Panic | `panic_button.lua` |
 | MIDI ingress | [`sp404-mk2/lua/root.lua`](sp404-mk2/lua/root.lua) — `handleKeyboardMidi` before Launchpad; `handleKeyboardNotify` on notify |
-| Layout patch | [`sp404-mk2/tools/patch_piano_keys_toggle.py`](sp404-mk2/tools/patch_piano_keys_toggle.py) (toggle press mode on piano keys) |
+
+**Note:** Piano key buttons are `buttonType=1` (toggle). Radio type (2) was causing spurious note-offs when a second key was pressed — TouchOSC's radio-group auto-clear fired `onValueChanged` on the previous key before the highlighting flag could suppress it. All key state management is now script-only via `selectPianoKeyByNote` / `refreshPianoKeysFromUiActive` / `setPianoKeyHighlight`.
 
 **Regression neighbor:** [`d9a38f9`](sp404-mk2/lua/bus_group_instance.lua) changed effect load/recall (`recallValues(true)` after CC 83). Keyboard tuning uses `control_fader:notify("new_cc_value", cc)` — verify fader moves still reach the SP-404 after FX changes.
 
@@ -134,15 +139,15 @@ Use a **non-keyboard effect** (e.g. Filter on bus 1) with chromatic **off**.
 | 2.3 | Octave grid 1–10 | `keys` range shifts; `C0`/`C1` labels update; keys above MIDI 127 hidden |
 | 2.4 | Key release | With chromatic off, release should not spam MIDI |
 
-**Toggle press mode:** keys use `buttonType=2` (via `patch_piano_keys_toggle.py`). Confirm keys latch visually until re-tap (not momentary flash).
+**Key press mode:** keys are `buttonType=1` (toggle) — they latch visually until script clears them. Key state is managed entirely by `selectPianoKeyByNote` / `refreshPianoKeysFromUiActive`.
 
 **Files if broken:** `keyboard_key.lua`, `keys.lua`, `selectPianoKeyByNote`, `keyboardHighlighting` guard.
 
 ---
 
-## Phase 3 — Chromatic mode (SP-404 ch16)
+## Phase 3 — Chromatic mode (SP-404 ch16) ✓ confirmed working
 
-Chromatic button ON (`keyboard_chromatic_toggle`). Still use non-tuning FX or FX cleared.
+Chromatic button ON. Still use non-tuning FX or FX cleared.
 
 | # | Action | Pass criteria |
 |---|--------|---------------|
@@ -156,17 +161,35 @@ Chromatic button ON (`keyboard_chromatic_toggle`). Still use non-tuning FX or FX
 
 ---
 
+## Phase 3b — Sound Gen mode ✓ confirmed working
+
+Sound Gen button ON (purple, `4C00ADFF`). Mutually exclusive with Chromatic and bus grab.
+
+| # | Action | Pass criteria |
+|---|--------|---------------|
+| 3b.1 | Press key | Note on ch16, **full range 0–127** (no clamping) |
+| 3b.2 | Hold multiple keys simultaneously | All notes sent; no 4-voice cap (SP-404 handles internally) |
+| 3b.3 | Sustain pedal + new note while holding | Previous notes (held and deferred) flushed; only new note active |
+| 3b.4 | Release sustain | All remaining notes off |
+| 3b.5 | Panic | Flush all; sustain cleared |
+| 3b.6 | Octave auto-follow | On-screen octave view tracks played notes via `syncKeysOctaveFromHeldMidiNotes` |
+| 3b.7 | Keys group colour | Background shows `4C00ADFF` purple |
+
+**SP-404 note:** does not implement last-note-priority for incoming MIDI (only for its own pads), so overlapping notes sound polyphonically until the SP-404's own voice allocation cuts them.
+
+---
+
 ## Phase 4 — Effect note tuning (priority over chromatic)
 
 Routing rule: **if bus has tuning-capable FX and velocity > 0, tuning wins** — chromatic ignored even if enabled.
 
-| FX | ID | Bus hint | Control | TouchOSC / Launchkey behavior |
-|----|-----|----------|---------|-------------------------------|
-| Resonator | 2 | Any with effect available | `root_fader` full MIDI 0–127 | Root label in `keys_group` updates; SP-404 ROOT changes |
-| Hyper Reso | 31 | Same | `note_fader` 0–127 | NOTE param tracks MIDI note |
-| Auto Pitch | 43 | Same | `key_fader` via `KEY_NOTE_VALUES` (12 classes) | Only pitch-class, not full MIDI |
-| Harmony | 45 | Same | `key_fader` (class) | Same class mapping |
-| Vocoder | 44 | **Not** note-tuning via keys | Use Phase 5 pads + Phase 6 live |
+| FX | ID | Status | Control | Notes |
+|----|-----|--------|---------|-------|
+| Resonator | 2 | ✓ confirmed | `root_fader` full MIDI 0–127 | Root label updates; key highlight tracks fader |
+| Hyper Reso | 31 | ✓ confirmed | `note_fader` 0–127 | Degree mapping fixed; bidirectional octave auto-scroll; C label numbering correct |
+| Vocoder | 44 | ⬜ untested | **Not** note-tuning via keys | Use Phase 5 pads + Phase 6 live |
+| Auto Pitch | 43 | n/a | — | Out of scope — no keyboard control |
+| Harmony | 45 | n/a | — | Out of scope — no keyboard control |
 
 **Per-effect checklist (repeat on 2+ buses):**
 
@@ -252,12 +275,11 @@ Run after keyboard phases to catch integration breaks:
 
 These are **high-yield bug hunt** targets from code review, not necessarily failures:
 
-1. **Chromatic range clamp** — UI may show C2–B3 octave labels but chromatic MIDI always maps into 36–60; document if intentional.
-2. **Note-off with chromatic** — `keyboard_ui_note` with velocity 0 only when `keyboardChromaticEnabled`; screen release path when chromatic off.
-3. **Dual key scripts** — `keys.lua` `applyKeyScripts()` at init vs build-injected `keyboard_key.lua`; after build, confirm `.tosc` children use one consistent script (no drift).
-4. **Debug noise** — `KEYBOARD_DEBUG` and root `keyboard_ui_note` prints; turn off before release.
-5. **README gap** — Connection 4 / Launchkey not documented; note findings for docs pass.
-6. **Hyper Reso / Harmony on buses without FX** — `applyFaderCc` logs `missing … on bus` — UI should fail gracefully.
+1. **Chromatic range clamp** — UI may show any octave but chromatic MIDI always clamps to 36–60; confirm intentional and consistent with on-screen labels.
+2. **Note-off with chromatic off** — screen key release only sends `keyboard_ui_note` vel=0 when `pianoKeysMomentaryFromTag` true; confirm non-momentary modes don't leak stuck highlights.
+3. **Debug noise** — `KEYBOARD_DEBUG = false` in `keyboard_manager.lua` before release.
+4. **README gap** — Connection 4 / Launchkey setup and Sound Gen mode not yet in end-user README.
+5. **Hyper Reso / Auto Pitch / Harmony on buses without FX** — `applyFaderCc` logs `missing … on bus` — UI should fail gracefully, no crash.
 
 ---
 

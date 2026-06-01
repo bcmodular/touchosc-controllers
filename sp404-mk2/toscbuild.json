@@ -50,6 +50,7 @@
     {"lua": "bus_lock_button.lua", "under_name": "control_group", "node_names": ["bus_lock_button"]},
     {"lua": "keyboard_grab_button.lua", "under_name": "control_group", "node_names": ["keyboard_grab_button"]},
     {"lua": "chromatic_keyboard_button.lua", "node_name": "chromatic_keyboard_button"},
+    {"lua": "soundgen_keyboard_button.lua", "node_name": "soundgen_keyboard_button"},
     {"lua": "panic_button.lua", "under_name": "keys_group", "node_names": ["panic_button"]},
     {"lua": "keys.lua", "node_name": "keys"},
     {"lua": "octave_button.lua", "under_name": "octave_grid", "all_children": true},

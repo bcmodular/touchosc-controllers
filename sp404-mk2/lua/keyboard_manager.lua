@@ -12,6 +12,7 @@ local SP404_CONNECTION = { true, false, false, false }
 -- ch10 (0-based); keys may arrive on ch1 or ch2 depending on device mode
 local LAUNCHKEY_PADS_CHANNEL = 9
 local CHROMATIC_KEYS_FALLBACK_HEX = "FF4500FF"
+local SOUNDGEN_KEYS_HEX = "4C00ADFF"
 local SUSTAIN_PEDAL_CC = 64
 
 local SP404_CHROMATIC_CHANNEL = 15 -- ch16
@@ -19,9 +20,7 @@ local SP404_VOCODER_CHANNEL = 10 -- ch11
 
 local FX_RESONATOR = 2
 local FX_HYPER_RESO = 31
-local FX_AUTO_PITCH = 43
 local FX_VOCODER = 44
-local FX_HARMONY = 45
 
 local RESONATOR_CHORD_VALUES = { 0, 9, 17, 25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105, 113, 121 }
 local VOCODER_HARMONY_VALUES = { 0, 13, 26, 39, 51, 64, 77, 90, 102, 115 }
@@ -84,9 +83,14 @@ local CHORD_GRID_MODE_CHORD_PADS = "chord_pads"
 local keyboardAttachedBus = nil
 -- Mutually exclusive with keyboardAttachedBus: SP-404 chromatic playback (MIDI ch16).
 local keyboardChromaticAttached = false
+-- Sound Gen: full-range momentary notes on ch16, all octaves available.
+-- Mutually exclusive with keyboardChromaticAttached and keyboardAttachedBus.
+local keyboardSoundGenAttached = false
 local keyboardSustainDown = false
 local activeNotes = {}
 local deferredNoteOffs = {}
+-- Insertion-order queue of active note keys for Vocoder FIFO voice eviction.
+local activeNoteQueue = {}
 -- UI note numbers held for chromatic / vocoder (max MAX_POLYPHONIC_VOICES).
 local uiActiveNotes = {}
 -- Maps activeNotes key (channel:note) -> UI midi note for sustain / release sync.
@@ -182,14 +186,14 @@ local function vocoderLiveActive(busNum, fxNum)
 end
 
 local function pianoKeysMomentary()
-  if keyboardChromaticAttached then return true end
+  if keyboardChromaticAttached or keyboardSoundGenAttached then return true end
   local busNum = keyboardAttachedBus
   if busNum then return vocoderLiveActive(busNum, getBusFxNum(busNum)) end
   return false
 end
 
 local function sustainTargetChannel()
-  if keyboardChromaticAttached then return SP404_CHROMATIC_CHANNEL end
+  if keyboardChromaticAttached or keyboardSoundGenAttached then return SP404_CHROMATIC_CHANNEL end
   local busNum = keyboardAttachedBus
   if busNum and vocoderLiveActive(busNum, getBusFxNum(busNum)) then
     return SP404_VOCODER_CHANNEL
@@ -227,6 +231,7 @@ local function flushTrackedNotes(reason)
   end
   activeNotes = {}
   deferredNoteOffs = {}
+  activeNoteQueue = {}
   clearUiActiveNotes()
   activeNoteUi = {}
   launchkeyHeldNotes = {}
@@ -234,24 +239,70 @@ local function flushTrackedNotes(reason)
   debugKeyboard("flush tracked notes: " .. tostring(reason))
 end
 
+local function isVocoderLive()
+  return keyboardAttachedBus ~= nil
+    and vocoderLiveActive(keyboardAttachedBus, getBusFxNum(keyboardAttachedBus))
+end
+
 local function canAcceptPolyphonicNote(uiNote, velocity)
   if velocity <= 0 then return true end
+  if keyboardSoundGenAttached then return true end
   if not pianoKeysMomentary() then return true end
+  if isVocoderLive() then return true end  -- Vocoder uses FIFO eviction, not hard cap
   if uiNote == nil then return true end
   if uiActiveNotes[uiNote] then return true end
   return countUiActiveNotes() < MAX_POLYPHONIC_VOICES
 end
 
+-- Evict the oldest active note to make room for a new one (Vocoder FIFO).
+local function evictOldestActiveNote()
+  while #activeNoteQueue > 0 do
+    local oldest = table.remove(activeNoteQueue, 1)
+    if activeNotes[oldest] then
+      sendTrackedNoteOffByKey(oldest)
+      releaseUiForNoteKey(oldest)
+      activeNotes[oldest] = nil
+      deferredNoteOffs[oldest] = nil
+      return true
+    end
+  end
+  return false
+end
+
 local function sendRoutedNote(channel, note, velocity, uiNote)
   local key = noteKey(channel, note)
   if velocity > 0 then
-    if not canAcceptPolyphonicNote(uiNote, velocity) then
+    if keyboardSoundGenAttached and keyboardSustainDown then
+      -- Sound Gen + sustain: discard all held and deferred notes so only the new note sounds.
+      for k, _ in pairs(activeNotes) do
+        sendTrackedNoteOffByKey(k)
+        releaseUiForNoteKey(k)
+      end
+      activeNotes = {}
+      deferredNoteOffs = {}
+      activeNoteQueue = {}
+    elseif isVocoderLive()
+      and not (uiNote ~= nil and uiActiveNotes[uiNote])  -- re-press of held note: no eviction needed
+      and countUiActiveNotes() >= MAX_POLYPHONIC_VOICES then
+      -- Vocoder FIFO: evict oldest sounding note before adding the new one.
+      if evictOldestActiveNote() then
+        refreshPianoKeysFromUiActive()
+      end
+    elseif not canAcceptPolyphonicNote(uiNote, velocity) then
       debugKeyboard(string.format("polyphony full: ignored ui note %s", tostring(uiNote)))
       return false
     end
     sendNoteOn(channel, note, velocity)
+    local isNewNote = not activeNotes[key]
     activeNotes[key] = true
     deferredNoteOffs[key] = nil
+    -- Always move to back of queue: new note appends, re-press removes old position first.
+    if not isNewNote then
+      for i = #activeNoteQueue, 1, -1 do
+        if activeNoteQueue[i] == key then table.remove(activeNoteQueue, i); break end
+      end
+    end
+    activeNoteQueue[#activeNoteQueue + 1] = key
     if pianoKeysMomentary() and uiNote ~= nil then
       activeNoteUi[key] = uiNote
       setUiNoteActive(uiNote, true)
@@ -266,6 +317,13 @@ local function sendRoutedNote(channel, note, velocity, uiNote)
     sendNoteOff(channel, note)
     activeNotes[key] = nil
     deferredNoteOffs[key] = nil
+    -- Remove from FIFO queue so stale entries don't accumulate.
+    for i = #activeNoteQueue, 1, -1 do
+      if activeNoteQueue[i] == key then
+        table.remove(activeNoteQueue, i)
+        break
+      end
+    end
     if pianoKeysMomentary() and uiNote ~= nil then
       activeNoteUi[key] = nil
       setUiNoteActive(uiNote, false)
@@ -294,6 +352,7 @@ local function onSustainChanged(down)
       deferredNoteOffs[key] = nil
       releaseUiForNoteKey(key)
     end
+    activeNoteQueue = {}
     refreshPianoKeysFromUiActive()
   end
 end
@@ -305,8 +364,6 @@ end
 local function supportsKeyboardNoteTuning(fxNum)
   return fxNum == FX_RESONATOR
     or fxNum == FX_HYPER_RESO
-    or fxNum == FX_AUTO_PITCH
-    or fxNum == FX_HARMONY
 end
 
 local function fxSupportsKeyboard(fxNum, busNum)
@@ -319,7 +376,7 @@ local function fxSupportsKeyboard(fxNum, busNum)
 end
 
 local function keyboardIsAttached()
-  return keyboardChromaticAttached or keyboardAttachedBus ~= nil
+  return keyboardChromaticAttached or keyboardSoundGenAttached or keyboardAttachedBus ~= nil
 end
 
 local function parseNotifyBool(value)
@@ -405,7 +462,9 @@ refreshPianoKeysFromUiActive = function()
   for i = 1, #keysList do
     local key = keysList[i]
     local noteNum = tonumber(key.name)
-    key.values.x = (noteNum and uiActiveNotes[noteNum]) and 1 or 0
+    local want = (noteNum and uiActiveNotes[noteNum]) and 1 or 0
+    -- Only write when the value changes to avoid spurious onValueChanged on key nodes.
+    if key.values.x ~= want then key.values.x = want end
   end
   setKeyboardHighlightingFlag(false)
 end
@@ -1053,7 +1112,7 @@ local function syncChordPadLabelsUi(busNum)
   if not keysGroup then return end
   local fxNum = getBusFxNum(busNum)
   local labels = (fxNum == FX_RESONATOR) and RESONATOR_CHORD_LABELS
-    or ((fxNum == FX_VOCODER or fxNum == FX_HARMONY) and VOCODER_CHORD_LABELS)
+    or (fxNum == FX_VOCODER and VOCODER_CHORD_LABELS)
   local chordGrid = keysGroup:findByName("chord_grid", true)
   local labelGrid = keysGroup:findByName("chord_label_grid", true)
 
@@ -1069,7 +1128,7 @@ local function syncChordPadLabelsUi(busNum)
   if chordGrid then chordGrid.tag = "1" end
 
   -- Sync current pad selection from perform fader.
-  local controlName = fxNum == FX_HARMONY and "harmony_fader" or "chord_fader"
+  local controlName = "chord_fader"
   local cc = getPerformControlCc(busNum, controlName)
   if cc ~= nil then
     local padIndex = fxNum == FX_RESONATOR
@@ -1084,7 +1143,7 @@ local function updateKeysGroupChordGridMode()
   local keysGroup = root:findByName("keys_group", true)
   if not keysGroup then return end
   local tag = json.toTable(keysGroup.tag) or {}
-  if keyboardChromaticAttached or not keyboardIsAttached() then
+  if keyboardChromaticAttached or keyboardSoundGenAttached or not keyboardIsAttached() or isVocoderLive() then
     tag.chordGridMode = nil
   elseif getBusFxNum(keyboardAttachedBus) == FX_HYPER_RESO then
     tag.chordGridMode = CHORD_GRID_MODE_HYPER_RESO
@@ -1118,12 +1177,6 @@ local function applyChordPad(busNum, fxNum, padIndex)
     if padIndex > #VOCODER_HARMONY_VALUES then return false end
     applyFaderCc(busNum, "chord_fader", VOCODER_HARMONY_VALUES[padIndex])
     setGridIndex(busNum, "chord_grid", padIndex)
-    syncKeysGroupChordPadSelection(padIndex)
-    return true
-  elseif fxNum == FX_HARMONY then
-    if padIndex > #VOCODER_HARMONY_VALUES then return false end
-    applyFaderCc(busNum, "harmony_fader", VOCODER_HARMONY_VALUES[padIndex])
-    setGridIndex(busNum, "harmony_grid", padIndex)
     syncKeysGroupChordPadSelection(padIndex)
     return true
   end
@@ -1201,9 +1254,6 @@ local function onPerformFaderCc(busNum, controlName, ccValue)
       local padIndex = indexFromDiscreteCcValues(VOCODER_HARMONY_VALUES, ccValue)
       if padIndex then syncKeysGroupChordPadSelection(padIndex) end
     end
-  elseif controlName == "harmony_fader" and fxNum == FX_HARMONY then
-    local padIndex = indexFromDiscreteCcValues(VOCODER_HARMONY_VALUES, ccValue)
-    if padIndex then syncKeysGroupChordPadSelection(padIndex) end
   elseif controlName == "root_fader" and fxNum == FX_RESONATOR then
     syncKeyboardNoteFromPerformFaders(busNum)
   elseif controlName == "note_fader" and fxNum == FX_HYPER_RESO then
@@ -1235,11 +1285,6 @@ local function setTuningFromNote(busNum, fxNum, note)
       return true
     end
     return false
-  elseif fxNum == FX_AUTO_PITCH or fxNum == FX_HARMONY then
-    -- KEY_NOTE_VALUES defined here; only used in this branch.
-    local KEY_NOTE_VALUES = { 0, 10, 20, 30, 40, 49, 59, 69, 79, 89, 99, 108, 118 }
-    applyFaderCc(busNum, "key_fader", KEY_NOTE_VALUES[noteClass + 1])
-    return true
   end
   return false
 end
@@ -1264,15 +1309,22 @@ end
 local function applyPianoKeyPressMode()
   local _keysNode, keysList = getPianoKeysList()
   if not keysList then return end
-  local momentary = pianoKeysMomentary()
   setKeyboardHighlightingFlag(true)
   for i = 1, #keysList do
     local key = keysList[i]
-    if momentary then
+    if isVocoderLive() then
+      -- Latch: toggle on press, no release event. Note-off fires when lit key is pressed
+      -- (x→0, velocity=0) since pianoKeysMomentary() is true for Vocoder.
+      key.properties.buttonType = ButtonType.TOGGLE_PRESS
+      key.properties.press = true
+      key.properties.release = false
+    elseif pianoKeysMomentary() then
+      -- Momentary: note plays while key is held (Chromatic, Sound Gen).
       key.properties.buttonType = ButtonType.MOMENTARY
       key.properties.press = true
       key.properties.release = true
     else
+      -- Toggle: select a single key for tuning (Resonator, Hyper Reso).
       key.properties.buttonType = ButtonType.TOGGLE_PRESS
       key.properties.press = true
       key.properties.release = false
@@ -1286,6 +1338,7 @@ local function updateKeyboardRootTag()
   local tag = json.toTable(root.tag) or {}
   tag.keyboardAttachedBus = keyboardAttachedBus
   tag.keyboardChromaticAttached = keyboardChromaticAttached
+  tag.keyboardSoundGenAttached = keyboardSoundGenAttached
   tag.keyboardKeysMomentary = pianoKeysMomentary()
   tag.keyboardSustainDown = keyboardSustainDown
   local busNum = keyboardAttachedBus
@@ -1311,10 +1364,28 @@ local function refreshChromaticButton()
   if label then label.visible = true end
 end
 
+local function refreshSoundGenButton()
+  local button = root:findByName("soundgen_keyboard_button", true)
+  local label = root:findByName("soundgen_keyboard_label", true)
+  if button then
+    local want = keyboardSoundGenAttached and 1 or 0
+    if button.values.x ~= want then
+      setKeyboardHighlightingFlag(true)
+      button.values.x = want
+      setKeyboardHighlightingFlag(false)
+    end
+    button.visible = true
+  end
+  if label then label.visible = true end
+end
+
 local function refreshKeysGroupChordVisibility()
   local keysGroup = root:findByName("keys_group", true)
   if not keysGroup then return end
-  local showChords = keyboardIsAttached() and not keyboardChromaticAttached
+  local showChords = keyboardIsAttached()
+    and not keyboardChromaticAttached
+    and not keyboardSoundGenAttached
+    and not isVocoderLive()
   for _, gridName in ipairs({ "chord_grid", "chord_label_grid" }) do
     local grid = keysGroup:findByName(gridName, true)
     if grid then grid.visible = showChords end
@@ -1333,7 +1404,9 @@ end
 local function refreshKeysGroupTheme()
   local keysGroup = root:findByName("keys_group", true)
   if not keysGroup or not keyboardIsAttached() then return end
-  if keyboardChromaticAttached then
+  if keyboardSoundGenAttached then
+    keysGroup.color = Color.fromHexString(SOUNDGEN_KEYS_HEX)
+  elseif keyboardChromaticAttached then
     local chromaticButton = root:findByName("chromatic_keyboard_button", true)
     keysGroup.color = (chromaticButton and chromaticButton.color)
       or Color.fromHexString(CHROMATIC_KEYS_FALLBACK_HEX)
@@ -1369,6 +1442,7 @@ end
 
 local function refreshKeyboardUi()
   refreshChromaticButton()
+  refreshSoundGenButton()
   updateKeysGroupChordGridMode()
   refreshKeysGroupVisibility()
   refreshKeyboardGrabButtons()
@@ -1379,7 +1453,7 @@ local function refreshKeyboardUi()
   updateKeyboardRootTag()
   refreshKeysNoteVisibility()
   local busNum = keyboardAttachedBus
-  if busNum and keyboardIsAttached() and not keyboardChromaticAttached then
+  if busNum and keyboardIsAttached() and not keyboardChromaticAttached and not keyboardSoundGenAttached then
     syncKeysGroupChordPadUi(busNum)
     syncKeyboardNoteFromPerformFaders(busNum)
   end
@@ -1397,7 +1471,26 @@ local function setChromaticAttached()
   if keyboardChromaticAttached then return end
   flushTrackedNotes("attach_chromatic")
   keyboardAttachedBus = nil
+  keyboardSoundGenAttached = false
   keyboardChromaticAttached = true
+  onSustainChanged(false)
+  refreshKeyboardUi()
+end
+
+local function detachSoundGen()
+  if not keyboardSoundGenAttached then return end
+  flushTrackedNotes("detach_soundgen")
+  keyboardSoundGenAttached = false
+  onSustainChanged(false)
+  refreshKeyboardUi()
+end
+
+local function setSoundGenAttached()
+  if keyboardSoundGenAttached then return end
+  flushTrackedNotes("attach_soundgen")
+  keyboardAttachedBus = nil
+  keyboardChromaticAttached = false
+  keyboardSoundGenAttached = true
   onSustainChanged(false)
   refreshKeyboardUi()
 end
@@ -1408,11 +1501,12 @@ local function setAttachedBus(busNum)
     debugKeyboard(string.format("setAttachedBus: bus %d fx %d does not support keyboard", busNum, fxNum))
     return
   end
-  if keyboardAttachedBus == busNum and not keyboardChromaticAttached then
+  if keyboardAttachedBus == busNum and not keyboardChromaticAttached and not keyboardSoundGenAttached then
     refreshKeyboardUi(); return
   end
   flushTrackedNotes("switch_bus")
   keyboardChromaticAttached = false
+  keyboardSoundGenAttached = false
   keyboardAttachedBus = busNum
   onSustainChanged(false)
   updateKeysGroupChordGridMode()
@@ -1451,6 +1545,14 @@ local function routeKeyboardNote(note, velocity)
       "routeKeyboardNote: chromatic note=%s vel=%s -> %d",
       tostring(note), tostring(velocity), chromaticNote))
     return sendRoutedNote(SP404_CHROMATIC_CHANNEL, chromaticNote, velocity, uiNote)
+  end
+
+  if keyboardSoundGenAttached then
+    local uiNote = clamp(note, 0, 127)
+    debugKeyboard(string.format(
+      "routeKeyboardNote: soundgen note=%s vel=%s -> %d",
+      tostring(note), tostring(velocity), uiNote))
+    return sendRoutedNote(SP404_CHROMATIC_CHANNEL, uiNote, velocity, uiNote)
   end
 
   local busNum = keyboardAttachedBus
@@ -1590,6 +1692,10 @@ function handleKeyboardNotify(key, value)
     if parseNotifyBool(value) then setChromaticAttached() end
   elseif key == "keyboard_detach_chromatic" then
     detachChromatic()
+  elseif key == "keyboard_attach_soundgen" then
+    if parseNotifyBool(value) then setSoundGenAttached() end
+  elseif key == "keyboard_detach_soundgen" then
+    detachSoundGen()
   elseif key == "keyboard_bus_fx_changed" then
     onBusFxChanged(value)
   elseif key == "keyboard_panic" then
@@ -1660,14 +1766,21 @@ function initKeyboardManager()
   keyboardAttachedBus = tonumber(tag.keyboardAttachedBus)
   keyboardChromaticAttached = tag.keyboardChromaticAttached == true
     or (tag.keyboardChromaticEnabled == true and keyboardAttachedBus == nil)
+  keyboardSoundGenAttached = tag.keyboardSoundGenAttached == true
   keyboardSustainDown = false
   activeNotes = {}
   deferredNoteOffs = {}
+  activeNoteQueue = {}
   clearUiActiveNotes()
   activeNoteUi = {}
   launchkeyHeldNotes = {}
-  if keyboardAttachedBus and keyboardChromaticAttached then
+  -- Enforce mutual exclusivity.
+  if keyboardAttachedBus and (keyboardChromaticAttached or keyboardSoundGenAttached) then
     keyboardChromaticAttached = false
+    keyboardSoundGenAttached = false
+  end
+  if keyboardChromaticAttached and keyboardSoundGenAttached then
+    keyboardSoundGenAttached = false
   end
   if keyboardAttachedBus then
     if not fxSupportsKeyboard(getBusFxNum(keyboardAttachedBus), keyboardAttachedBus) then
