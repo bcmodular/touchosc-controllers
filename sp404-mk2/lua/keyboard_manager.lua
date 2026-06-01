@@ -8,6 +8,8 @@ local KEYBOARD_DEBUG = false
 
 local LAUNCHKEY_CONNECTION_INDEX = 4
 local SP404_CONNECTION = { true, false, false, false }
+-- Send to Launchkey MIDI port (connection 4) for encoder position sync.
+local LAUNCHKEY_MIDI_OUT_CONNECTION = { false, false, false, true }
 
 -- ch10 (0-based); keys may arrive on ch1 or ch2 depending on device mode
 local LAUNCHKEY_PADS_CHANNEL = 9
@@ -79,6 +81,14 @@ local HYPER_RESO_PAD_LABELS = {
 }
 local CHORD_GRID_MODE_HYPER_RESO = "hyper_reso_scale"
 local CHORD_GRID_MODE_CHORD_PADS = "chord_pads"
+
+-- Launchkey encoders: CCs 21–26 on Channel 1 (standalone custom mode).
+-- Maps encoder index (1–6) to the control name for each keyboard-mode FX.
+local ENCODER_CONTROL_NAMES = {
+  [FX_HYPER_RESO] = { "note_fader", "spread_fader", "character_fader", "scale_fader", "feedback_fader", "env_mod_fader" },
+  [FX_RESONATOR]  = { "root_fader", "bright_fader", "feedback_fader", "chord_fader", "panning_fader", "env_mod_fader" },
+  [FX_VOCODER]    = { "note_fader", "formant_fader", "tone_fader", "scale_fader", "chord_fader", "balance_fader" },
+}
 
 -- Pitch classes that correspond to black piano keys (sharps/flats).
 local HYPER_RESO_BLACK_PC = { [1]=true, [3]=true, [6]=true, [8]=true, [10]=true }
@@ -817,6 +827,20 @@ getPerformControlCc = function(busNum, controlName)
   return math.floor(control.values.x * 127 + 0.5)
 end
 
+-- Send the current CC value for each encoder-mapped parameter to the Launchkey
+-- (CCs 21–26 on connection 4) so encoders know their starting position on mode switch.
+local function syncEncoderPositionsToLaunchkey(busNum)
+  local fxNum = getBusFxNum(busNum)
+  local controlNames = ENCODER_CONTROL_NAMES[fxNum]
+  if not controlNames then return end
+  for i = 1, 6 do
+    local cc = getPerformControlCc(busNum, controlNames[i])
+    if cc then
+      sendMIDI({ MIDIMessageType.CONTROLCHANGE, 20 + i, cc }, LAUNCHKEY_MIDI_OUT_CONNECTION)
+    end
+  end
+end
+
 local function refreshOctaveControlsForMode()
   local keysGroup = root:findByName("keys_group", true)
   if not keysGroup then return end
@@ -1275,6 +1299,7 @@ syncKeyboardNoteFromPerformFaders = function(busNum)
   end
 end
 
+
 local function onPerformFaderCc(busNum, controlName, ccValue)
   busNum = tonumber(busNum)
   ccValue = tonumber(ccValue)
@@ -1301,6 +1326,19 @@ local function onPerformFaderCc(busNum, controlName, ccValue)
     syncKeyboardNoteFromPerformFaders(busNum)
   elseif controlName == "note_fader" and fxNum == FX_HYPER_RESO then
     syncKeyboardNoteFromPerformFaders(busNum)
+  end
+  -- Sync changed value back to the corresponding Launchkey encoder.
+  -- Covers preset recall, scene load, BCR, and direct fader drag — all paths
+  -- that emit keyboard_perform_cc.
+  local controlNames = ENCODER_CONTROL_NAMES[fxNum]
+  if controlNames then
+    for i = 1, 6 do
+      if controlNames[i] == controlName then
+        sendMIDI({ MIDIMessageType.CONTROLCHANGE, 20 + i, math.floor(ccValue + 0.5) },
+          LAUNCHKEY_MIDI_OUT_CONNECTION)
+        break
+      end
+    end
   end
 end
 
@@ -1495,12 +1533,19 @@ local function refreshKeyboardUi()
   applyKeysGroupChordPadButtonMode()
   updateKeyboardRootTag()
   refreshKeysNoteVisibility()
-  -- Switch Launchkey to the appropriate drum custom mode.
+  -- Switch Launchkey pad + encoder custom modes.
+  -- Custom 1 = Hyper Reso, Custom 2 = Resonator, Custom 3 = Vocoder.
   local chordMode = getKeysGroupChordGridMode()
+  local attachedFx = keyboardAttachedBus and getBusFxNum(keyboardAttachedBus) or 0
   if chordMode == CHORD_GRID_MODE_HYPER_RESO then
-    switchLaunchkeyDrumCustomMode(1) -- Drum Custom 1 = Hyper Reso layout
+    switchLaunchkeyDrumCustomMode(1)
+    switchLaunchkeyEncoderCustomMode(1)
+  elseif chordMode == CHORD_GRID_MODE_CHORD_PADS and attachedFx == FX_VOCODER then
+    switchLaunchkeyDrumCustomMode(3)
+    switchLaunchkeyEncoderCustomMode(3)
   elseif chordMode == CHORD_GRID_MODE_CHORD_PADS then
-    switchLaunchkeyDrumCustomMode(2) -- Drum Custom 2 = Resonator layout
+    switchLaunchkeyDrumCustomMode(2)
+    switchLaunchkeyEncoderCustomMode(2)
   else
     resetLaunchkeyDrumMode()
   end
@@ -1508,6 +1553,7 @@ local function refreshKeyboardUi()
   if busNum and keyboardIsAttached() and not keyboardChromaticAttached and not keyboardSoundGenAttached then
     syncKeysGroupChordPadUi(busNum)
     syncKeyboardNoteFromPerformFaders(busNum)
+    syncEncoderPositionsToLaunchkey(busNum)
   end
 end
 
@@ -1681,6 +1727,21 @@ local function routePadNote(note, velocity)
   handleChordPadPress(padIndex, true)
 end
 
+-- Handle a Launchkey encoder CC (CCs 21–26, Channel 1, standalone custom mode).
+-- Maps the encoder to the current FX's Nth parameter and applies the CC value.
+local function handleEncoderCc(launchkeyCc, ccValue)
+  local busNum = keyboardAttachedBus
+  if not busNum then return false end
+  local fxNum = getBusFxNum(busNum)
+  local controlNames = ENCODER_CONTROL_NAMES[fxNum]
+  if not controlNames then return false end
+  local encoderIndex = launchkeyCc - 20  -- CC21→1, CC22→2, …, CC26→6
+  local controlName = controlNames[encoderIndex]
+  if not controlName then return false end
+  applyFaderCc(busNum, controlName, ccValue)
+  return true
+end
+
 -- Public entry points — assigned as globals so root.lua can call them by name.
 
 function handleKeyboardMidi(message, connections)
@@ -1712,6 +1773,12 @@ function handleKeyboardMidi(message, connections)
       end
       return true
     end
+  end
+
+  -- Launchkey encoders: CCs 21–26 on Channel 1 (0-based ch0), standalone custom mode.
+  if msgType == MIDIMessageType.CONTROLCHANGE and channel == 0
+    and data1 >= 21 and data1 <= 26 then
+    return handleEncoderCc(data1, data2)
   end
 
   if msgType == MIDIMessageType.CONTROLCHANGE
