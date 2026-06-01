@@ -1,28 +1,21 @@
--- launchkey_led.lua — Launchkey MK4 pad mode control (included into root.lua).
+-- launchkey_led.lua — Launchkey MK4 pad mode switching (included into root.lua).
 --
--- Pad colors are configured in the Novation Connections app as custom drum modes.
--- TouchOSC enables DAW mode and switches to the appropriate custom mode.
+-- Pad colors are configured in the Novation Connections app as standalone drum
+-- custom modes. TouchOSC switches between them via MIDI on the DAW port.
 --
--- Protocol (Launchkey MK4 Programmer Reference Guide v2):
---   Enable DAW mode:  9F 0C 7F  (Note-On ch16, note 12, vel 127)  → DAW port
---   Disable DAW mode: 9F 0C 00                                     → DAW port
---   Switch pad mode:  B6 1D <mode>  (CC ch7, CC 29)                → DAW port
---     mode 05h = Custom Mode 1  (Hyper Reso layout)
---     mode 06h = Custom Mode 2  (Resonator layout)
---
--- Connection 5 = Launchkey DAW MIDI port (second USB interface).
+-- Pad mode select: B6 1D <mode>  (CC ch7, CC 29)  → DAW port (connection 5)
+--   mode 01h = Layout (default drum mode)
+--   mode 05h = Custom Mode 1  (Hyper Reso layout)
+--   mode 06h = Custom Mode 2  (Resonator layout)
 
 local LAUNCHKEY_DAW_CONNECTION = { false, false, false, false, true } -- connection 5
 
-function enableLaunchkeyDawMode()
-  sendMIDI({ 0x9F, 0x0C, 0x7F }, LAUNCHKEY_DAW_CONNECTION)
-end
-
-function disableLaunchkeyDawMode()
-  sendMIDI({ 0x9F, 0x0C, 0x00 }, LAUNCHKEY_DAW_CONNECTION)
-end
-
--- Switch to a Launchkey pad custom mode (1-indexed: 1 = Custom Mode 1, etc.).
+-- Switch to a Launchkey drum custom mode (1-indexed).
 function switchLaunchkeyDrumCustomMode(modeNumber)
   sendMIDI({ 0xB6, 0x1D, 0x04 + modeNumber }, LAUNCHKEY_DAW_CONNECTION)
+end
+
+-- Return to the default standalone drum layout.
+function resetLaunchkeyDrumMode()
+  sendMIDI({ 0xB6, 0x1D, 0x01 }, LAUNCHKEY_DAW_CONNECTION)
 end

@@ -1495,16 +1495,14 @@ local function refreshKeyboardUi()
   applyKeysGroupChordPadButtonMode()
   updateKeyboardRootTag()
   refreshKeysNoteVisibility()
-  -- Switch Launchkey to the appropriate drum custom mode, or exit DAW mode.
+  -- Switch Launchkey to the appropriate drum custom mode.
   local chordMode = getKeysGroupChordGridMode()
   if chordMode == CHORD_GRID_MODE_HYPER_RESO then
-    enableLaunchkeyDawMode()
     switchLaunchkeyDrumCustomMode(1) -- Drum Custom 1 = Hyper Reso layout
   elseif chordMode == CHORD_GRID_MODE_CHORD_PADS then
-    enableLaunchkeyDawMode()
     switchLaunchkeyDrumCustomMode(2) -- Drum Custom 2 = Resonator layout
   else
-    disableLaunchkeyDawMode()
+    resetLaunchkeyDrumMode()
   end
   local busNum = keyboardAttachedBus
   if busNum and keyboardIsAttached() and not keyboardChromaticAttached and not keyboardSoundGenAttached then
