@@ -97,7 +97,7 @@ local function hyperResoPadColor(role)
   end
 end
 
--- RGB values for Launchkey pad LEDs in Hyper Reso mode.
+-- RGB values for Launchkey pad LEDs in Hyper Reso mode (defined here; used later).
 -- Colors mirror hyperResoPadColor(). R/G/B range 0–127 (7-bit MIDI); test with 127 max.
 local LAUNCHKEY_HYPER_RESO_COLORS = {
   major = { full={127, 70,  0},   dim={30, 17, 0}   }, -- gold
@@ -122,25 +122,7 @@ local function launchkeyHyperResoRgb(role, selected)
   return rgb[1], rgb[2], rgb[3]
 end
 
-local function syncLaunchkeyHyperResoPadLeds(busNum)
-  local rootPc, isMinor = getHyperResoBusState(busNum)
-  for padIndex = 1, 16 do
-    local role = HYPER_RESO_PAD_MAP[padIndex]
-    -- LAUNCHKEY_CHORD_PAD_TO_NOTE is defined in launchkey_led.lua (module-level global).
-    local note = LAUNCHKEY_CHORD_PAD_TO_NOTE[padIndex]
-    if note then
-      if role == "unused" then
-        sendLaunchkeyPadOff(note)
-      else
-        local on = (role == "major" and not isMinor)
-          or (role == "minor" and isMinor)
-          or (type(role) == "number" and role == rootPc)
-        local r, g, b = launchkeyHyperResoRgb(role, on)
-        sendLaunchkeyPadRgb(note, r, g, b)
-      end
-    end
-  end
-end
+-- syncLaunchkeyHyperResoPadLeds is defined after getHyperResoBusState (see below).
 
 local keyboardAttachedBus = nil
 -- Mutually exclusive with keyboardAttachedBus: SP-404 chromatic playback (MIDI ch16).
@@ -1070,6 +1052,25 @@ local function getHyperResoBusState(busNum)
   local busGroup = getBusGroup(busNum)
   local tag = busGroup and json.toTable(busGroup.tag) or {}
   return tonumber(tag.hyperResoRoot) or 0, tag.hyperResoMinor == true
+end
+
+local function syncLaunchkeyHyperResoPadLeds(busNum)
+  local rootPc, isMinor = getHyperResoBusState(busNum)
+  for padIndex = 1, 16 do
+    local role = HYPER_RESO_PAD_MAP[padIndex]
+    local note = LAUNCHKEY_CHORD_PAD_TO_NOTE[padIndex]
+    if note then
+      if role == "unused" then
+        sendLaunchkeyPadOff(note)
+      else
+        local on = (role == "major" and not isMinor)
+          or (role == "minor" and isMinor)
+          or (type(role) == "number" and role == rootPc)
+        local r, g, b = launchkeyHyperResoRgb(role, on)
+        sendLaunchkeyPadRgb(note, r, g, b)
+      end
+    end
+  end
 end
 
 local function setHyperResoBusState(busNum, rootPc, isMinor)
