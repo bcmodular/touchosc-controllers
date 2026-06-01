@@ -3,7 +3,7 @@
   "output": "SP404.tosc",
   "lua_dir": "lua",
   "mappings": [
-    {"lua": "root.lua", "node_id": "root", "include": ["launchpad_led.lua", "sp404_effect_on_values.lua", "launchpad_fx_chooser.lua", "keyboard_manager.lua"]},
+    {"lua": "root.lua", "node_id": "root", "include": ["launchpad_led.lua", "launchkey_led.lua", "sp404_effect_on_values.lua", "launchpad_fx_chooser.lua", "keyboard_manager.lua"]},
     {
       "lua": "bus_group_instance.lua",
       "node_names": ["bus1_group", "bus2_group", "bus3_group", "bus4_group", "bus5_group"],

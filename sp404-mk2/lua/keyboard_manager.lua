@@ -80,6 +80,68 @@ local HYPER_RESO_PAD_LABELS = {
 local CHORD_GRID_MODE_HYPER_RESO = "hyper_reso_scale"
 local CHORD_GRID_MODE_CHORD_PADS = "chord_pads"
 
+-- Pitch classes that correspond to black piano keys (sharps/flats).
+local HYPER_RESO_BLACK_PC = { [1]=true, [3]=true, [6]=true, [8]=true, [10]=true }
+
+local function hyperResoPadColor(role)
+  if role == "major" then
+    return Color.fromHexString("FFB300FF")   -- gold
+  elseif role == "minor" then
+    return Color.fromHexString("0066FFFF")   -- blue
+  elseif type(role) == "number" then
+    if HYPER_RESO_BLACK_PC[role] then
+      return Color.fromHexString("4C00ADFF") -- dark purple (black keys)
+    else
+      return Color.fromHexString("FFFFFFFF") -- white (natural keys)
+    end
+  end
+end
+
+-- RGB values for Launchkey pad LEDs in Hyper Reso mode.
+-- Colors mirror hyperResoPadColor(). R/G/B range 0–127 (7-bit MIDI); test with 127 max.
+local LAUNCHKEY_HYPER_RESO_COLORS = {
+  major = { full={127, 70,  0},   dim={30, 17, 0}   }, -- gold
+  minor = { full={0,   51,  127}, dim={0,  13, 30}  }, -- blue
+  white = { full={127, 127, 127}, dim={20, 20, 20}  }, -- white
+  black = { full={38,  0,   86},  dim={10, 0,  20}  }, -- dark purple
+}
+
+local function launchkeyHyperResoRgb(role, selected)
+  local entry
+  if role == "major" then
+    entry = LAUNCHKEY_HYPER_RESO_COLORS.major
+  elseif role == "minor" then
+    entry = LAUNCHKEY_HYPER_RESO_COLORS.minor
+  elseif type(role) == "number" then
+    entry = HYPER_RESO_BLACK_PC[role]
+      and LAUNCHKEY_HYPER_RESO_COLORS.black
+      or  LAUNCHKEY_HYPER_RESO_COLORS.white
+  end
+  if not entry then return 0, 0, 0 end
+  local rgb = selected and entry.full or entry.dim
+  return rgb[1], rgb[2], rgb[3]
+end
+
+local function syncLaunchkeyHyperResoPadLeds(busNum)
+  local rootPc, isMinor = getHyperResoBusState(busNum)
+  for padIndex = 1, 16 do
+    local role = HYPER_RESO_PAD_MAP[padIndex]
+    -- LAUNCHKEY_CHORD_PAD_TO_NOTE is defined in launchkey_led.lua (module-level global).
+    local note = LAUNCHKEY_CHORD_PAD_TO_NOTE[padIndex]
+    if note then
+      if role == "unused" then
+        sendLaunchkeyPadOff(note)
+      else
+        local on = (role == "major" and not isMinor)
+          or (role == "minor" and isMinor)
+          or (type(role) == "number" and role == rootPc)
+        local r, g, b = launchkeyHyperResoRgb(role, on)
+        sendLaunchkeyPadRgb(note, r, g, b)
+      end
+    end
+  end
+end
+
 local keyboardAttachedBus = nil
 -- Mutually exclusive with keyboardAttachedBus: SP-404 chromatic playback (MIDI ch16).
 local keyboardChromaticAttached = false
@@ -1060,10 +1122,16 @@ local function syncHyperResoScalePadUi(busNum)
           or (role == "minor" and isMinor)
           or (type(role) == "number" and role == rootPc)
         button.values.x = on and 1 or 0
+        local padColor = hyperResoPadColor(role)
+        if padColor then button.color = padColor end
       end
     end
   end
   setKeyboardHighlightingFlag(false)
+  -- Sync Launchkey pad LEDs if keyboard is attached.
+  if keyboardIsAttached() then
+    syncLaunchkeyHyperResoPadLeds(busNum)
+  end
 end
 
 local function ensureHyperResoScaleDefaults(busNum)
@@ -1456,6 +1524,10 @@ local function refreshKeyboardUi()
   if busNum and keyboardIsAttached() and not keyboardChromaticAttached and not keyboardSoundGenAttached then
     syncKeysGroupChordPadUi(busNum)
     syncKeyboardNoteFromPerformFaders(busNum)
+  end
+  -- Clear Launchkey pad LEDs when not in Hyper Reso keyboard mode.
+  if getKeysGroupChordGridMode() ~= CHORD_GRID_MODE_HYPER_RESO then
+    clearLaunchkeyPadLeds()
   end
 end
 
