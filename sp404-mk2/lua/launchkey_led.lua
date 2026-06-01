@@ -11,11 +11,14 @@
 local LAUNCHKEY_DAW_CONNECTION = { false, false, false, false, true } -- connection 5
 
 -- Switch to a Launchkey drum custom mode (1-indexed).
+-- Requires feature controls enabled first (9F 0B 7F) in standalone mode.
 function switchLaunchkeyDrumCustomMode(modeNumber)
+  sendMIDI({ 0x9F, 0x0B, 0x7F }, LAUNCHKEY_DAW_CONNECTION) -- enable feature controls
   sendMIDI({ 0xB6, 0x1D, 0x04 + modeNumber }, LAUNCHKEY_DAW_CONNECTION)
 end
 
 -- Return to the default standalone drum layout.
 function resetLaunchkeyDrumMode()
+  sendMIDI({ 0x9F, 0x0B, 0x7F }, LAUNCHKEY_DAW_CONNECTION) -- enable feature controls
   sendMIDI({ 0xB6, 0x1D, 0x01 }, LAUNCHKEY_DAW_CONNECTION)
 end
