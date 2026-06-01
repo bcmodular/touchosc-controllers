@@ -97,29 +97,29 @@ local function hyperResoPadColor(role)
   end
 end
 
--- RGB values for Launchkey pad LEDs in Hyper Reso mode (defined here; used later).
--- Colors mirror hyperResoPadColor(). R/G/B range 0–127 (7-bit MIDI); test with 127 max.
-local LAUNCHKEY_HYPER_RESO_COLORS = {
-  major = { full={127, 70,  0},   dim={30, 17, 0}   }, -- gold
-  minor = { full={0,   51,  127}, dim={0,  13, 30}  }, -- blue
-  white = { full={127, 127, 127}, dim={20, 20, 20}  }, -- white
-  black = { full={38,  0,   86},  dim={10, 0,  20}  }, -- dark purple
+-- Novation palette indices for Launchkey pad LEDs in Hyper Reso mode.
+-- Mirrors hyperResoPadColor() colors. Selected = full brightness, unselected = dim.
+-- Exact indices TBD — verify against physical device; adjust if colors look wrong.
+local LAUNCHKEY_HYPER_RESO_PALETTE = {
+  major = { full=60,  dim=10  }, -- gold / amber
+  minor = { full=33,  dim=18  }, -- blue
+  white = { full=3,   dim=1   }, -- white
+  black = { full=41,  dim=19  }, -- purple
 }
 
-local function launchkeyHyperResoRgb(role, selected)
+local function launchkeyHyperResoPalette(role, selected)
   local entry
   if role == "major" then
-    entry = LAUNCHKEY_HYPER_RESO_COLORS.major
+    entry = LAUNCHKEY_HYPER_RESO_PALETTE.major
   elseif role == "minor" then
-    entry = LAUNCHKEY_HYPER_RESO_COLORS.minor
+    entry = LAUNCHKEY_HYPER_RESO_PALETTE.minor
   elseif type(role) == "number" then
     entry = HYPER_RESO_BLACK_PC[role]
-      and LAUNCHKEY_HYPER_RESO_COLORS.black
-      or  LAUNCHKEY_HYPER_RESO_COLORS.white
+      and LAUNCHKEY_HYPER_RESO_PALETTE.black
+      or  LAUNCHKEY_HYPER_RESO_PALETTE.white
   end
-  if not entry then return 0, 0, 0 end
-  local rgb = selected and entry.full or entry.dim
-  return rgb[1], rgb[2], rgb[3]
+  if not entry then return 0 end
+  return selected and entry.full or entry.dim
 end
 
 -- syncLaunchkeyHyperResoPadLeds is defined after getHyperResoBusState (see below).
@@ -1076,8 +1076,8 @@ local function syncLaunchkeyHyperResoPadLeds(busNum)
         local on = (role == "major" and not isMinor)
           or (role == "minor" and isMinor)
           or (type(role) == "number" and role == rootPc)
-        local r, g, b = launchkeyHyperResoRgb(role, on)
-        sendLaunchkeyPadRgb(note, r, g, b)
+        local colorIndex = launchkeyHyperResoPalette(role, on)
+        sendLaunchkeyPadPalette(note, colorIndex)
       end
     end
   end
@@ -1176,6 +1176,17 @@ local function syncHyperResoScaleFromPerformFader(busNum)
   syncHyperResoScalePadUi(busNum)
 end
 
+-- Resonator pad colors by harmonic quality (pads 1-4 = perfect, 5-10 = minor, 11-16 = major).
+local function resonatorPadColor(padIndex)
+  if padIndex <= 4 then
+    return Color.fromHexString("FFFFFFFF")   -- white (perfect intervals)
+  elseif padIndex <= 10 then
+    return Color.fromHexString("0066FFFF")   -- blue (minor)
+  else
+    return Color.fromHexString("FFB300FF")   -- gold (major)
+  end
+end
+
 local function syncChordPadLabelsUi(busNum)
   -- Labels defined here since they're only needed in this function.
   local RESONATOR_CHORD_LABELS = {
@@ -1198,7 +1209,15 @@ local function syncChordPadLabelsUi(busNum)
   setKeyboardHighlightingFlag(true)
   for padIndex = 1, 16 do
     local button = chordGrid and chordGrid.children[tostring(padIndex)]
-    if button then button.visible = true end
+    if button then
+      button.visible = true
+      -- Set per-pad color for Resonator; reset to bus accent for others.
+      if fxNum == FX_RESONATOR then
+        button.color = resonatorPadColor(padIndex)
+      else
+        button.color = Color.fromHexString(getBusAccentHex(busNum))
+      end
+    end
     local label = labelGrid and labelGrid.children[tostring(padIndex)]
     if label then
       label.values.text = (labels and labels[padIndex]) or tostring(padIndex)
