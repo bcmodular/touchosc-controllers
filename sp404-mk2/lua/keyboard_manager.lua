@@ -97,29 +97,30 @@ local function hyperResoPadColor(role)
   end
 end
 
--- Novation palette indices for Launchkey pad LEDs in Hyper Reso mode.
--- Mirrors hyperResoPadColor() colors. Selected = full brightness, unselected = dim.
--- Exact indices TBD — verify against physical device; adjust if colors look wrong.
-local LAUNCHKEY_HYPER_RESO_PALETTE = {
-  major = { full=60,  dim=10  }, -- gold / amber
-  minor = { full=33,  dim=18  }, -- blue
-  white = { full=3,   dim=1   }, -- white
-  black = { full=41,  dim=19  }, -- purple
+-- RGB values for Launchkey pad LEDs in Hyper Reso mode.
+-- Mirrors hyperResoPadColor(). Selected = full brightness, unselected = dim.
+-- R/G/B range 0–127 (7-bit MIDI). Adjust if colors look wrong on device.
+local LAUNCHKEY_HYPER_RESO_COLORS = {
+  major = { full={127, 70,  0},   dim={30, 17, 0}   }, -- gold
+  minor = { full={0,   51,  127}, dim={0,  13, 30}  }, -- blue
+  white = { full={127, 127, 127}, dim={20, 20, 20}  }, -- white
+  black = { full={38,  0,   86},  dim={10, 0,  20}  }, -- dark purple
 }
 
-local function launchkeyHyperResoPalette(role, selected)
+local function launchkeyHyperResoRgb(role, selected)
   local entry
   if role == "major" then
-    entry = LAUNCHKEY_HYPER_RESO_PALETTE.major
+    entry = LAUNCHKEY_HYPER_RESO_COLORS.major
   elseif role == "minor" then
-    entry = LAUNCHKEY_HYPER_RESO_PALETTE.minor
+    entry = LAUNCHKEY_HYPER_RESO_COLORS.minor
   elseif type(role) == "number" then
     entry = HYPER_RESO_BLACK_PC[role]
-      and LAUNCHKEY_HYPER_RESO_PALETTE.black
-      or  LAUNCHKEY_HYPER_RESO_PALETTE.white
+      and LAUNCHKEY_HYPER_RESO_COLORS.black
+      or  LAUNCHKEY_HYPER_RESO_COLORS.white
   end
-  if not entry then return 0 end
-  return selected and entry.full or entry.dim
+  if not entry then return 0, 0, 0 end
+  local rgb = selected and entry.full or entry.dim
+  return rgb[1], rgb[2], rgb[3]
 end
 
 -- syncLaunchkeyHyperResoPadLeds is defined after getHyperResoBusState (see below).
@@ -1076,8 +1077,8 @@ local function syncLaunchkeyHyperResoPadLeds(busNum)
         local on = (role == "major" and not isMinor)
           or (role == "minor" and isMinor)
           or (type(role) == "number" and role == rootPc)
-        local colorIndex = launchkeyHyperResoPalette(role, on)
-        sendLaunchkeyPadPalette(note, colorIndex)
+        local r, g, b = launchkeyHyperResoRgb(role, on)
+        sendLaunchkeyPadRgb(note, r, g, b)
       end
     end
   end

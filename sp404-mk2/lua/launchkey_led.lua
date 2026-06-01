@@ -19,17 +19,7 @@
 
 local LAUNCHKEY_LED_CONNECTION = { false, false, false, true } -- connection 4
 
--- Send a palette color to a pad LED via Note-On on channel 1.
--- colorIndex: 0 = off, see Novation palette for values.
-function sendLaunchkeyPadPalette(padNote, colorIndex)
-  sendMIDI({ 0x90, padNote, colorIndex }, LAUNCHKEY_LED_CONNECTION)
-end
-
-function sendLaunchkeyPadOff(padNote)
-  sendLaunchkeyPadPalette(padNote, 0)
-end
-
--- RGB SysEx alternative (kept for DAW mode testing).
+-- Send an RGB color to a pad LED via SysEx.
 function sendLaunchkeyPadRgb(padNote, r, g, b)
   sendMIDI({
     0xF0, 0x00, 0x20, 0x29, 0x02, 0x14, 0x01, 0x43,
@@ -39,6 +29,10 @@ function sendLaunchkeyPadRgb(padNote, r, g, b)
     math.max(0, math.min(127, b)),
     0xF7,
   }, LAUNCHKEY_LED_CONNECTION)
+end
+
+function sendLaunchkeyPadOff(padNote)
+  sendLaunchkeyPadRgb(padNote, 0, 0, 0)
 end
 
 function clearLaunchkeyPadLeds()
