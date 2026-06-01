@@ -8,7 +8,7 @@
 --   mode 05h = Custom Mode 1  (Hyper Reso layout)
 --   mode 06h = Custom Mode 2  (Resonator layout)
 
-local LAUNCHKEY_DAW_CONNECTION = { false, false, false, false, true } -- connection 5
+local LAUNCHKEY_DAW_CONNECTION = { false, false, false, true } -- connection 4
 
 -- Switch to a Launchkey drum custom mode (1-indexed).
 -- Requires feature controls enabled first (9F 0B 7F) in standalone mode.
