@@ -1054,6 +1054,16 @@ local function getHyperResoBusState(busNum)
   return tonumber(tag.hyperResoRoot) or 0, tag.hyperResoMinor == true
 end
 
+-- Chord grid pad index → Launchkey drum pad MIDI note.
+-- Defined here (inside _initKeyboard scope) because launchkey_led.lua is compiled
+-- after keyboard_manager.lua in the concatenated script, making its locals unavailable.
+local LAUNCHKEY_CHORD_PAD_TO_NOTE = {
+  [1]=40, [2]=41, [3]=42, [4]=43,
+  [5]=48, [6]=49, [7]=50, [8]=51,
+  [9]=36, [10]=37, [11]=38, [12]=39,
+  [13]=44, [14]=45, [15]=46, [16]=47,
+}
+
 local function syncLaunchkeyHyperResoPadLeds(busNum)
   local rootPc, isMinor = getHyperResoBusState(busNum)
   for padIndex = 1, 16 do

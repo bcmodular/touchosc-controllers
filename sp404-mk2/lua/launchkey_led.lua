@@ -12,14 +12,6 @@
 
 local LAUNCHKEY_LED_CONNECTION = { false, false, false, true } -- connection 4
 
--- Chord grid pad index → Launchkey drum pad MIDI note.
--- Inverse of PAD_NOTE_TO_INDEX in keyboard_manager.lua:routePadNote.
-local LAUNCHKEY_CHORD_PAD_TO_NOTE = {
-  [1]=40, [2]=41, [3]=42, [4]=43,
-  [5]=48, [6]=49, [7]=50, [8]=51,
-  [9]=36, [10]=37, [11]=38, [12]=39,
-  [13]=44, [14]=45, [15]=46, [16]=47,
-}
 
 function sendLaunchkeyPadRgb(padNote, r, g, b)
   sendMIDI({
@@ -37,7 +29,8 @@ function sendLaunchkeyPadOff(padNote)
 end
 
 function clearLaunchkeyPadLeds()
-  for _, note in pairs(LAUNCHKEY_CHORD_PAD_TO_NOTE) do
+  -- Drum pad notes span 36–39, 40–43, 44–47, 48–51 (16 pads total).
+  for note = 36, 51 do
     sendLaunchkeyPadOff(note)
   end
 end
