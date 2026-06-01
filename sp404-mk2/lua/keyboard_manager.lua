@@ -97,32 +97,9 @@ local function hyperResoPadColor(role)
   end
 end
 
--- RGB values for Launchkey pad LEDs in Hyper Reso mode.
--- Mirrors hyperResoPadColor(). Selected = full brightness, unselected = dim.
-local LAUNCHKEY_HYPER_RESO_COLORS = {
-  major = { full={127, 70,  0},   dim={30, 17, 0}   }, -- gold
-  minor = { full={0,   51,  127}, dim={0,  13, 30}  }, -- blue
-  white = { full={127, 127, 127}, dim={20, 20, 20}  }, -- white
-  black = { full={38,  0,   86},  dim={10, 0,  20}  }, -- dark purple
-}
-
-local function launchkeyHyperResoRgb(role, selected)
-  local entry
-  if role == "major" then
-    entry = LAUNCHKEY_HYPER_RESO_COLORS.major
-  elseif role == "minor" then
-    entry = LAUNCHKEY_HYPER_RESO_COLORS.minor
-  elseif type(role) == "number" then
-    entry = HYPER_RESO_BLACK_PC[role]
-      and LAUNCHKEY_HYPER_RESO_COLORS.black
-      or  LAUNCHKEY_HYPER_RESO_COLORS.white
-  end
-  if not entry then return 0, 0, 0 end
-  local rgb = selected and entry.full or entry.dim
-  return rgb[1], rgb[2], rgb[3]
-end
-
--- syncLaunchkeyHyperResoPadLeds is defined after getHyperResoBusState (see below).
+-- syncLaunchkeyHyperResoPadLeds removed: pad colors are now configured statically
+-- in the Novation Connections app (Drum Custom 1 = Hyper Reso, Custom 2 = Resonator).
+-- TouchOSC just switches pad modes via switchLaunchkeyDrumCustomMode().
 
 local keyboardAttachedBus = nil
 -- Mutually exclusive with keyboardAttachedBus: SP-404 chromatic playback (MIDI ch16).
@@ -1054,34 +1031,6 @@ local function getHyperResoBusState(busNum)
   return tonumber(tag.hyperResoRoot) or 0, tag.hyperResoMinor == true
 end
 
--- Chord grid pad index → Launchkey drum pad MIDI note.
--- Defined here (inside _initKeyboard scope) because launchkey_led.lua is compiled
--- after keyboard_manager.lua in the concatenated script, making its locals unavailable.
-local LAUNCHKEY_CHORD_PAD_TO_NOTE = {
-  [1]=40, [2]=41, [3]=42, [4]=43,
-  [5]=48, [6]=49, [7]=50, [8]=51,
-  [9]=36, [10]=37, [11]=38, [12]=39,
-  [13]=44, [14]=45, [15]=46, [16]=47,
-}
-
-local function syncLaunchkeyHyperResoPadLeds(busNum)
-  local rootPc, isMinor = getHyperResoBusState(busNum)
-  for padIndex = 1, 16 do
-    local role = HYPER_RESO_PAD_MAP[padIndex]
-    local note = LAUNCHKEY_CHORD_PAD_TO_NOTE[padIndex]
-    if note then
-      if role == "unused" then
-        sendLaunchkeyPadOff(note)
-      else
-        local on = (role == "major" and not isMinor)
-          or (role == "minor" and isMinor)
-          or (type(role) == "number" and role == rootPc)
-        local r, g, b = launchkeyHyperResoRgb(role, on)
-        sendLaunchkeyPadRgb(note, r, g, b)
-      end
-    end
-  end
-end
 
 local function setHyperResoBusState(busNum, rootPc, isMinor)
   local busGroup = getBusGroup(busNum)
@@ -1139,10 +1088,6 @@ local function syncHyperResoScalePadUi(busNum)
     end
   end
   setKeyboardHighlightingFlag(false)
-  -- Sync Launchkey pad LEDs if keyboard is attached.
-  if keyboardIsAttached() then
-    syncLaunchkeyHyperResoPadLeds(busNum)
-  end
 end
 
 local function ensureHyperResoScaleDefaults(busNum)
@@ -1550,12 +1495,15 @@ local function refreshKeyboardUi()
   applyKeysGroupChordPadButtonMode()
   updateKeyboardRootTag()
   refreshKeysNoteVisibility()
-  -- Enable/disable Launchkey DAW mode before syncing LEDs.
-  local isHyperReso = getKeysGroupChordGridMode() == CHORD_GRID_MODE_HYPER_RESO
-  if isHyperReso then
+  -- Switch Launchkey to the appropriate drum custom mode, or exit DAW mode.
+  local chordMode = getKeysGroupChordGridMode()
+  if chordMode == CHORD_GRID_MODE_HYPER_RESO then
     enableLaunchkeyDawMode()
+    switchLaunchkeyDrumCustomMode(1) -- Drum Custom 1 = Hyper Reso layout
+  elseif chordMode == CHORD_GRID_MODE_CHORD_PADS then
+    enableLaunchkeyDawMode()
+    switchLaunchkeyDrumCustomMode(2) -- Drum Custom 2 = Resonator layout
   else
-    clearLaunchkeyPadLeds()
     disableLaunchkeyDawMode()
   end
   local busNum = keyboardAttachedBus
