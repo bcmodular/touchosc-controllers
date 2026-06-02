@@ -9,3 +9,4 @@ sp404-mk2/SP404.tosc.bak
 sp404-mk2/backups/
 sp404-mk2/extracted/
 .vscode/settings.json
+__pycache__/
