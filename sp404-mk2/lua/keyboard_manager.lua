@@ -1535,19 +1535,22 @@ local function refreshKeyboardUi()
   refreshKeysNoteVisibility()
   -- Switch Launchkey pad + encoder custom modes.
   -- Custom 1 = Hyper Reso, Custom 2 = Resonator, Custom 3 = Vocoder.
-  local chordMode = getKeysGroupChordGridMode()
+  -- Note: Vocoder sets chordGridMode = nil (chord grid hidden), so check FX
+  -- directly rather than relying on chordMode for the Vocoder case.
   local attachedFx = keyboardAttachedBus and getBusFxNum(keyboardAttachedBus) or 0
-  if chordMode == CHORD_GRID_MODE_HYPER_RESO then
+  local chordMode = getKeysGroupChordGridMode()
+  if attachedFx == FX_VOCODER then
+    resetLaunchkeyDrumMode()         -- pads stay in default drum mode for Vocoder
+    switchLaunchkeyEncoderCustomMode(4)
+  elseif chordMode == CHORD_GRID_MODE_HYPER_RESO then
     switchLaunchkeyDrumCustomMode(1)
-    switchLaunchkeyEncoderCustomMode(1)
-  elseif chordMode == CHORD_GRID_MODE_CHORD_PADS and attachedFx == FX_VOCODER then
-    switchLaunchkeyDrumCustomMode(3)
-    switchLaunchkeyEncoderCustomMode(3)
+    switchLaunchkeyEncoderCustomMode(2)
   elseif chordMode == CHORD_GRID_MODE_CHORD_PADS then
     switchLaunchkeyDrumCustomMode(2)
-    switchLaunchkeyEncoderCustomMode(2)
+    switchLaunchkeyEncoderCustomMode(3)
   else
     resetLaunchkeyDrumMode()
+    resetLaunchkeyEncoderMode()
   end
   local busNum = keyboardAttachedBus
   if busNum and keyboardIsAttached() and not keyboardChromaticAttached and not keyboardSoundGenAttached then
@@ -1789,11 +1792,11 @@ function handleKeyboardMidi(message, connections)
     return true
   end
 
-  if msgType == MIDIMessageType.PITCH_BEND then
+  if msgType == 0xE0 then  -- PITCH_BEND (MIDIMessageType.PITCH_BEND may not be defined)
     if keyboardChromaticAttached then return false end
     local busNum = keyboardAttachedBus
     if busNum and vocoderLiveActive(busNum, getBusFxNum(busNum)) then
-      sendMIDI({ MIDIMessageType.PITCH_BEND + SP404_VOCODER_CHANNEL, data1, data2 }, SP404_CONNECTION)
+      sendMIDI({ 0xE0 + SP404_VOCODER_CHANNEL, data1, data2 }, SP404_CONNECTION)
       return true
     end
     return false

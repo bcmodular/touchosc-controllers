@@ -209,6 +209,65 @@ When keyboard grab is active on a bus running **Hyper Reso** (FX 31), `keys_grou
 
 Resonator/Vocoder/Harmony use `chord_pads` mode on the same pad indices (chord/harmony values). Constants live in `keyboard_manager.lua` (`HYPER_RESO_PAD_MAP`, `HYPER_RESO_NOTE_CC_VALUES`, `HYPER_RESO_SCALE_CC_VALUES`).
 
+## Launchkey MK4 integration
+
+The Launchkey MK4 uses **two separate USB ports**:
+
+| Connection | Index | Direction | Purpose |
+|------------|-------|-----------|---------|
+| MIDI port  | 4     | in + out  | Keyboard notes, pads, encoders (standalone Custom Modes) |
+| DAW port   | 5     | out only  | Pad/encoder mode switching, (future) screen display |
+
+### Pad and encoder mode switching
+
+Mode switches go to **connection 5** (`LAUNCHKEY_DAW_CONNECTION = { false, false, false, false, true }`).
+
+Before each mode select, send feature controls enable: `9F 0B 7F`.
+
+```
+Pad mode select:      B6 1D <mode>    (CC on ch7)
+  01h = Layout (default drum mode)
+  05h = Custom Mode 1   (Hyper Reso pads)
+  06h = Custom Mode 2   (Resonator pads)
+
+Encoder mode select:  B6 1E <mode>    (CC on ch7)
+  06h = Custom Mode 1   (factory default / reset)
+  07h = Custom Mode 2   (Hyper Reso encoder labels)
+  08h = Custom Mode 3   (Resonator encoder labels)
+  09h = Custom Mode 4   (Vocoder encoder labels)
+```
+
+**Standalone mode constraint:** only custom encoder modes (06h–09h) can be selected without DAW mode. Built-in modes (Plugin = 02h, Mixer = 03h) require DAW mode and must not be used in standalone.
+
+The functions `switchLaunchkeyDrumCustomMode(n)`, `resetLaunchkeyDrumMode()`, `switchLaunchkeyEncoderCustomMode(n)`, and `resetLaunchkeyEncoderMode()` live in `launchkey_led.lua` (included into `root.lua`).
+
+### Encoder CC routing
+
+When a keyboard-mode FX is grabbed, the 6 encoders (CCs 21–26, ch1, connection 4) control FX parameters:
+
+| Encoder | CC | Hyper Reso (FX 31) | Resonator (FX 2) | Vocoder (FX 44) |
+|---------|----|--------------------|-----------------|-----------------|
+| 1 | 21 | `note_fader`      | `root_fader`    | `note_fader`    |
+| 2 | 22 | `spread_fader`    | `bright_fader`  | `formant_fader` |
+| 3 | 23 | `character_fader` | `feedback_fader`| `tone_fader`    |
+| 4 | 24 | `scale_fader`     | `chord_fader`   | `scale_fader`   |
+| 5 | 25 | `feedback_fader`  | `panning_fader` | `chord_fader`   |
+| 6 | 26 | `env_mod_fader`   | `env_mod_fader` | `balance_fader` |
+
+Bidirectional: encoder moves update the SP-404 via `applyFaderCc`; fader changes push back via `syncEncoderPositionsToLaunchkey` (sends CCs 21–26 on connection 4, **not** connection 5).
+
+`LAUNCHKEY_MIDI_OUT_CONNECTION = { false, false, false, true }` (connection 4).
+
+### Vocoder pitch bend
+
+Pitch bend from the Launchkey keyboard (connection 4, ch1) is forwarded to the SP-404 vocoder channel (ch11, 0-indexed 10). Use raw `0xE0` rather than `MIDIMessageType.PITCH_BEND` — the TouchOSC Lua environment may not define this constant (resulting in silent nil comparisons).
+
+```lua
+if msgType == 0xE0 then  -- PITCH_BEND
+  sendMIDI({ 0xE0 + SP404_VOCODER_CHANNEL, data1, data2 }, SP404_CONNECTION)
+end
+```
+
 ## MIDI routing (contributor notes)
 
 Perform faders and on/off buttons have **no layout `<midi>` block** — routing is Lua-only (`root.lua` inbound, per-bus outbound). See [../README.md](../README.md) for port wiring and CC tables.

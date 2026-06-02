@@ -81,6 +81,58 @@ BC Manager is free to use; if you rely on it, please **[donate to Mountain Utili
 
 ---
 
+## Launchkey MK4
+
+The layout supports the **Novation Launchkey MK4** as a keyboard controller for the SP-404's keyboard-mode effects (Hyper Reso, Resonator, Vocoder).
+
+### MIDI setup
+
+Connect the Launchkey via USB. In TouchOSC, assign:
+- **Connection 4** — Launchkey **MIDI port** (input + output)
+- **Connection 5** — Launchkey **DAW port** (output only)
+
+The MIDI port carries notes, pads, and encoder CCs. The DAW port is used to switch pad/encoder modes on the Launchkey.
+
+### Pad custom modes
+
+Configure three drum custom modes in **Novation Connections** for pad LED colours and names. The layout automatically switches between them:
+
+| Custom Mode | Effect |
+|-------------|--------|
+| Custom Mode 1 | Hyper Reso |
+| Custom Mode 2 | Resonator |
+| *(default drum)* | Vocoder — pads stay in drum layout |
+
+### Encoder custom modes
+
+Configure four encoder custom modes in Novation Connections with the parameter names for each effect. The layout automatically switches encoder mode when you grab a keyboard-mode bus:
+
+| Custom Mode | Use |
+|-------------|-----|
+| Custom Mode 1 | Default (no keyboard FX grabbed) |
+| Custom Mode 2 | Hyper Reso parameter labels |
+| Custom Mode 3 | Resonator parameter labels |
+| Custom Mode 4 | Vocoder parameter labels |
+
+### Encoder parameter control
+
+When a keyboard-mode bus is grabbed, the 6 encoders above the pads control the 6 FX parameters in real time (CCs 21–26, channel 1). Turning an encoder moves the on-screen fader and sends the CC to the SP-404. When you grab a bus or switch effects, encoder positions are automatically synced to the current parameter values.
+
+| Encoder | Hyper Reso | Resonator | Vocoder |
+|---------|-----------|-----------|---------|
+| 1 | Note | Root | Note |
+| 2 | Spread | Bright | Formant |
+| 3 | Character | Feedback | Tone |
+| 4 | Scale | Chord | Scale |
+| 5 | Feedback | Panning | Chord |
+| 6 | Env Mod | Env Mod | Balance |
+
+### Pitch wheel (Vocoder)
+
+The Launchkey pitch wheel is forwarded to the SP-404 vocoder channel when Vocoder is active.
+
+---
+
 ## Launchpad Pro Mk1
 
 Launchpad support is focused on live performance: presets and scenes per bus, modifier workflows, and LED feedback for stored/active states.

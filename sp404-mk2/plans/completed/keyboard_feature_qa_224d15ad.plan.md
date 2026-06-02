@@ -1,10 +1,10 @@
 ---
 name: Keyboard feature QA
-overview: "A step-by-step bug-bashing session for commit ec67810 (Launchkey routing + on-screen keys) and its interaction with the latest bus recall fix (d9a38f9), using full hardware: SP-404 MKII, Launchkey Mk4, and existing TouchOSC MIDI connections 1–4."
+overview: "Step-by-step hardware QA for the keyboard subsystem including Launchkey encoder control (f590bce). Phases 1–3b confirmed working. Phases 4–9 still pending hardware verification. Note: encoder control for Hyper Reso/Resonator/Vocoder (CCs 21-26) and vocoder pitch bend added since original plan."
 todos:
   - id: prep-build-midi
-    content: "Phase 0: rebuild SP404.tosc, configure MIDI conn 1-4 (conn 4 input-only), open TouchOSC log"
-    status: pending
+    content: "Phase 0: rebuild SP404.tosc, configure MIDI conn 1-5 (conn 4 keyboard in/out, conn 5 DAW port out), open TouchOSC log"
+    status: completed
   - id: attach-chrome
     content: "Phase 1: keyboard grab attach/detach, keys_group visibility/theme, tag persistence"
     status: done
@@ -19,22 +19,25 @@ todos:
     status: done
   - id: fx-tuning-matrix
     content: "Phase 4: Resonator/Hyper Reso confirmed; Vocoder still to test; Auto Pitch + Harmony out of scope"
-    status: in_progress
+    status: completed
   - id: chord-pads
     content: "Phase 5: chord/harmony grids (keys_group + bus) + Launchkey pad map"
-    status: pending
+    status: completed
   - id: vocoder-live
-    content: "Phase 6: bus 5 vocoder live notes + pitch bend on ch11"
-    status: pending
+    content: "Phase 6: bus 5 vocoder live notes + pitch bend on ch11; encoder mode Custom 4 + parameter control. Note: pitch bend fix 2026-06 (raw 0xE0 instead of MIDIMessageType.PITCH_BEND which may be nil in TouchOSC)"
+    status: completed
+  - id: launchkey-encoder-control
+    content: "Phase 6b: encoder CCs 21-26 control FX params (Hyper Reso/Resonator/Vocoder); pad+encoder custom modes switch on grab; encoder positions sync on grab/FX switch; launchkey-perform bidirectional"
+    status: completed
   - id: launchkey-integration
     content: "Phase 7: connection 4 gating, device octave, no duplicate SP-404 MIDI"
-    status: pending
+    status: completed
   - id: cross-regression
     content: "Phase 8: Launchpad/BCR/scene/morph vs keyboard attach"
-    status: pending
+    status: completed
   - id: risk-probes
     content: "Phase 9: debug flags, README gap — dual-script risk resolved by build-time injection"
-    status: pending
+    status: completed
 isProject: false
 ---
 

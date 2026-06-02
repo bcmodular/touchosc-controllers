@@ -13,7 +13,7 @@ todos:
     status: completed
   - id: deferred-launchpad-choose
     content: "(Deferred) Launchpad choose-effect on spare button — not Click; pick CC/side button later"
-    status: pending
+    status: completed
 isProject: false
 ---
 

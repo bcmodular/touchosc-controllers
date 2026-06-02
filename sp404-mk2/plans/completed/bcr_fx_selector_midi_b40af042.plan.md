@@ -16,7 +16,7 @@ todos:
     status: completed
   - id: build-test
     content: Run toscbuild and verify encoder turn/push + colors on device
-    status: pending
+    status: completed
 isProject: false
 ---
 

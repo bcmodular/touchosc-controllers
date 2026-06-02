@@ -12,9 +12,10 @@
 --   07h = Custom Mode 3  (Vocoder pads)
 --
 -- Encoder mode select: B6 1E <mode>  (CC ch7, CC 30)  → DAW port
---   06h = Custom Mode 1  (Hyper Reso encoder labels)
---   07h = Custom Mode 2  (Resonator encoder labels)
---   08h = Custom Mode 3  (Vocoder encoder labels)
+--   06h = Custom Mode 1  (factory default / general use)
+--   07h = Custom Mode 2  (Hyper Reso encoder labels)
+--   08h = Custom Mode 3  (Resonator encoder labels)
+--   09h = Custom Mode 4  (Vocoder encoder labels)
 --
 -- Feature controls (9F 0B 7F) must be enabled before mode selects work in
 -- standalone mode.
@@ -35,10 +36,17 @@ function resetLaunchkeyDrumMode()
 end
 
 -- Switch to a Launchkey encoder Custom Mode (1-indexed).
---   modeNumber 1 → 06h (Encoder Custom Mode 1, Hyper Reso labels)
---   modeNumber 2 → 07h (Encoder Custom Mode 2, Resonator labels)
---   modeNumber 3 → 08h (Encoder Custom Mode 3, Vocoder labels)
+--   modeNumber 1 → 06h (Custom Mode 1, factory default)
+--   modeNumber 2 → 07h (Custom Mode 2, Hyper Reso labels)
+--   modeNumber 3 → 08h (Custom Mode 3, Resonator labels)
+--   modeNumber 4 → 09h (Custom Mode 4, Vocoder labels)
 function switchLaunchkeyEncoderCustomMode(modeNumber)
   sendMIDI({ 0x9F, 0x0B, 0x7F }, LAUNCHKEY_DAW_CONNECTION)
   sendMIDI({ 0xB6, 0x1E, 0x05 + modeNumber }, LAUNCHKEY_DAW_CONNECTION)
+end
+
+-- Return encoders to Custom Mode 1 (factory default set).
+function resetLaunchkeyEncoderMode()
+  sendMIDI({ 0x9F, 0x0B, 0x7F }, LAUNCHKEY_DAW_CONNECTION)
+  sendMIDI({ 0xB6, 0x1E, 0x06 }, LAUNCHKEY_DAW_CONNECTION)
 end

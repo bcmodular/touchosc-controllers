@@ -1,6 +1,6 @@
 ---
 name: Launchkey Keyboard Feature Plan
-overview: "Bus-attached keyboard subsystem: chromatic + effect-mapped profiles (Resonator, Hyper Reso, Vocoder live), sustain/panic, Launchkey keybed + drum pads on MIDI connection 4. Encoders and Launchkey preset recall deferred. Auto Pitch and Harmony keyboard control dropped as out of scope."
+overview: "Bus-attached keyboard subsystem: chromatic + effect-mapped profiles (Resonator, Hyper Reso, Vocoder live), sustain/panic, Launchkey keybed + drum pads on MIDI connection 4. Encoder CC routing implemented 2026-06; screen display still pending. Auto Pitch and Harmony keyboard control dropped as out of scope."
 todos:
   - id: design-keyboard-manager
     content: keyboard_manager state model, notify contract, root tag schema
@@ -20,14 +20,20 @@ todos:
   - id: launchkey-pad-chords-v1
     content: Drum pads → keys_group chord/scale pads via LAUNCHKEY_DRUM_PAD_NOTE_TO_INDEX
     status: completed
+  - id: launchkey-pad-mode-switching
+    content: Pad custom mode + encoder custom mode switch on keyboard grab (connection 5 DAW port)
+    status: completed
+  - id: launchkey-encoder-cc-routing
+    content: CCs 21-26 ch1 → FX parameters bidirectional; encoder position sync on grab/switch
+    status: completed
   - id: launchkey-pad-preset-recall
     content: Map Launchkey pads to 8-slot preset recall
     status: cancelled
   - id: validate-regression-test
     content: Manual validation matrix; Launchpad/BCR regression check
     status: pending
-  - id: deferred-encoders
-    content: Launchkey encoder value feedback + screen SysEx
+  - id: deferred-encoder-screen-display
+    content: Launchkey screen SysEx for live parameter values (requires DAW mode + re-send pad mode)
     status: pending
 isProject: false
 ---
@@ -110,6 +116,53 @@ Root tag fields: `keyboardAttachedBus`, `keyboardChromaticAttached`, `keyboardSu
 - Drum pads: channel 10 (0-based 9); map in `LAUNCHKEY_DRUM_PAD_NOTE_TO_INDEX`
 - Keybed: channels 1–2 depending on device mode
 - Sustain: CC 64 on keybed channels
+
+## Encoder control (implemented 2026-06, commit f590bce)
+
+CCs 21–26 on channel 1 (connection 4, standalone Custom Mode) control the 6 FX parameters of the grabbed keyboard bus. Bidirectional sync via `keyboard_perform_cc`.
+
+### Pad + encoder custom mode switching
+
+Fires from `refreshKeyboardUi`. Sent to **connection 5 (DAW port)**.
+Feature controls enable `9F 0B 7F` must precede each mode select.
+Standalone mode only supports custom encoder modes (06h–09h); built-in modes require DAW mode.
+
+| Keyboard mode | Pad mode | Encoder mode | Pad CC | Enc CC |
+|---------------|----------|--------------|--------|--------|
+| Hyper Reso    | Custom 1 | Custom 2     | `B6 1D 05` | `B6 1E 07` |
+| Resonator     | Custom 2 | Custom 3     | `B6 1D 06` | `B6 1E 08` |
+| Vocoder       | drum (default) | Custom 4 | `B6 1D 01` | `B6 1E 09` |
+| none/other    | drum (default) | Custom 1 (reset) | `B6 1D 01` | `B6 1E 06` |
+
+Vocoder sets `chordGridMode = nil` (chord grid hidden) — must check `attachedFx == FX_VOCODER` directly, not via `chordMode`, otherwise it falls through to the reset branch.
+
+### Encoder parameter mapping
+
+| Encoder | CC | Hyper Reso (FX 31) | Resonator (FX 2) | Vocoder (FX 44) |
+|---------|----|--------------------|-----------------|-----------------|
+| 1 | 21 | `note_fader`       | `root_fader`    | `note_fader`    |
+| 2 | 22 | `spread_fader`     | `bright_fader`  | `formant_fader` |
+| 3 | 23 | `character_fader`  | `feedback_fader`| `tone_fader`    |
+| 4 | 24 | `scale_fader`      | `chord_fader`   | `scale_fader`   |
+| 5 | 25 | `feedback_fader`   | `panning_fader` | `chord_fader`   |
+| 6 | 26 | `env_mod_fader`    | `env_mod_fader` | `balance_fader` |
+
+Encoder position sync (`syncEncoderPositionsToLaunchkey`) sends CCs 21–26 on **connection 4** (not 5).
+`LAUNCHKEY_MIDI_OUT_CONNECTION = { false, false, false, true }`.
+
+### Vocoder pitch bend
+
+Forwarded to SP-404 ch11 (index 10). Uses raw `0xE0` — `MIDIMessageType.PITCH_BEND` may not be defined in TouchOSC Lua and would silently fail as nil.
+
+### Encoder screen display (still pending)
+
+Parameter names are configured in Novation Connections custom encoder modes (static). Dynamic value display requires DAW mode SysEx — see `deferred-encoder-screen-display` todo. Risk: DAW mode resets pad layout; pad custom mode must be re-sent immediately after.
+
+Screen SysEx outline:
+- Enable DAW mode: `9F 0C 7F`
+- Configure encoder target `0x15`–`0x1A`: `F0 00 20 29 02 14 04 <target> <config> F7`
+- Write text field: `F0 00 20 29 02 14 06 <target> <field> <ASCII bytes> F7`
+- Trigger display: `F0 00 20 29 02 14 04 <target> 7F F7`
 
 ## Out of scope (v1)
 
