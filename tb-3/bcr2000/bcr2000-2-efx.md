@@ -2,7 +2,7 @@
 
 Controls both effect chains. The controller is split symmetrically: left half = EFX1, right half = EFX2.
 
-- **MIDI Channel:** TBD — set `BCR2_CHANNEL` in `root.lua` to match this BCR2000's preset channel. Must differ from BCR2000 #1's channel — **channel is the differentiator between the two units** since both arrive on the same connection.
+- **MIDI Channel:** 7 — matches the existing SP-404 BCR2000 preset. Must differ from BCR2000 #1 (channel 6) — **channel is the differentiator between the two units** since both arrive on the same connection.
 - **Connection in TouchOSC:** connection 2 — same port as BCR2000 #1 and the SP-404 layout's BCR2000.
 - **All encoders:** absolute CC (0–127)
 - **Type-select encoder push:** CC, value 127 = toggle on/off
