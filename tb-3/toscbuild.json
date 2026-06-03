@@ -1,0 +1,159 @@
+{
+  "source": "TB3.tosc",
+  "output": "TB3.tosc",
+  "lua_dir": "lua",
+  "mappings": [
+    {
+      "lua": "root.lua",
+      "node_id": "root",
+      "include": ["bcr_map.lua"]
+    }
+  ],
+  "layout": {
+    "width": 1920,
+    "height": 1080,
+    "nodes": [
+      {
+        "name": "vco_group",
+        "type": "GROUP",
+        "x": 20, "y": 20, "w": 340, "h": 500,
+        "children": [
+          { "name": "vco_label",     "type": "LABEL", "x": 0,   "y": 0,   "w": 340, "h": 30,  "text": "VCO" },
+          { "name": "saw_level",     "type": "FADER", "x": 0,   "y": 40,  "w": 40,  "h": 200, "tag": "cc:1,ch:bcr1" },
+          { "name": "sqr_level",     "type": "FADER", "x": 50,  "y": 40,  "w": 40,  "h": 200, "tag": "cc:2,ch:bcr1" },
+          { "name": "sin_level",     "type": "FADER", "x": 100, "y": 40,  "w": 40,  "h": 200, "tag": "cc:3,ch:bcr1" },
+          { "name": "white_level",   "type": "FADER", "x": 150, "y": 40,  "w": 40,  "h": 200, "tag": "cc:4,ch:bcr1" },
+          { "name": "pink_level",    "type": "FADER", "x": 200, "y": 40,  "w": 40,  "h": 200, "tag": "cc:5,ch:bcr1" },
+          { "name": "ring_level",    "type": "FADER", "x": 250, "y": 40,  "w": 40,  "h": 200, "tag": "cc:8,ch:bcr1" },
+          { "name": "vco_lfo_depth", "type": "FADER", "x": 300, "y": 40,  "w": 40,  "h": 200, "tag": "cc:7,ch:bcr1" },
+          { "name": "saw_sw",        "type": "BUTTON","x": 0,   "y": 250, "w": 40,  "h": 30,  "tag": "cc:9,ch:bcr1" },
+          { "name": "sqr_sw",        "type": "BUTTON","x": 50,  "y": 250, "w": 40,  "h": 30,  "tag": "cc:10,ch:bcr1" },
+          { "name": "sin_sw",        "type": "BUTTON","x": 100, "y": 250, "w": 40,  "h": 30,  "tag": "cc:11,ch:bcr1" },
+          { "name": "white_sw",      "type": "BUTTON","x": 150, "y": 250, "w": 40,  "h": 30,  "tag": "cc:12,ch:bcr1" },
+          { "name": "pink_sw",       "type": "BUTTON","x": 200, "y": 250, "w": 40,  "h": 30,  "tag": "cc:13,ch:bcr1" },
+          { "name": "ring_sw",       "type": "BUTTON","x": 250, "y": 250, "w": 40,  "h": 30,  "tag": "cc:16,ch:bcr1" }
+        ]
+      },
+      {
+        "name": "vcf_group",
+        "type": "GROUP",
+        "x": 380, "y": 20, "w": 460, "h": 500,
+        "children": [
+          { "name": "vcf_label",     "type": "LABEL", "x": 0,   "y": 0,   "w": 460, "h": 30,  "text": "VCF" },
+          { "name": "vcf_attack",    "type": "FADER", "x": 0,   "y": 40,  "w": 40,  "h": 200, "tag": "cc:33,ch:bcr1" },
+          { "name": "vcf_decay",     "type": "FADER", "x": 50,  "y": 40,  "w": 40,  "h": 200, "tag": "cc:34,ch:bcr1" },
+          { "name": "vcf_sustain",   "type": "FADER", "x": 100, "y": 40,  "w": 40,  "h": 200, "tag": "cc:35,ch:bcr1" },
+          { "name": "vcf_release",   "type": "FADER", "x": 150, "y": 40,  "w": 40,  "h": 200, "tag": "cc:36,ch:bcr1" },
+          { "name": "vcf_cutoff",    "type": "FADER", "x": 210, "y": 40,  "w": 40,  "h": 200, "tag": "cc:37,ch:bcr1" },
+          { "name": "vcf_resonance", "type": "FADER", "x": 260, "y": 40,  "w": 40,  "h": 200, "tag": "cc:38,ch:bcr1" },
+          { "name": "vcf_env_depth", "type": "FADER", "x": 310, "y": 40,  "w": 40,  "h": 200, "tag": "cc:45,ch:bcr1" },
+          { "name": "vcf_key_follow","type": "FADER", "x": 360, "y": 40,  "w": 40,  "h": 200, "tag": "cc:46,ch:bcr1" },
+          { "name": "vcf_lfo_depth", "type": "FADER", "x": 410, "y": 40,  "w": 40,  "h": 200, "tag": "cc:47,ch:bcr1" },
+          { "name": "accent_level",  "type": "FADER", "x": 460, "y": 40,  "w": 40,  "h": 200, "tag": "cc:39,ch:bcr1" }
+        ]
+      },
+      {
+        "name": "vca_group",
+        "type": "GROUP",
+        "x": 860, "y": 20, "w": 260, "h": 500,
+        "children": [
+          { "name": "vca_label",     "type": "LABEL", "x": 0,   "y": 0,   "w": 260, "h": 30,  "text": "VCA" },
+          { "name": "vca_attack",    "type": "FADER", "x": 0,   "y": 40,  "w": 40,  "h": 200, "tag": "cc:25,ch:bcr1" },
+          { "name": "vca_decay",     "type": "FADER", "x": 50,  "y": 40,  "w": 40,  "h": 200, "tag": "cc:26,ch:bcr1" },
+          { "name": "vca_sustain",   "type": "FADER", "x": 100, "y": 40,  "w": 40,  "h": 200, "tag": "cc:27,ch:bcr1" },
+          { "name": "vca_release",   "type": "FADER", "x": 150, "y": 40,  "w": 40,  "h": 200, "tag": "cc:28,ch:bcr1" },
+          { "name": "vca_lfo_depth", "type": "FADER", "x": 200, "y": 40,  "w": 40,  "h": 200, "tag": "cc:29,ch:bcr1" }
+        ]
+      },
+      {
+        "name": "portamento_group",
+        "type": "GROUP",
+        "x": 1140, "y": 20, "w": 160, "h": 500,
+        "children": [
+          { "name": "porta_label",   "type": "LABEL", "x": 0,  "y": 0,   "w": 160, "h": 30, "text": "PORTAMENTO" },
+          { "name": "porta_time",    "type": "FADER", "x": 0,  "y": 40,  "w": 40,  "h": 200, "tag": "cc:6,ch:bcr1" },
+          { "name": "porta_sw",      "type": "BUTTON","x": 0,  "y": 250, "w": 40,  "h": 30,  "tag": "cc:14,ch:bcr1" },
+          { "name": "porta_mode",    "type": "BUTTON","x": 50, "y": 250, "w": 80,  "h": 30,  "tag": "cc:22,ch:bcr1" }
+        ]
+      },
+      {
+        "name": "dist_group",
+        "type": "GROUP",
+        "x": 1320, "y": 20, "w": 420, "h": 500,
+        "children": [
+          { "name": "dist_label",      "type": "LABEL", "x": 0,   "y": 0,   "w": 420, "h": 30,  "text": "DISTORTION" },
+          { "name": "dist_on_off",     "type": "BUTTON","x": 0,   "y": 40,  "w": 60,  "h": 30,  "tag": "cc:17,ch:bcr1" },
+          { "name": "dist_color",      "type": "BUTTON","x": 70,  "y": 40,  "w": 60,  "h": 30,  "tag": "cc:18,ch:bcr1" },
+          { "name": "dist_type_label", "type": "LABEL", "x": 140, "y": 40,  "w": 160, "h": 30,  "text": "MILD OD" },
+          { "name": "dist_type_up",    "type": "BUTTON","x": 310, "y": 40,  "w": 50,  "h": 30,  "tag": "cc:23,ch:bcr1" },
+          { "name": "dist_type_dn",    "type": "BUTTON","x": 370, "y": 40,  "w": 50,  "h": 30,  "tag": "cc:24,ch:bcr1" },
+          { "name": "dist_drive",      "type": "FADER", "x": 0,   "y": 90,  "w": 40,  "h": 200, "tag": "cc:30,ch:bcr1" },
+          { "name": "dist_bottom",     "type": "FADER", "x": 50,  "y": 90,  "w": 40,  "h": 200, "tag": "cc:31,ch:bcr1" },
+          { "name": "dist_tone",       "type": "FADER", "x": 100, "y": 90,  "w": 40,  "h": 200, "tag": "cc:32,ch:bcr1" },
+          { "name": "dist_efx_level",  "type": "FADER", "x": 150, "y": 90,  "w": 40,  "h": 200, "tag": "cc:40,ch:bcr1" },
+          { "name": "dist_dry_level",  "type": "FADER", "x": 200, "y": 90,  "w": 40,  "h": 200, "tag": "cc:48,ch:bcr1" }
+        ]
+      },
+      {
+        "name": "efx1_section",
+        "type": "GROUP",
+        "x": 20, "y": 540, "w": 740, "h": 520,
+        "children": [
+          { "name": "efx1_label",  "type": "LABEL",  "x": 0,   "y": 0,  "w": 740, "h": 30, "text": "EFX1" },
+          { "name": "efx1_type",   "type": "LABEL",  "x": 0,   "y": 35, "w": 200, "h": 30, "text": "BYPASS" },
+          { "name": "efx1_sw",     "type": "BUTTON", "x": 210, "y": 35, "w": 60,  "h": 30, "tag": "efx:1,sw" },
+          { "name": "efx1_s01",    "type": "FADER",  "x": 0,   "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:1" },
+          { "name": "efx1_s02",    "type": "FADER",  "x": 50,  "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:2" },
+          { "name": "efx1_s03",    "type": "FADER",  "x": 100, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:3" },
+          { "name": "efx1_s04",    "type": "FADER",  "x": 150, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:4" },
+          { "name": "efx1_s05",    "type": "FADER",  "x": 200, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:5" },
+          { "name": "efx1_s06",    "type": "FADER",  "x": 250, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:6" },
+          { "name": "efx1_s07",    "type": "FADER",  "x": 300, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:7" },
+          { "name": "efx1_s08",    "type": "FADER",  "x": 350, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:8" },
+          { "name": "efx1_s09",    "type": "FADER",  "x": 400, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:9" },
+          { "name": "efx1_s10",    "type": "FADER",  "x": 450, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:10" },
+          { "name": "efx1_s11",    "type": "FADER",  "x": 500, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:11" },
+          { "name": "efx1_s12",    "type": "FADER",  "x": 550, "y": 80, "w": 40,  "h": 180, "tag": "efx:1,slot:12" },
+          { "name": "efx1_b1",     "type": "BUTTON", "x": 0,   "y": 270,"w": 80,  "h": 40,  "tag": "efx:1,btn:1" },
+          { "name": "efx1_b2",     "type": "BUTTON", "x": 90,  "y": 270,"w": 80,  "h": 40,  "tag": "efx:1,btn:2" },
+          { "name": "efx1_b3",     "type": "BUTTON", "x": 180, "y": 270,"w": 80,  "h": 40,  "tag": "efx:1,btn:3" },
+          { "name": "efx1_b4",     "type": "BUTTON", "x": 270, "y": 270,"w": 80,  "h": 40,  "tag": "efx:1,btn:4" },
+          { "name": "efx1_b5",     "type": "BUTTON", "x": 360, "y": 270,"w": 80,  "h": 40,  "tag": "efx:1,btn:5" },
+          { "name": "efx1_b6",     "type": "BUTTON", "x": 450, "y": 270,"w": 80,  "h": 40,  "tag": "efx:1,btn:6" },
+          { "name": "efx1_b7",     "type": "BUTTON", "x": 540, "y": 270,"w": 80,  "h": 40,  "tag": "efx:1,btn:7" },
+          { "name": "efx1_b8",     "type": "BUTTON", "x": 630, "y": 270,"w": 80,  "h": 40,  "tag": "efx:1,btn:8" }
+        ]
+      },
+      {
+        "name": "efx2_section",
+        "type": "GROUP",
+        "x": 780, "y": 540, "w": 740, "h": 520,
+        "children": [
+          { "name": "efx2_label",  "type": "LABEL",  "x": 0,   "y": 0,  "w": 740, "h": 30, "text": "EFX2" },
+          { "name": "efx2_type",   "type": "LABEL",  "x": 0,   "y": 35, "w": 200, "h": 30, "text": "BYPASS" },
+          { "name": "efx2_sw",     "type": "BUTTON", "x": 210, "y": 35, "w": 60,  "h": 30, "tag": "efx:2,sw" },
+          { "name": "efx2_s01",    "type": "FADER",  "x": 0,   "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:1" },
+          { "name": "efx2_s02",    "type": "FADER",  "x": 50,  "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:2" },
+          { "name": "efx2_s03",    "type": "FADER",  "x": 100, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:3" },
+          { "name": "efx2_s04",    "type": "FADER",  "x": 150, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:4" },
+          { "name": "efx2_s05",    "type": "FADER",  "x": 200, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:5" },
+          { "name": "efx2_s06",    "type": "FADER",  "x": 250, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:6" },
+          { "name": "efx2_s07",    "type": "FADER",  "x": 300, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:7" },
+          { "name": "efx2_s08",    "type": "FADER",  "x": 350, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:8" },
+          { "name": "efx2_s09",    "type": "FADER",  "x": 400, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:9" },
+          { "name": "efx2_s10",    "type": "FADER",  "x": 450, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:10" },
+          { "name": "efx2_s11",    "type": "FADER",  "x": 500, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:11" },
+          { "name": "efx2_s12",    "type": "FADER",  "x": 550, "y": 80, "w": 40,  "h": 180, "tag": "efx:2,slot:12" },
+          { "name": "efx2_b1",     "type": "BUTTON", "x": 0,   "y": 270,"w": 80,  "h": 40,  "tag": "efx:2,btn:1" },
+          { "name": "efx2_b2",     "type": "BUTTON", "x": 90,  "y": 270,"w": 80,  "h": 40,  "tag": "efx:2,btn:2" },
+          { "name": "efx2_b3",     "type": "BUTTON", "x": 180, "y": 270,"w": 80,  "h": 40,  "tag": "efx:2,btn:3" },
+          { "name": "efx2_b4",     "type": "BUTTON", "x": 270, "y": 270,"w": 80,  "h": 40,  "tag": "efx:2,btn:4" },
+          { "name": "efx2_b5",     "type": "BUTTON", "x": 360, "y": 270,"w": 80,  "h": 40,  "tag": "efx:2,btn:5" },
+          { "name": "efx2_b6",     "type": "BUTTON", "x": 450, "y": 270,"w": 80,  "h": 40,  "tag": "efx:2,btn:6" },
+          { "name": "efx2_b7",     "type": "BUTTON", "x": 540, "y": 270,"w": 80,  "h": 40,  "tag": "efx:2,btn:7" },
+          { "name": "efx2_b8",     "type": "BUTTON", "x": 630, "y": 270,"w": 80,  "h": 40,  "tag": "efx:2,btn:8" }
+        ]
+      }
+    ]
+  }
+}
