@@ -2,8 +2,8 @@
 
 Controls the core TB-3 synthesis engine and distortion section.
 
-- **MIDI Channel:** TBD — set `BCR1_MIDI_CHANNEL` in `root.lua` to match the BCR2000 preset
-- **Connection in TouchOSC:** TBD — set `BCR1_CONNECTION` in `root.lua` to the port index where BCR2000 #1 appears in TouchOSC's MIDI connection list. Detected by connection (port), not by channel, same pattern as SP-404.
+- **MIDI Channel:** TBD — set `BCR1_CHANNEL` in `root.lua` to match this BCR2000's preset channel. Both BCR2000s arrive on the same connection, so **channel is the differentiator between the two units**.
+- **Connection in TouchOSC:** connection 2 — same port used by the SP-404 layout's BCR2000. Detection in `onReceiveMIDI` checks both connection 2 and the MIDI channel.
 - **All encoders:** absolute CC (0–127)
 - **Push-encoder pushes:** CC with value 127 = down, 0 = up (toggle on rising edge in Lua)
 - **Buttons:** CC with value 127 = press (latching or momentary as noted)
