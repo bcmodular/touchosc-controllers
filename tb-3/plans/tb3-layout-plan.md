@@ -101,39 +101,185 @@ tb-3/
 | Enc 4 | SAW / SQR / RING+SIN LEVEL | TUNING? | VCF ENV DEPTH | KEY FOLLOW | VCF LFO MOD | DRY LVL |
 
 **BCR2000 #2 — EFX1 + EFX2:**
-- Two 4×3 encoder blocks split down the middle (12 slots each)
-- Left block (encoders 1–12): EFX1 — type selector + up to 11 context-sensitive param slots
-- Right block (encoders 13–24 or 17–28): EFX2 — same structure
-- Remaining encoders/buttons: effect on/off, type ↑/↓, spare
-- 12 slots neatly covers the maximum (EQ at 11 params)
+- Split down the middle: left = EFX1, right = EFX2
+- **Top-row encoder 1 (EFX1) / encoder 5 (EFX2):** rotate to cycle effect type, **push to toggle on/off** — dedicated type-select + SW, separate from the parameter block. Top-row encoders 2–4 / 6–8 are not used for EFX parameters.
+- **Bottom 3 rows (4×3 block per side = 12 slots):** all effect parameters — 11 slots active for EQ (maximum), 1 spare slot hidden for all other types
+- 8 buttons per side: entirely dedicated to discrete param modes (BPM SYNC, waveform type, mode, polarity etc.) since on/off is handled by encoder push
 
 ### Effects Context-Switch (same pattern as SP-404 fx_selector)
 
 EFX1 and EFX2 each have a `type` selector with 10/9 choices. When type changes:
-- `efx_section.lua` updates each of the 12 parameter slot labels and SysEx address targets
+- `efx_section.lua` updates each of the 11 parameter slot labels and SysEx address targets
 - Slots with no parameter for the current type are hidden/disabled
-- BCR2000 #2 encoder labels (if screen display supported) update via same notify path
+- BCR2000 #2 encoder labels update via same notify path
 
-Effect types and max param counts:
-| Type | EFX1 | EFX2 | Params |
-|------|------|------|--------|
-| CS (Compressor) | ✓ | ✓ | 7 |
-| RM (Ring Mod) | ✓ | ✓ | 7 |
-| BC (Bitcrusher) | ✓ | ✓ | 5 |
-| TR (Tremolo) | ✓ | ✓ | 8 |
-| CH (Chorus) | ✓ | ✓ | 7 |
-| FL (Flanger) | ✓ | ✓ | 8 |
-| PH (Phaser) | ✓ | ✓ | 9 |
-| DD (Delay) | ✓ | ✓ | 7 |
-| PS (Pitch Shifter) | ✓ | — | 8 |
-| RV (Reverb) | — | ✓ | 8 |
-| EQ | ✓ | ✓ | 11 |
+### Effects Hardware Layout — Buttons vs Encoders
 
-12 slots covers the maximum (EQ at 11).
+**BCR2000 #2 gives us 8 buttons + 12 encoders per effect side.**
+
+Three tiers of discreteness drive the button assignments:
+
+**`SW` on/off is removed from the button budget** — handled by pushing the type-select encoder (encoder 1 / encoder 5). The 8 buttons per effect are now entirely for discrete parameter modes.
+
+**BPM SYNC dual-mode (TR, CH, FL, PH, DD):**
+- BPM SYNC toggle → button 1. When ON, the RATE encoder repurposes as the beat-division selector (21 values: OFF, 2 bars … 3/128). When OFF, RATE controls milliseconds. Handled in Lua by the efx_section context switcher.
+
+**Effect-specific mode buttons:**
+Small-choice enums (≤7) map to dedicated buttons; large enums (10+) and continuous ranges stay as encoders.
+
+Per-effect breakdown (8 buttons available, SW handled by encoder push):
+
+| Effect | Buttons | Encoder count | Notes |
+|--------|---------|---------------|-------|
+| **CS** Compressor | RATIO presets (e.g. 1:2, 1:4, 1:INF) — optional 3 buttons | 7 | RATIO (14) + KNEE (10) stay as encoders; buttons are convenience shortcuts |
+| **RM** Ring Mod | POLARITY toggle (UP/DOWN) | 6 | |
+| **BC** Bitcrusher | — | 5 | No useful discrete params |
+| **TR** Tremolo | BPM SYNC, TYPE ↑/↓ (6 waveforms, 2 cycle buttons), PAN/TRE select | 5 | 4 buttons used; PHASE, SHAPE, DEPTH, RATE/DIV, LEVEL as encoders |
+| **CH** Chorus | BPM SYNC, MODE × 3 (MONO/S1/S2 dedicated) | 6 | 4 buttons used |
+| **FL** Flanger | BPM SYNC | 8 | 1 button used; most params continuous |
+| **PH** Phaser | BPM SYNC, TYPE ↑ (4 stages, cycle), STEP RATE on/off | 6 | 3 buttons used |
+| **DD** Delay | BPM SYNC, TYPE × 3 (SINGLE/PAN/STEREO dedicated) | 6 | 4 buttons used |
+| **PS** Pitch Shifter | VOICE × 3 (1MONO/2MONO/2STEREO dedicated) | 8 | 3 buttons used; EFX1 only |
+| **EQ** Equalizer | — | 11 | Maximum; all params continuous or high-cardinality |
+| **RV** Reverb | TYPE × 7 (one per reverb type: AMB/ROOM/HALL1/HALL2/PLATE/SPRING/MOD) | 8 | 7 buttons used; EFX2 only — instant one-touch type switching |
+
+**Maximum encoder requirement: 11 (EQ).** The 12-slot parameter block per effect (bottom 3 rows) accommodates this with one spare slot. Type selection and SW are handled separately by the top-row push encoders and never occupy a parameter slot.
+
+**HPF/LPF frequency** selectors (CH, FL, DD, RV, EQ) have 15–18 choices — stay as encoders.
+
+**EQ Q** (6 choices: 0.5–16) — kept as encoder given EQ already hits the 11-slot ceiling.
+
+### Per-Effect Parameter Grid Layout (4×3)
+
+Each row is a logical functional group. Unused slots within a row are left blank/inactive — **grouping takes priority over contiguous fill.** These layouts define the CC-to-parameter mapping in `bcr_map.lua` and the BCR2000 preset files.
+
+Notation: `—` = unused slot
+
+**EQ (11 params — drives the 12-slot maximum):**
+```
+Row 1:  LOW CUT    LOW GAIN   HIGH CUT   HIGH GAIN    ← outer band pair
+Row 2:  LM FREQ    LM Q       LM GAIN    —            ← low mid band
+Row 3:  HM FREQ    HM Q       HM GAIN    LEVEL        ← high mid band + output
+```
+
+**CS — Compressor (7 params):**
+```
+Row 1:  THRESHOLD  RATIO      ATTACK     RELEASE      ← dynamics chain
+Row 2:  KNEE       GAIN       BALANCE    —            ← colour
+Row 3:  —          —          —          —
+```
+
+**RM — Ring Modulator (6 params):**
+```
+Row 1:  FREQUENCY  SENS       BALANCE    LEVEL        ← modulator + output
+Row 2:  EQ LOW     EQ HIGH    —          —            ← tone shaping
+Row 3:  —          —          —          —
+```
+
+**BC — Bitcrusher (5 params):**
+```
+Row 1:  FILTER     SAMP RATE  LEVEL      —
+Row 2:  EQ LOW     EQ HIGH    —          —
+Row 3:  —          —          —          —
+```
+
+**TR — Tremolo (5 encoder params; TYPE/PAN/BPM SYNC on buttons):**
+```
+Row 1:  RATE/DIV   DEPTH      SHAPE      LEVEL
+Row 2:  PHASE      —          —          —
+Row 3:  —          —          —          —
+```
+
+**CH — Chorus (6 encoder params; BPM SYNC/MODE on buttons):**
+```
+Row 1:  RATE/DIV   DEPTH      PRE DELAY  LEVEL
+Row 2:  HPF        LPF        —          —
+Row 3:  —          —          —          —
+```
+
+**FL — Flanger (8 encoder params; BPM SYNC on button):**
+```
+Row 1:  RATE/DIV   DEPTH      MANUAL     RESONANCE
+Row 2:  SEPARATION HPF        EFX LVL    DIRECT LVL
+Row 3:  —          —          —          —
+```
+
+**PH — Phaser (6 encoder params; BPM SYNC/TYPE/STEP RATE on buttons):**
+```
+Row 1:  RATE/DIV   DEPTH      MANUAL     RESONANCE
+Row 2:  EFX LVL    DIRECT LVL —          —
+Row 3:  —          —          —          —
+```
+
+**DD — Delay (6 encoder params; BPM SYNC/TYPE on buttons):**
+```
+Row 1:  TIME/DIV   TAP TIME   FEEDBACK   LPF
+Row 2:  EFX LVL    DIRECT LVL —          —
+Row 3:  —          —          —          —
+```
+
+**PS — Pitch Shifter (8 params; VOICE on buttons; EFX1 only):**
+```
+Row 1:  PITCH 1    PRE DLY 1  EFX LVL 1  FEEDBACK
+Row 2:  PITCH 2    PRE DLY 2  EFX LVL 2  DIRECT LVL
+Row 3:  —          —          —          —
+```
+
+**RV — Reverb (8 params; TYPE on buttons; EFX2 only):**
+```
+Row 1:  TIME       PRE DELAY  DENSITY    SPRING SENS
+Row 2:  HPF        LPF        EFX LVL    DIRECT LVL
+Row 3:  —          —          —          —
+```
+
+These grid positions map directly to fixed CC numbers on the BCR2000. When the effect type changes, `efx_section.lua` remaps each slot's label and SysEx target address — the CC number assigned to each physical encoder never changes.
+
+### BCR2000 MIDI Mapping Reference
+
+**Create this before any implementation.** The mapping table is the contract that both `bcr_map.lua` (TouchOSC side) and the physical BCR2000 preset agree on. Created as markdown in `tb-3/bcr2000/` for version control; the BCR2000 itself is programmed to match.
+
+**Files to create:**
+```
+tb-3/bcr2000/
+  bcr2000-1-tone-dist.md    CC assignment table for BCR2000 #1
+  bcr2000-2-efx.md          CC assignment table for BCR2000 #2
+```
+
+**Suggested CC organisation:**
+- BCR2000 #1: MIDI CH 3, CCs 1–64 (encoders + buttons, top row first then middle then bottom)
+- BCR2000 #2: MIDI CH 4, CCs 1–64 (same layout convention)
+- Using a dedicated channel per BCR2000 avoids CC number collisions and makes routing in `onReceiveMIDI` straightforward (`midiFromBcr1` / `midiFromBcr2` checks by connection/channel)
+
+**BCR2000 #2 CC layout (EFX1 left / EFX2 right):**
+
+| Control | CC (EFX1) | CC (EFX2) | Function |
+|---------|-----------|-----------|---------|
+| Top row encoder 1 / 5 | 1 | 5 | EFX type select (rotate) + on/off (push → CC or Note) |
+| Top row encoders 2–4 / 6–8 | 2–4 | 6–8 | Param slots 1–3 |
+| Middle group 1 encoders (4) | 9–12 | 25–28 | Param slots 4–7 |
+| Middle group 2 encoders (4) | 13–16 | 29–32 | Param slots 8–11 |
+| Buttons 1–8 (left) | 33–40 | — | EFX1 discrete modes |
+| Buttons 1–8 (right) | — | 41–48 | EFX2 discrete modes |
+
+*(Exact CC numbers TBD — the above illustrates the convention; finalize from BCR2000 bank layout.)*
+
+**Push-button handling:** BCR2000 encoder push buttons can be configured to send either Note On or CC. We'll use CC (e.g., CC 1 with value 127 = push down, 0 = release) so `onReceiveMIDI` can handle everything uniformly as CC messages without special Note handling.
 
 ---
 
 ## Phased Delivery
+
+### Phase 0 — BCR2000 Mapping Tables (prerequisite)
+
+**Goal:** Complete CC assignment tables for both BCR2000s before any Lua code is written. These are the reference contract for all subsequent phases.
+
+**Deliverables:**
+- `tb-3/bcr2000/bcr2000-1-tone-dist.md` — full CC table for BCR2000 #1 (VCO/VCF/VCA/LFO/Dist), derived from the user's diagram (IMG_2885.JPG) and confirmed against available bank slots
+- `tb-3/bcr2000/bcr2000-2-efx.md` — full CC table for BCR2000 #2 (EFX1/EFX2), detailing type-select encoders, 11 param slots, and 8 discrete-mode buttons per side
+
+**Outcome:** Once approved, these tables drive `bcr_map.lua` in Phase 1 and the physical BCR2000 programming.
+
+---
 
 ### Phase 1 — Foundation + Core Synthesis
 
