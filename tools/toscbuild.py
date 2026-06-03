@@ -758,6 +758,16 @@ _TYPE_DEFAULTS = {
         "outline": ("b", True),
         "shape": ("i", 1),
     },
+    "RADIAL": {
+        "background": ("b", True),
+        "centered": ("b", False),
+        "grid": ("b", False),
+        "gridSteps": ("i", 20),
+        "inverted": ("b", False),
+        "response": ("i", 1),
+        "responseFactor": ("i", 100),
+        "shape": ("i", 2),
+    },
 }
 
 # Values each node type gets in its <values> section
@@ -768,6 +778,7 @@ _TYPE_VALUES = {
     "BUTTON": [("x", "0"), ("touch", "false")],
     "LABEL": [("text", ""), ("touch", "false")],
     "GRID": [("touch", "false")],
+    "RADIAL": [("x", "0.5"), ("touch", "false")],
 }
 
 
@@ -825,6 +836,7 @@ def _build_node_xml(node_def, depth=0):
         "barDisplay": "i", "cursorDisplay": "i", "gridOrder": "i",
         "gridNaming": "i", "gridStart": "i",
         "background": "b", "outline": "b", "bar": "b",
+        "centered": "b", "inverted": "b",
         "cursor": "b", "grid": "b", "exclusive": "b",
         "press": "b", "release": "b", "interactive": "b",
         "visible": "b", "grabFocus": "b", "locked": "b",
