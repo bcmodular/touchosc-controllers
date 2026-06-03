@@ -92,34 +92,48 @@
                   0.9,
                   1
                 ],
-                "tag": "cc:1,ch:bcr1"
+                "tag": "cc:1,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "SAW LVL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -127,24 +141,19 @@
                 "type": "BUTTON",
                 "frame": [
                   15,
-                  126,
+                  119,
                   70,
                   26
                 ],
-                "tag": "cc:9,ch:bcr1"
-              },
-              {
-                "name": "sw_label",
-                "type": "LABEL",
-                "frame": [
-                  0,
-                  152,
-                  100,
-                  12
+                "tag": "cc:9,ch:bcr1",
+                "color": [
+                  0.2,
+                  0.5,
+                  0.9,
+                  1
                 ],
-                "text": "SAW SW",
                 "properties": {
-                  "textSize": 10
+                  "buttonType": 1
                 }
               },
               {
@@ -204,34 +213,48 @@
                   0.9,
                   1
                 ],
-                "tag": "cc:2,ch:bcr1"
+                "tag": "cc:2,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "SQR LVL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -239,24 +262,19 @@
                 "type": "BUTTON",
                 "frame": [
                   15,
-                  126,
+                  119,
                   70,
                   26
                 ],
-                "tag": "cc:10,ch:bcr1"
-              },
-              {
-                "name": "sw_label",
-                "type": "LABEL",
-                "frame": [
-                  0,
-                  152,
-                  100,
-                  12
+                "tag": "cc:10,ch:bcr1",
+                "color": [
+                  0.2,
+                  0.5,
+                  0.9,
+                  1
                 ],
-                "text": "SQR SW",
                 "properties": {
-                  "textSize": 10
+                  "buttonType": 1
                 }
               },
               {
@@ -316,34 +334,48 @@
                   0.9,
                   1
                 ],
-                "tag": "cc:3,ch:bcr1"
+                "tag": "cc:3,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "SIN LVL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -351,24 +383,19 @@
                 "type": "BUTTON",
                 "frame": [
                   15,
-                  126,
+                  119,
                   70,
                   26
                 ],
-                "tag": "cc:11,ch:bcr1"
-              },
-              {
-                "name": "sw_label",
-                "type": "LABEL",
-                "frame": [
-                  0,
-                  152,
-                  100,
-                  12
+                "tag": "cc:11,ch:bcr1",
+                "color": [
+                  0.2,
+                  0.5,
+                  0.9,
+                  1
                 ],
-                "text": "SIN SW",
                 "properties": {
-                  "textSize": 10
+                  "buttonType": 1
                 }
               },
               {
@@ -428,34 +455,48 @@
                   0.9,
                   1
                 ],
-                "tag": "cc:4,ch:bcr1"
+                "tag": "cc:4,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "WHITE LVL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -463,24 +504,19 @@
                 "type": "BUTTON",
                 "frame": [
                   15,
-                  126,
+                  119,
                   70,
                   26
                 ],
-                "tag": "cc:12,ch:bcr1"
-              },
-              {
-                "name": "sw_label",
-                "type": "LABEL",
-                "frame": [
-                  0,
-                  152,
-                  100,
-                  12
+                "tag": "cc:12,ch:bcr1",
+                "color": [
+                  0.2,
+                  0.5,
+                  0.9,
+                  1
                 ],
-                "text": "WHITE SW",
                 "properties": {
-                  "textSize": 10
+                  "buttonType": 1
                 }
               },
               {
@@ -540,34 +576,48 @@
                   0.9,
                   1
                 ],
-                "tag": "cc:5,ch:bcr1"
+                "tag": "cc:5,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "PINK LVL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -575,24 +625,19 @@
                 "type": "BUTTON",
                 "frame": [
                   15,
-                  126,
+                  119,
                   70,
                   26
                 ],
-                "tag": "cc:13,ch:bcr1"
-              },
-              {
-                "name": "sw_label",
-                "type": "LABEL",
-                "frame": [
-                  0,
-                  152,
-                  100,
-                  12
+                "tag": "cc:13,ch:bcr1",
+                "color": [
+                  0.2,
+                  0.5,
+                  0.9,
+                  1
                 ],
-                "text": "PINK SW",
                 "properties": {
-                  "textSize": 10
+                  "buttonType": 1
                 }
               },
               {
@@ -652,34 +697,48 @@
                   0.9,
                   1
                 ],
-                "tag": "cc:8,ch:bcr1"
+                "tag": "cc:8,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "RING LVL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -687,24 +746,19 @@
                 "type": "BUTTON",
                 "frame": [
                   15,
-                  126,
+                  119,
                   70,
                   26
                 ],
-                "tag": "cc:16,ch:bcr1"
-              },
-              {
-                "name": "sw_label",
-                "type": "LABEL",
-                "frame": [
-                  0,
-                  152,
-                  100,
-                  12
+                "tag": "cc:16,ch:bcr1",
+                "color": [
+                  0.2,
+                  0.5,
+                  0.9,
+                  1
                 ],
-                "text": "RING SW",
                 "properties": {
-                  "textSize": 10
+                  "buttonType": 1
                 }
               },
               {
@@ -764,34 +818,48 @@
                   0.9,
                   1
                 ],
-                "tag": "cc:7,ch:bcr1"
+                "tag": "cc:7,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCO LFO",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -889,34 +957,48 @@
                   0.3,
                   1
                 ],
-                "tag": "cc:25,ch:bcr1"
+                "tag": "cc:25,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCA ATK",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -976,34 +1058,48 @@
                   0.3,
                   1
                 ],
-                "tag": "cc:26,ch:bcr1"
+                "tag": "cc:26,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCA DEC",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -1063,34 +1159,48 @@
                   0.3,
                   1
                 ],
-                "tag": "cc:27,ch:bcr1"
+                "tag": "cc:27,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCA SUS",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -1150,34 +1260,48 @@
                   0.3,
                   1
                 ],
-                "tag": "cc:28,ch:bcr1"
+                "tag": "cc:28,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCA REL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -1237,34 +1361,48 @@
                   0.3,
                   1
                 ],
-                "tag": "cc:29,ch:bcr1"
+                "tag": "cc:29,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCA LFO",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -1362,34 +1500,48 @@
                   0.9,
                   1
                 ],
-                "tag": "cc:6,ch:bcr1"
+                "tag": "cc:6,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "PORTA TIME",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -1397,24 +1549,19 @@
                 "type": "BUTTON",
                 "frame": [
                   15,
-                  126,
+                  119,
                   70,
                   26
                 ],
-                "tag": "cc:14,ch:bcr1"
-              },
-              {
-                "name": "sw_label",
-                "type": "LABEL",
-                "frame": [
-                  0,
-                  152,
-                  100,
-                  12
+                "tag": "cc:14,ch:bcr1",
+                "color": [
+                  0.6,
+                  0.3,
+                  0.9,
+                  1
                 ],
-                "text": "PORTA SW",
                 "properties": {
-                  "textSize": 10
+                  "buttonType": 1
                 }
               },
               {
@@ -1652,34 +1799,48 @@
                   0.2,
                   1
                 ],
-                "tag": "cc:30,ch:bcr1"
+                "tag": "cc:30,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "DRIVE",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -1739,34 +1900,48 @@
                   0.2,
                   1
                 ],
-                "tag": "cc:31,ch:bcr1"
+                "tag": "cc:31,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "BOTTOM",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -1826,34 +2001,48 @@
                   0.2,
                   1
                 ],
-                "tag": "cc:32,ch:bcr1"
+                "tag": "cc:32,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "TONE",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -1913,34 +2102,48 @@
                   0.2,
                   1
                 ],
-                "tag": "cc:40,ch:bcr1"
+                "tag": "cc:40,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "EFX LVL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2000,34 +2203,48 @@
                   0.2,
                   1
                 ],
-                "tag": "cc:48,ch:bcr1"
+                "tag": "cc:48,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "DRY LVL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2125,34 +2342,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:33,ch:bcr1"
+                "tag": "cc:33,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCF ATK",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2212,34 +2443,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:34,ch:bcr1"
+                "tag": "cc:34,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCF DEC",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2299,34 +2544,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:35,ch:bcr1"
+                "tag": "cc:35,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCF SUS",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2386,34 +2645,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:36,ch:bcr1"
+                "tag": "cc:36,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCF REL",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2473,34 +2746,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:37,ch:bcr1"
+                "tag": "cc:37,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "CUTOFF",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2560,34 +2847,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:38,ch:bcr1"
+                "tag": "cc:38,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "RESONANCE",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2647,34 +2948,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:45,ch:bcr1"
+                "tag": "cc:45,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "ENV DEPTH",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2734,34 +3049,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:46,ch:bcr1"
+                "tag": "cc:46,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "KEY FOLLOW",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2821,34 +3150,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:47,ch:bcr1"
+                "tag": "cc:47,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "VCF LFO",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2908,34 +3251,48 @@
                   0.15,
                   1
                 ],
-                "tag": "cc:39,ch:bcr1"
+                "tag": "cc:39,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "ACCENT",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -2996,34 +3353,48 @@
                   0.1,
                   1
                 ],
-                "tag": "cc:41,ch:bcr1"
+                "tag": "cc:41,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "SAW LVL\u00b2",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3083,34 +3454,48 @@
                   0.1,
                   1
                 ],
-                "tag": "cc:42,ch:bcr1"
+                "tag": "cc:42,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "SQR LVL\u00b2",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3170,34 +3555,48 @@
                   0.1,
                   1
                 ],
-                "tag": "cc:43,ch:bcr1"
+                "tag": "cc:43,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "RING LVL\u00b2",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3321,34 +3720,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:1"
+                "tag": "efx:1,slot:1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3408,34 +3821,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:2"
+                "tag": "efx:1,slot:2",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3495,34 +3922,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:3"
+                "tag": "efx:1,slot:3",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3582,34 +4023,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:4"
+                "tag": "efx:1,slot:4",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3669,34 +4124,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:5"
+                "tag": "efx:1,slot:5",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3756,34 +4225,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:6"
+                "tag": "efx:1,slot:6",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3843,34 +4326,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:7"
+                "tag": "efx:1,slot:7",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -3930,34 +4427,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:8"
+                "tag": "efx:1,slot:8",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4017,34 +4528,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:9"
+                "tag": "efx:1,slot:9",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4104,34 +4629,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:10"
+                "tag": "efx:1,slot:10",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4191,34 +4730,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:11"
+                "tag": "efx:1,slot:11",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4278,34 +4831,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:1,slot:12"
+                "tag": "efx:1,slot:12",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4517,34 +5084,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:1"
+                "tag": "efx:2,slot:1",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4604,34 +5185,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:2"
+                "tag": "efx:2,slot:2",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4691,34 +5286,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:3"
+                "tag": "efx:2,slot:3",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4778,34 +5387,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:4"
+                "tag": "efx:2,slot:4",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4865,34 +5488,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:5"
+                "tag": "efx:2,slot:5",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -4952,34 +5589,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:6"
+                "tag": "efx:2,slot:6",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -5039,34 +5690,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:7"
+                "tag": "efx:2,slot:7",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -5126,34 +5791,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:8"
+                "tag": "efx:2,slot:8",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -5213,34 +5892,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:9"
+                "tag": "efx:2,slot:9",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -5300,34 +5993,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:10"
+                "tag": "efx:2,slot:10",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -5387,34 +6094,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:11"
+                "tag": "efx:2,slot:11",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {
@@ -5474,34 +6195,48 @@
                   0.75,
                   1
                 ],
-                "tag": "efx:2,slot:12"
+                "tag": "efx:2,slot:12",
+                "properties": {
+                  "outline": false
+                }
               },
               {
                 "name": "value_label",
                 "type": "LABEL",
                 "frame": [
-                  0,
-                  96,
-                  100,
-                  13
+                  6,
+                  38,
+                  89,
+                  25
                 ],
                 "text": "---",
                 "properties": {
-                  "textSize": 11
-                }
+                  "textSize": 14,
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2
+                },
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ]
               },
               {
                 "name": "name_label",
                 "type": "LABEL",
                 "frame": [
                   0,
-                  109,
+                  89,
                   100,
-                  13
+                  25
                 ],
                 "text": "\u2014",
                 "properties": {
-                  "textSize": 11
+                  "textSize": 14,
+                  "textAlignH": 2,
+                  "textAlignV": 2
                 }
               },
               {

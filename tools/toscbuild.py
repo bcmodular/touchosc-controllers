@@ -764,6 +764,7 @@ _TYPE_DEFAULTS = {
         "grid": ("b", False),
         "gridSteps": ("i", 20),
         "inverted": ("b", False),
+        "outline": ("b", False),
         "response": ("i", 1),
         "responseFactor": ("i", 100),
         "shape": ("i", 2),
@@ -778,7 +779,7 @@ _TYPE_VALUES = {
     "BUTTON": [("x", "0"), ("touch", "false")],
     "LABEL": [("text", ""), ("touch", "false")],
     "GRID": [("touch", "false")],
-    "RADIAL": [("x", "0.5"), ("touch", "false")],
+    "RADIAL": [("x", "0"), ("touch", "false")],
 }
 
 
