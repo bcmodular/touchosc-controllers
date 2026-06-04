@@ -10,16 +10,31 @@ Controls the core TB-3 synthesis engine and distortion section.
 
 ---
 
+## VCO / LFO Dual-Mode (Row 0 + Row B CC19)
+
+Row 0's 8 encoders are shared between two BCR2000 encoder groups:
+
+- **Group 1 — VCO mode** (default): CC1–8 → VCO source levels + patch volume
+- **Group 2 — LFO mode**: CC1–8 → LFO rate, delay, wave levels, sync
+
+**Mode toggle:** BCR1 Row B button CC19 sends value 127 to TouchOSC, which swaps `vco_group` ↔ `lfo_group` visibility and routes CC1–8 to the correct SysEx addresses. The BCR2000 hardware GROUP button switches encoder layers in sync.
+
+---
+
 ## Physical Layout
 
 ```
-Row 0 (macro push-encoders, 8):
-  [SAW   ][SQR   ][SIN   ][WHITE ][PINK  ][PORTA ][LFO   ][RING  ]
-   lev/SW  lev/SW  lev/SW  lev/SW  lev/SW  time/SW  VCO dep  lev/SW
+Row 0 (macro push-encoders, 8) — VCO MODE:
+  [SAW   ][SQR   ][SIN   ][WHITE ][PINK  ][RING  ][LFO   ][PATCH ]
+   lev/SW  lev/SW  lev/SW  lev/SW  lev/SW  lev/SW  VCO dep  VOL
+
+Row 0 (macro push-encoders, 8) — LFO MODE (same CCs, different layer):
+  [RATE  ][DELAY ][W.SAW ][W.SQR ][W.TRI ][W.SIN ][W.S&H ][SYNC  ]
 
 Row B (dedicated buttons, 8):
-  [DIST  ][COLOR ][      ][      ][      ][PORTA ][DIST  ][DIST  ]
-   ON/OFF         spare   spare   spare   MODE    TYPE ↑   TYPE ↓
+  [DIST  ][COLOR ][VCO/  ][      ][      ][      ][DIST  ][DIST  ]
+   ON/OFF         LFO     spare   spare   spare   TYPE ↑   TYPE ↓
+                  MODE
 
 Row 1 (encoders, 8):
   [VCA A ][VCA D ][VCA S ][VCA R ][VCALFO][DRIVE ][BOTTOM][TONE  ]
@@ -28,15 +43,14 @@ Row 2 (encoders, 8):
   [VCF A ][VCF D ][VCF S ][VCF R ][CUTOFF][RESON ][ACCENT][DSTLVL]
 
 Row 3 (encoders, 8):
-  [SAWLVL][SQRLVL][RINGLVL][      ][ENVDEP][KEYFOL][VCFLFO][DRYLVL]
-                            spare?
+  [SAWTUN][SQRTUN][RGSNTUN][TUNING][ENVDEP][KEYFOL][VCFLFO][DRYLVL]
 ```
 
 ---
 
 ## CC Assignment Table
 
-### Row 0 — VCO Sources + Portamento (macro push-encoders)
+### Row 0 — VCO Mode (Group 1)
 
 | Col | Rotate CC | Push CC | Function (rotate) | Function (push) | SysEx addr | Type |
 |-----|-----------|---------|-------------------|-----------------|------------|------|
@@ -45,9 +59,22 @@ Row 3 (encoders, 8):
 | 3 | **CC 3** | **CC 11** | VCO SIN LEVEL | VCO SIN SW | `10 00 08 04` / `10 00 08 0A` | 7-bit / bool |
 | 4 | **CC 4** | **CC 12** | VCO WHITE LEVEL | VCO WHITE SW | `10 00 08 05` / `10 00 08 0B` | 7-bit / bool |
 | 5 | **CC 5** | **CC 13** | VCO PINK LEVEL | VCO PINK SW | `10 00 08 06` / `10 00 08 0C` | 7-bit / bool |
-| 6 | **CC 6** | **CC 14** | PORTAMENTO TIME | PORTAMENTO SW | `10 00 14 01` / `10 00 14 00` | 7-bit / bool |
+| 6 | **CC 6** | **CC 14** | VCO RING LEVEL | VCO RING SW | `10 00 08 07` / `10 00 08 0D` | 7-bit / bool |
 | 7 | **CC 7** | **CC 15** | VCO LFO DEPTH | — (spare push) | `10 00 00 08` / — | 7-bit (signed¹) |
-| 8 | **CC 8** | **CC 16** | VCO RING LEVEL | VCO RING SW | `10 00 08 07` / `10 00 08 0D` | 7-bit / bool |
+| 8 | **CC 8** | **CC 16** | PATCH VOLUME | — (spare push) | `10 00 0C 04` / — | 7-bit |
+
+### Row 0 — LFO Mode (Group 2, same CC numbers, different BCR encoder layer)
+
+| Col | Rotate CC | Push CC | Function (rotate) | Function (push) | SysEx addr | Type |
+|-----|-----------|---------|-------------------|-----------------|------------|------|
+| 1 | **CC 1** | — | LFO RATE | — | `10 00 00 00` | 7-bit |
+| 2 | **CC 2** | — | LFO DELAY | — | `10 00 00 01` | 7-bit |
+| 3 | **CC 3** | — | LFO WAVE SAW | — | `10 00 00 02` | 7-bit |
+| 4 | **CC 4** | — | LFO WAVE SQR | — | `10 00 00 03` | 7-bit |
+| 5 | **CC 5** | — | LFO WAVE TRI | — | `10 00 00 04` | 7-bit |
+| 6 | **CC 6** | — | LFO WAVE SIN | — | `10 00 00 05` | 7-bit |
+| 7 | **CC 7** | — | LFO WAVE S&H | — | `10 00 00 07` | 7-bit |
+| 8 | **CC 8** | — | LFO SYNC | — | `10 00 00 0B` | bool (toggle) |
 
 ¹ Signed offset-encode: raw 64 = 0, 0 = −64, 127 = +63. Display adjusted in Lua.
 
@@ -57,10 +84,10 @@ Row 3 (encoders, 8):
 |-----|----|----------|------------|-------|
 | 1 | **CC 17** | DIST ON/OFF | `10 00 0E 00` | Toggle, bool |
 | 2 | **CC 18** | DIST COLOR | `10 00 0E 07` | Toggle, bool |
-| 3 | **CC 19** | — | — | spare |
+| 3 | **CC 19** | **VCO/LFO MODE TOGGLE** | — | Rising edge → `root.lua` swaps `vco_group` ↔ `lfo_group` |
 | 4 | **CC 20** | — | — | spare |
 | 5 | **CC 21** | — | — | spare |
-| 6 | **CC 22** | PORTAMENTO MODE | `10 00 14 02` | Toggle: LEGATO(0) / ALWAYS(1) |
+| 6 | **CC 22** | — | — | spare (was PORTAMENTO MODE; portamento is now TouchOSC-only) |
 | 7 | **CC 23** | DIST TYPE ↑ | `10 00 0E 01` | Momentary — Lua increments type (0–24), wraps |
 | 8 | **CC 24** | DIST TYPE ↓ | `10 00 0E 01` | Momentary — Lua decrements type, wraps |
 
@@ -90,33 +117,41 @@ Row 3 (encoders, 8):
 | 7 | **CC 39** | ACCENT LEVEL | `10 00 14 0E/0F` | **16-bit** (0–255) |
 | 8 | **CC 40** | DIST EFFECT LEVEL | `10 00 0E 05` | 7-bit (0–100) |
 
-### Row 3 — VCF modulation + oscillator levels
+### Row 3 — Tuning + VCF modulation
 
 | Col | CC | Function | SysEx addr | Type | Notes |
 |-----|----|----------|------------|------|-------|
-| 1 | **CC 41** | VCO SAW LEVEL² | `10 00 08 00` | 7-bit | See note² |
-| 2 | **CC 42** | VCO SQR LEVEL² | `10 00 08 01` | 7-bit | See note² |
-| 3 | **CC 43** | VCO RING LEVEL² | `10 00 08 07` | 7-bit | See note² |
-| 4 | **CC 44** | — | — | — | spare — TBD³ |
+| 1 | **CC 41** | SAW TUNING | `10 00 02 02/03` | **16-bit** | CV offset SAW pitch |
+| 2 | **CC 42** | SQR TUNING | `10 00 02 00/01` | **16-bit** | CV offset SQR pitch |
+| 3 | **CC 43** | RING+SIN TUNING | `10 00 02 04/05` | **16-bit** | CV offset RING pitch |
+| 4 | **CC 44** | GLOBAL TUNING | TBD | — | Address not yet identified; stub |
 | 5 | **CC 45** | VCF ENV DEPTH | `10 00 0A 04/05` | **16-bit** (0–255) | Envelope → filter mod |
 | 6 | **CC 46** | VCF KEY FOLLOW | `10 00 0A 0A` | 7-bit | |
 | 7 | **CC 47** | VCF LFO DEPTH | `10 00 00 09` | 7-bit (signed¹) | |
 | 8 | **CC 48** | DIST DRY LEVEL | `10 00 0E 06` | 7-bit (0–100) | |
 
-² Row 0 and Row 3 both map to the same SysEx address for SAW/SQR/RING levels. The TouchOSC layout control linked to each CC is the same fader node — moving either the Row 0 encoder or the Row 3 encoder will update the display and send SysEx. This gives you the choice of reach (macro top-row or closer bottom-row). If you'd prefer Row 3 cols 1–3 to control something else entirely (e.g. LFO waveform levels), update these entries.
+---
 
-³ Diagram shows "TUNING?" for this position — no obvious single TB-3 parameter fits. Candidates: VCO SIN LEVEL (`10 00 08 04`) as a spare oscillator level, or MASTER VOLUME (`10 00 0C 04`). Left as spare pending hardware testing.
+## Portamento (TouchOSC-only)
+
+Portamento has been moved to a popup panel toggled from the EXTRAS section. It is **not** mapped to any BCR2000 encoder. Parameters:
+- PORTAMENTO SW: `10 00 14 00` — toggle button in popup
+- PORTAMENTO TIME: `10 00 14 01` — encoder in popup
+- PORTAMENTO MODE: `10 00 14 02` — toggle button (LEGATO/ALWAYS) in popup
 
 ---
 
-## Summary: TB-3 Parameters NOT on BCR2000 #1
+## Summary: Parameters NOT on BCR2000 #1
 
-These require TouchOSC direct control only (or move to BCR2000 #1 spare slots):
+These are TouchOSC-only (popup panels) or not yet in the layout:
 
-- VCO SIN LEVEL (if not in row 3 col 4 TBD slot)
-- VCO WHITE NOISE LEVEL / PINK NOISE LEVEL (they ARE on row 0 rotate — encoder 3/4)
-- MASTER VOLUME (`10 00 0C 04`)
-- LFO RATE (`10 00 00 00`), LFO DELAY (`10 00 00 01`)
-- LFO waveform levels (SAW/SQR/TRI/SIN wave levels `10 00 00 02–05`)
-- Cross Modulation, Ring Modulation, CV Offset params — Phase 2
+**Popup panels (TouchOSC-only):**
+- Portamento TIME/SW/MODE
+- Ring Modulation depths: `10 00 06 00/01/04/05/06/0B`
+- Cross Modulation depths: `10 00 04 00/02/03/04/05/07/08/09`
+
+**Not yet in layout (future phases):**
+- LFO RETRIGGER (`10 00 00 0C`)
+- LFO CV OFFSET (`10 00 00 07`) — LFO output offset
 - BENDER RANGE (`10 00 14 03`)
+- GLOBAL TUNING (CC44 TBD)

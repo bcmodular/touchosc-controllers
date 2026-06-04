@@ -887,6 +887,852 @@
         ]
       },
       {
+        "name": "lfo_group",
+        "type": "GROUP",
+        "frame": [
+          10,
+          10,
+          890,
+          200
+        ],
+        "color": [
+          0.05,
+          0.1,
+          0.18,
+          1
+        ],
+        "visible": false,
+        "properties": {
+          "background": true,
+          "outline": true
+        },
+        "children": [
+          {
+            "name": "lfo_section_label",
+            "type": "LABEL",
+            "frame": [
+              0,
+              0,
+              890,
+              24
+            ],
+            "text": "LFO",
+            "properties": {
+              "textSize": 14,
+              "textAlignH": 0
+            }
+          },
+          {
+            "name": "lfo_rate_enc",
+            "type": "GROUP",
+            "frame": [
+              0,
+              26,
+              100,
+              122
+            ],
+            "color": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "properties": {
+              "background": false,
+              "outline": false
+            },
+            "children": [
+              {
+                "name": "control_fader",
+                "type": "RADIAL",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0.2,
+                  0.45,
+                  0.85,
+                  1
+                ],
+                "tag": "cc:1,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
+              },
+              {
+                "name": "value_label",
+                "type": "LABEL",
+                "frame": [
+                  6,
+                  38,
+                  89,
+                  25
+                ],
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ],
+                "text": "---",
+                "properties": {
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "name_label",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  89,
+                  100,
+                  25
+                ],
+                "text": "LFO RATE",
+                "properties": {
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "pointer",
+                "type": "BOX",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0,
+                  0.92,
+                  0.86,
+                  0
+                ],
+                "properties": {
+                  "background": true,
+                  "outline": false
+                }
+              }
+            ]
+          },
+          {
+            "name": "lfo_delay_enc",
+            "type": "GROUP",
+            "frame": [
+              110,
+              26,
+              100,
+              122
+            ],
+            "color": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "properties": {
+              "background": false,
+              "outline": false
+            },
+            "children": [
+              {
+                "name": "control_fader",
+                "type": "RADIAL",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0.2,
+                  0.45,
+                  0.85,
+                  1
+                ],
+                "tag": "cc:2,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
+              },
+              {
+                "name": "value_label",
+                "type": "LABEL",
+                "frame": [
+                  6,
+                  38,
+                  89,
+                  25
+                ],
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ],
+                "text": "---",
+                "properties": {
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "name_label",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  89,
+                  100,
+                  25
+                ],
+                "text": "LFO DELAY",
+                "properties": {
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "pointer",
+                "type": "BOX",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0,
+                  0.92,
+                  0.86,
+                  0
+                ],
+                "properties": {
+                  "background": true,
+                  "outline": false
+                }
+              }
+            ]
+          },
+          {
+            "name": "lfo_wave_saw_enc",
+            "type": "GROUP",
+            "frame": [
+              220,
+              26,
+              100,
+              122
+            ],
+            "color": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "properties": {
+              "background": false,
+              "outline": false
+            },
+            "children": [
+              {
+                "name": "control_fader",
+                "type": "RADIAL",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0.2,
+                  0.45,
+                  0.85,
+                  1
+                ],
+                "tag": "cc:3,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
+              },
+              {
+                "name": "value_label",
+                "type": "LABEL",
+                "frame": [
+                  6,
+                  38,
+                  89,
+                  25
+                ],
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ],
+                "text": "---",
+                "properties": {
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "name_label",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  89,
+                  100,
+                  25
+                ],
+                "text": "WAVE SAW",
+                "properties": {
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "pointer",
+                "type": "BOX",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0,
+                  0.92,
+                  0.86,
+                  0
+                ],
+                "properties": {
+                  "background": true,
+                  "outline": false
+                }
+              }
+            ]
+          },
+          {
+            "name": "lfo_wave_sqr_enc",
+            "type": "GROUP",
+            "frame": [
+              330,
+              26,
+              100,
+              122
+            ],
+            "color": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "properties": {
+              "background": false,
+              "outline": false
+            },
+            "children": [
+              {
+                "name": "control_fader",
+                "type": "RADIAL",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0.2,
+                  0.45,
+                  0.85,
+                  1
+                ],
+                "tag": "cc:4,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
+              },
+              {
+                "name": "value_label",
+                "type": "LABEL",
+                "frame": [
+                  6,
+                  38,
+                  89,
+                  25
+                ],
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ],
+                "text": "---",
+                "properties": {
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "name_label",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  89,
+                  100,
+                  25
+                ],
+                "text": "WAVE SQR",
+                "properties": {
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "pointer",
+                "type": "BOX",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0,
+                  0.92,
+                  0.86,
+                  0
+                ],
+                "properties": {
+                  "background": true,
+                  "outline": false
+                }
+              }
+            ]
+          },
+          {
+            "name": "lfo_wave_tri_enc",
+            "type": "GROUP",
+            "frame": [
+              440,
+              26,
+              100,
+              122
+            ],
+            "color": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "properties": {
+              "background": false,
+              "outline": false
+            },
+            "children": [
+              {
+                "name": "control_fader",
+                "type": "RADIAL",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0.2,
+                  0.45,
+                  0.85,
+                  1
+                ],
+                "tag": "cc:5,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
+              },
+              {
+                "name": "value_label",
+                "type": "LABEL",
+                "frame": [
+                  6,
+                  38,
+                  89,
+                  25
+                ],
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ],
+                "text": "---",
+                "properties": {
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "name_label",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  89,
+                  100,
+                  25
+                ],
+                "text": "WAVE TRI",
+                "properties": {
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "pointer",
+                "type": "BOX",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0,
+                  0.92,
+                  0.86,
+                  0
+                ],
+                "properties": {
+                  "background": true,
+                  "outline": false
+                }
+              }
+            ]
+          },
+          {
+            "name": "lfo_wave_sin_enc",
+            "type": "GROUP",
+            "frame": [
+              550,
+              26,
+              100,
+              122
+            ],
+            "color": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "properties": {
+              "background": false,
+              "outline": false
+            },
+            "children": [
+              {
+                "name": "control_fader",
+                "type": "RADIAL",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0.2,
+                  0.45,
+                  0.85,
+                  1
+                ],
+                "tag": "cc:6,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
+              },
+              {
+                "name": "value_label",
+                "type": "LABEL",
+                "frame": [
+                  6,
+                  38,
+                  89,
+                  25
+                ],
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ],
+                "text": "---",
+                "properties": {
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "name_label",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  89,
+                  100,
+                  25
+                ],
+                "text": "WAVE SIN",
+                "properties": {
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "pointer",
+                "type": "BOX",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0,
+                  0.92,
+                  0.86,
+                  0
+                ],
+                "properties": {
+                  "background": true,
+                  "outline": false
+                }
+              }
+            ]
+          },
+          {
+            "name": "lfo_wave_sh_enc",
+            "type": "GROUP",
+            "frame": [
+              660,
+              26,
+              100,
+              122
+            ],
+            "color": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "properties": {
+              "background": false,
+              "outline": false
+            },
+            "children": [
+              {
+                "name": "control_fader",
+                "type": "RADIAL",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0.2,
+                  0.45,
+                  0.85,
+                  1
+                ],
+                "tag": "cc:7,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
+              },
+              {
+                "name": "value_label",
+                "type": "LABEL",
+                "frame": [
+                  6,
+                  38,
+                  89,
+                  25
+                ],
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ],
+                "text": "---",
+                "properties": {
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "name_label",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  89,
+                  100,
+                  25
+                ],
+                "text": "WAVE S&H",
+                "properties": {
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "pointer",
+                "type": "BOX",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0,
+                  0.92,
+                  0.86,
+                  0
+                ],
+                "properties": {
+                  "background": true,
+                  "outline": false
+                }
+              }
+            ]
+          },
+          {
+            "name": "lfo_sync_enc",
+            "type": "GROUP",
+            "frame": [
+              770,
+              26,
+              100,
+              122
+            ],
+            "color": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "properties": {
+              "background": false,
+              "outline": false
+            },
+            "children": [
+              {
+                "name": "control_fader",
+                "type": "RADIAL",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0.2,
+                  0.45,
+                  0.85,
+                  1
+                ],
+                "tag": "cc:8,ch:bcr1",
+                "properties": {
+                  "outline": false
+                }
+              },
+              {
+                "name": "value_label",
+                "type": "LABEL",
+                "frame": [
+                  6,
+                  38,
+                  89,
+                  25
+                ],
+                "color": [
+                  0,
+                  0,
+                  0,
+                  0.376
+                ],
+                "text": "---",
+                "properties": {
+                  "background": true,
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "name_label",
+                "type": "LABEL",
+                "frame": [
+                  0,
+                  89,
+                  100,
+                  25
+                ],
+                "text": "LFO SYNC",
+                "properties": {
+                  "textAlignH": 2,
+                  "textAlignV": 2,
+                  "textSize": 14
+                }
+              },
+              {
+                "name": "pointer",
+                "type": "BOX",
+                "frame": [
+                  5,
+                  5,
+                  90,
+                  90
+                ],
+                "color": [
+                  0,
+                  0.92,
+                  0.86,
+                  0
+                ],
+                "properties": {
+                  "background": true,
+                  "outline": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
         "comment": "===== VCA =====",
         "name": "vca_group",
         "type": "GROUP",

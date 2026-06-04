@@ -4,6 +4,9 @@
 --   • Roland SysEx send helpers (7-bit and 16-bit)
 --   • onReceiveMIDI: route BCR2000 CCs to SysEx; receive TB-3 SysEx dumps
 --   • Distortion type state machine (increment/decrement, 25 types)
+--   • VCO/LFO mode toggle (CC19): swaps vco_group ↔ lfo_group visibility
+--   • EXTRAS popup toggle: portamento_group, ring_mod_group, cross_mod_group
+--   • EFX type button grid (efx_1_chooser / efx_2_chooser) → notify efx_section
 --
 -- Included files (concatenated at build time):
 --   bcr_map.lua — CC→SysEx lookup tables for both BCR2000 units
@@ -83,15 +86,59 @@ local DIST_TYPE_ADDR = {0x10, 0x00, 0x0E, 0x01}
 local function sendDistType()
   tb3Send7bit(DIST_TYPE_ADDR[1], DIST_TYPE_ADDR[2],
                DIST_TYPE_ADDR[3], DIST_TYPE_ADDR[4], distType)
-  -- Update display label if node exists
-  local lbl = findByName("dist_type_label")
+  -- Section label doubles as type display: "DISTORTION: MILD OD"
+  local lbl = findByName("distortion_section_label")
   if lbl then
-    lbl.values.text = (DIST_TYPE_NAMES[distType + 1] or tostring(distType))
+    lbl.values.text = "DISTORTION: " .. (DIST_TYPE_NAMES[distType + 1] or tostring(distType))
   end
 end
 
 -- ---------------------------------------------------------------------------
--- Push-encoder toggle state (BCR2000 #1 Row 0 push CCs 9–16)
+-- VCO / LFO mode toggle
+-- CC19 from BCR1 Row B toggles which group is visible and which BCR1_xCO_MAP
+-- is active for CCs 1–8. The BCR2000 hardware GROUP button switches encoder
+-- layers in sync; CC19 keeps TouchOSC in step.
+-- ---------------------------------------------------------------------------
+
+local bcrVcoLfoMode = "vco"  -- "vco" | "lfo"
+
+local function setVcoLfoMode(mode)
+  bcrVcoLfoMode = mode
+  local vcoGroup = findByName("vco_group")
+  local lfoGroup = findByName("lfo_group")
+  if vcoGroup then vcoGroup.visible = (mode == "vco") end
+  if lfoGroup  then lfoGroup.visible  = (mode == "lfo")  end
+end
+
+local function toggleVcoLfoMode()
+  if bcrVcoLfoMode == "vco" then
+    setVcoLfoMode("lfo")
+  else
+    setVcoLfoMode("vco")
+  end
+end
+
+-- Returns the active top-row map for CCs 1–8 based on current mode.
+local function getTopRowMap()
+  if bcrVcoLfoMode == "lfo" then
+    return BCR1_LFO_MAP
+  else
+    return BCR1_VCO_MAP
+  end
+end
+
+-- ---------------------------------------------------------------------------
+-- EXTRAS popup toggle
+-- Each button independently shows/hides its popup group (toggle).
+-- ---------------------------------------------------------------------------
+
+local function togglePopup(groupName)
+  local grp = findByName(groupName)
+  if grp then grp.visible = not grp.visible end
+end
+
+-- ---------------------------------------------------------------------------
+-- Push-encoder toggle state (BCR2000 #1 Row 0 push CCs 9–14)
 -- The BCR sends 127 on press, 0 on release; we toggle on rising edge.
 -- ---------------------------------------------------------------------------
 
@@ -111,6 +158,12 @@ end
 -- ---------------------------------------------------------------------------
 
 local function handleBCR1(cc, ccVal)
+  -- VCO/LFO mode toggle (Row B CC19)
+  if cc == 19 then
+    if ccVal == 127 then toggleVcoLfoMode() end
+    return
+  end
+
   -- DIST TYPE ↑
   if cc == 23 then
     if ccVal == 127 then
@@ -129,10 +182,33 @@ local function handleBCR1(cc, ccVal)
     return
   end
 
+  -- CCs 1–8: mode-dependent (VCO or LFO)
+  if cc >= 1 and cc <= 8 then
+    local entry = getTopRowMap()[cc]
+    if not entry then return end
+
+    -- LFO SYNC (CC8 in LFO mode) is a boolean toggle
+    if entry.max == 1 then
+      handlePushToggle(cc, entry, ccVal)
+      return
+    end
+
+    local a = entry.addr
+    if entry.bits == 16 then
+      local val16 = math.floor(ccVal / 127 * (entry.max or 255) + 0.5)
+      tb3Send16bit(a[1], a[2], a[3], a[4], val16)
+    else
+      local scaled = ccScale(ccVal, entry.max or 127)
+      tb3Send7bit(a[1], a[2], a[3], a[4], scaled)
+    end
+    return
+  end
+
+  -- All other BCR1 CCs (mode-independent)
   local entry = BCR1_MAP[cc]
   if not entry then return end
 
-  -- Push-encoder SW toggles (CCs 9–16, boolean params)
+  -- Boolean toggles (SW buttons etc.)
   if entry.max == 1 then
     handlePushToggle(cc, entry, ccVal)
     return
@@ -140,14 +216,11 @@ local function handleBCR1(cc, ccVal)
 
   -- Continuous encoder — scale and send
   local a = entry.addr
-  local maxVal = entry.max or 127
-  local scaled = ccScale(ccVal, maxVal)
-
   if entry.bits == 16 then
-    -- Full 0–255 range encoded from 0–127 CC
     local val16 = math.floor(ccVal / 127 * (entry.max or 255) + 0.5)
     tb3Send16bit(a[1], a[2], a[3], a[4], val16)
   else
+    local scaled = ccScale(ccVal, entry.max or 127)
     tb3Send7bit(a[1], a[2], a[3], a[4], scaled)
   end
 end
@@ -285,9 +358,37 @@ function onReceiveMIDI(message, connections)
 end
 
 -- ---------------------------------------------------------------------------
+-- Notify entry point — called by child nodes / UI buttons
+-- ---------------------------------------------------------------------------
+
+function onReceiveNotify(key, value)
+  -- EXTRAS popup buttons
+  if key == "toggle_popup" then
+    togglePopup(value)
+    return
+  end
+
+  -- EFX type direct-select (efx_1_chooser / efx_2_chooser button grids)
+  -- value = "1,N" or "2,N" where first = EFX number, N = type index (1-based button)
+  if key == "efx_type_select" then
+    local efxNum, btnIdx = value:match("^(%d+),(%d+)$")
+    efxNum = tonumber(efxNum)
+    btnIdx = tonumber(btnIdx)
+    if efxNum and btnIdx then
+      local typeIndex = btnIdx - 1  -- 0-based type
+      local sectionName = efxNum == 1 and "efx1_section" or "efx2_section"
+      local section = findByName(sectionName)
+      if section then section:notify("type_set", typeIndex) end
+    end
+    return
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- init
 -- ---------------------------------------------------------------------------
 
 function init()
-  -- Nothing to initialise yet; layout controls are set up by per-node scripts.
+  -- Start in VCO mode (lfo_group hidden)
+  setVcoLfoMode("vco")
 end
