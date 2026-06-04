@@ -15,13 +15,13 @@
 -- ---------------------------------------------------------------------------
 -- BCR2000 #1  (MIDI channel 6) — Tone + Distortion
 -- ---------------------------------------------------------------------------
--- VCO/LFO mode: CC1–8 top row is shared between two BCR encoder groups.
---   Group 1 (VCO mode): CC1–8 → VCO source levels + patch volume
---   Group 2 (LFO mode): CC1–8 → LFO rate/delay/waves/sync (see BCR1_LFO_MAP)
--- root.lua tracks bcrVcoLfoMode ("vco"|"lfo") and routes accordingly.
--- CC19 (Row B spare button) = mode toggle sent by BCR GROUP button press.
+-- VCO/LFO dual-mode: top 8 encoders are shared between two BCR encoder groups.
+--   Group 1 (BCR channel 6): CC1–8 rotate → VCO source levels + patch volume
+--   Group 2 (BCR channel 3): CC1–8 rotate → LFO params (Dope Robot order)
+--                            CC9–10 push  → BPM SYNC / RETRIGGER
+-- root.lua routes by MIDI channel alone — no mode state variable needed.
 
--- VCO mode map (Group 1, default)
+-- VCO mode map (Group 1, BCR2000 channel 6) — CC1–8 rotate
 local BCR1_VCO_MAP = {
   [1]  = { addr = {0x10,0x00,0x08,0x00}, bits = 7 },            -- VCO SAW LEVEL
   [2]  = { addr = {0x10,0x00,0x08,0x01}, bits = 7 },            -- VCO SQR LEVEL
@@ -33,16 +33,24 @@ local BCR1_VCO_MAP = {
   [8]  = { addr = {0x10,0x00,0x0C,0x04}, bits = 7 },            -- PATCH VOLUME (master vol)
 }
 
--- LFO mode map (Group 2, activated by CC19 toggle)
+-- LFO mode map (Group 2, BCR2000 channel 3) — CC1–8 rotate.
+-- Dope Robot ordering: RATE, CV OFFSET, DELAY, TRI, SAW, SQR, SIN, S&H.
 local BCR1_LFO_MAP = {
   [1]  = { addr = {0x10,0x00,0x00,0x00}, bits = 7 },            -- LFO RATE
-  [2]  = { addr = {0x10,0x00,0x00,0x01}, bits = 7 },            -- LFO DELAY
-  [3]  = { addr = {0x10,0x00,0x00,0x02}, bits = 7 },            -- LFO WAVE SAW
-  [4]  = { addr = {0x10,0x00,0x00,0x03}, bits = 7 },            -- LFO WAVE SQR
-  [5]  = { addr = {0x10,0x00,0x00,0x04}, bits = 7 },            -- LFO WAVE TRI
-  [6]  = { addr = {0x10,0x00,0x00,0x05}, bits = 7 },            -- LFO WAVE SIN
-  [7]  = { addr = {0x10,0x00,0x00,0x07}, bits = 7 },            -- LFO WAVE S&H
-  [8]  = { addr = {0x10,0x00,0x00,0x0B}, bits = 7, max = 1 },   -- LFO SYNC (bool)
+  [2]  = { addr = {0x10,0x00,0x00,0x06}, bits = 7 },            -- LFO CV OFFSET
+  [3]  = { addr = {0x10,0x00,0x00,0x01}, bits = 7 },            -- LFO DELAY
+  [4]  = { addr = {0x10,0x00,0x00,0x04}, bits = 7 },            -- LFO WAVE TRI
+  [5]  = { addr = {0x10,0x00,0x00,0x02}, bits = 7 },            -- LFO WAVE SAW
+  [6]  = { addr = {0x10,0x00,0x00,0x03}, bits = 7 },            -- LFO WAVE SQR
+  [7]  = { addr = {0x10,0x00,0x00,0x05}, bits = 7 },            -- LFO WAVE SIN
+  [8]  = { addr = {0x10,0x00,0x00,0x07}, bits = 7 },            -- LFO WAVE S&H
+}
+
+-- LFO push map (Group 2, BCR2000 channel 3) — CC9/CC10 push.
+-- BPM SYNC is the push of RATE (Col 1); RETRIGGER is push of CV OFFSET (Col 2).
+local BCR1_LFO_PUSH_MAP = {
+  [9]  = { addr = {0x10,0x00,0x00,0x0B}, bits = 7, max = 1 },   -- LFO BPM SYNC (bool)
+  [10] = { addr = {0x10,0x00,0x00,0x0C}, bits = 7, max = 1 },   -- LFO RETRIGGER (bool)
 }
 
 -- Full BCR1 map (mode-independent CCs)

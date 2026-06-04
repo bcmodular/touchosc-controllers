@@ -4,9 +4,14 @@
 --   • Roland SysEx send helpers (7-bit and 16-bit)
 --   • onReceiveMIDI: route BCR2000 CCs to SysEx; receive TB-3 SysEx dumps
 --   • Distortion type state machine (increment/decrement, 25 types)
---   • VCO/LFO mode toggle (CC19): swaps vco_group ↔ lfo_group visibility
 --   • EXTRAS popup toggle: portamento_group, ring_mod_group, cross_mod_group
 --   • EFX type button grid (efx_1_chooser / efx_2_chooser) → notify efx_section
+--
+-- BCR2000 channel routing:
+--   CH6 (BCR1_CHANNEL)     — BCR2000 #1 VCO/Dist group (Group 1)
+--   CH3 (BCR1_LFO_CHANNEL) — BCR2000 #1 LFO group (Group 2, same unit, same CCs)
+--   CH7 (BCR2_CHANNEL)     — BCR2000 #2 EFX1/EFX2
+-- No mode state needed: channel alone determines routing.
 --
 -- Included files (concatenated at build time):
 --   bcr_map.lua — CC→SysEx lookup tables for both BCR2000 units
@@ -17,12 +22,13 @@
 
 -- Connection bitmasks: index = connection number, true = active.
 -- BCR2000 #1 and #2 both arrive on connection 2.
-local BCR_CONNECTION  = {false, true}
+local BCR_CONNECTION      = {false, true}
 -- TB-3 USB MIDI is on connection 6.
-local TB3_CONNECTION  = {false, false, false, false, false, true}
+local TB3_CONNECTION      = {false, false, false, false, false, true}
 
-local BCR1_CHANNEL = 6   -- BCR2000 #1: Tone + Dist
-local BCR2_CHANNEL = 7   -- BCR2000 #2: EFX1 + EFX2
+local BCR1_CHANNEL        = 6   -- BCR2000 #1 Group 1: VCO / Dist
+local BCR1_LFO_CHANNEL    = 3   -- BCR2000 #1 Group 2: LFO (same unit, different channel)
+local BCR2_CHANNEL        = 7   -- BCR2000 #2: EFX1 + EFX2
 
 -- ---------------------------------------------------------------------------
 -- SysEx helpers
@@ -67,6 +73,21 @@ local function ccScale(ccVal, maxVal)
 end
 
 -- ---------------------------------------------------------------------------
+-- Generic continuous-encoder send (shared by BCR1 VCO and LFO handlers)
+-- ---------------------------------------------------------------------------
+
+local function sendFromEntry(entry, ccVal)
+  local a = entry.addr
+  if entry.bits == 16 then
+    local val16 = math.floor(ccVal / 127 * (entry.max or 255) + 0.5)
+    tb3Send16bit(a[1], a[2], a[3], a[4], val16)
+  else
+    local scaled = ccScale(ccVal, entry.max or 127)
+    tb3Send7bit(a[1], a[2], a[3], a[4], scaled)
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- Distortion type state
 -- ---------------------------------------------------------------------------
 
@@ -94,42 +115,7 @@ local function sendDistType()
 end
 
 -- ---------------------------------------------------------------------------
--- VCO / LFO mode toggle
--- CC19 from BCR1 Row B toggles which group is visible and which BCR1_xCO_MAP
--- is active for CCs 1–8. The BCR2000 hardware GROUP button switches encoder
--- layers in sync; CC19 keeps TouchOSC in step.
--- ---------------------------------------------------------------------------
-
-local bcrVcoLfoMode = "vco"  -- "vco" | "lfo"
-
-local function setVcoLfoMode(mode)
-  bcrVcoLfoMode = mode
-  local vcoGroup = findByName("vco_group")
-  local lfoGroup = findByName("lfo_group")
-  if vcoGroup then vcoGroup.visible = (mode == "vco") end
-  if lfoGroup  then lfoGroup.visible  = (mode == "lfo")  end
-end
-
-local function toggleVcoLfoMode()
-  if bcrVcoLfoMode == "vco" then
-    setVcoLfoMode("lfo")
-  else
-    setVcoLfoMode("vco")
-  end
-end
-
--- Returns the active top-row map for CCs 1–8 based on current mode.
-local function getTopRowMap()
-  if bcrVcoLfoMode == "lfo" then
-    return BCR1_LFO_MAP
-  else
-    return BCR1_VCO_MAP
-  end
-end
-
--- ---------------------------------------------------------------------------
--- EXTRAS popup toggle
--- Each button independently shows/hides its popup group (toggle).
+-- EXTRAS popup toggle (independent per panel)
 -- ---------------------------------------------------------------------------
 
 local function togglePopup(groupName)
@@ -138,32 +124,26 @@ local function togglePopup(groupName)
 end
 
 -- ---------------------------------------------------------------------------
--- Push-encoder toggle state (BCR2000 #1 Row 0 push CCs 9–14)
+-- Push-encoder toggle state
 -- The BCR sends 127 on press, 0 on release; we toggle on rising edge.
 -- ---------------------------------------------------------------------------
 
-local pushToggleState = {}  -- [cc] = 0|1
+local pushToggleState = {}  -- [key] = 0|1  (key = channel*1000 + cc to avoid collisions)
 
-local function handlePushToggle(cc, entry, ccVal)
+local function handlePushToggle(stateKey, entry, ccVal)
   if ccVal ~= 127 then return end  -- act only on press
-  local cur = pushToggleState[cc] or 0
+  local cur = pushToggleState[stateKey] or 0
   local nxt = 1 - cur
-  pushToggleState[cc] = nxt
+  pushToggleState[stateKey] = nxt
   local a = entry.addr
   tb3Send7bit(a[1], a[2], a[3], a[4], nxt)
 end
 
 -- ---------------------------------------------------------------------------
--- BCR2000 #1 CC handler
+-- BCR2000 #1 — VCO Group (channel 6)
 -- ---------------------------------------------------------------------------
 
 local function handleBCR1(cc, ccVal)
-  -- VCO/LFO mode toggle (Row B CC19)
-  if cc == 19 then
-    if ccVal == 127 then toggleVcoLfoMode() end
-    return
-  end
-
   -- DIST TYPE ↑
   if cc == 23 then
     if ccVal == 127 then
@@ -182,51 +162,49 @@ local function handleBCR1(cc, ccVal)
     return
   end
 
-  -- CCs 1–8: mode-dependent (VCO or LFO)
+  -- CCs 1–8: VCO source levels / patch volume
   if cc >= 1 and cc <= 8 then
-    local entry = getTopRowMap()[cc]
+    local entry = BCR1_VCO_MAP[cc]
     if not entry then return end
-
-    -- LFO SYNC (CC8 in LFO mode) is a boolean toggle
-    if entry.max == 1 then
-      handlePushToggle(cc, entry, ccVal)
-      return
-    end
-
-    local a = entry.addr
-    if entry.bits == 16 then
-      local val16 = math.floor(ccVal / 127 * (entry.max or 255) + 0.5)
-      tb3Send16bit(a[1], a[2], a[3], a[4], val16)
-    else
-      local scaled = ccScale(ccVal, entry.max or 127)
-      tb3Send7bit(a[1], a[2], a[3], a[4], scaled)
-    end
+    sendFromEntry(entry, ccVal)
     return
   end
 
-  -- All other BCR1 CCs (mode-independent)
+  -- All other BCR1 CCs (mode-independent: SW pushes, Row B buttons, Rows 1-3)
   local entry = BCR1_MAP[cc]
   if not entry then return end
 
   -- Boolean toggles (SW buttons etc.)
   if entry.max == 1 then
-    handlePushToggle(cc, entry, ccVal)
+    handlePushToggle(BCR1_CHANNEL * 1000 + cc, entry, ccVal)
     return
   end
 
-  -- Continuous encoder — scale and send
-  local a = entry.addr
-  if entry.bits == 16 then
-    local val16 = math.floor(ccVal / 127 * (entry.max or 255) + 0.5)
-    tb3Send16bit(a[1], a[2], a[3], a[4], val16)
-  else
-    local scaled = ccScale(ccVal, entry.max or 127)
-    tb3Send7bit(a[1], a[2], a[3], a[4], scaled)
+  sendFromEntry(entry, ccVal)
+end
+
+-- ---------------------------------------------------------------------------
+-- BCR2000 #1 — LFO Group (channel 3)
+-- ---------------------------------------------------------------------------
+
+local function handleBCR1_LFO(cc, ccVal)
+  -- CC1–8: LFO rotate params
+  if cc >= 1 and cc <= 8 then
+    local entry = BCR1_LFO_MAP[cc]
+    if not entry then return end
+    sendFromEntry(entry, ccVal)
+    return
+  end
+
+  -- CC9–10: push buttons (BPM SYNC, RETRIGGER)
+  local entry = BCR1_LFO_PUSH_MAP[cc]
+  if entry then
+    handlePushToggle(BCR1_LFO_CHANNEL * 1000 + cc, entry, ccVal)
   end
 end
 
 -- ---------------------------------------------------------------------------
--- BCR2000 #2 CC handler
+-- BCR2000 #2 — EFX1 + EFX2 (channel 7)
 -- EFX slot/button CCs are forwarded to efx_section via notify.
 -- ---------------------------------------------------------------------------
 
@@ -315,7 +293,6 @@ local function handleTB3SysEx(message)
   -- Forward to patch_manager for full parse
   local pm = findByName("patch_manager")
   if pm then
-    -- Pass raw message as comma-separated hex string
     local parts = {}
     for _, b in ipairs(message) do
       parts[#parts + 1] = string.format("%02X", b)
@@ -341,6 +318,8 @@ function onReceiveMIDI(message, connections)
 
       if channel == BCR1_CHANNEL then
         handleBCR1(cc, ccVal)
+      elseif channel == BCR1_LFO_CHANNEL then
+        handleBCR1_LFO(cc, ccVal)
       elseif channel == BCR2_CHANNEL then
         handleBCR2(cc, ccVal)
       end
@@ -369,15 +348,15 @@ function onReceiveNotify(key, value)
   end
 
   -- EFX type direct-select (efx_1_chooser / efx_2_chooser button grids)
-  -- value = "1,N" or "2,N" where first = EFX number, N = type index (1-based button)
+  -- value = "N,M" where N = EFX number (1 or 2), M = button index (1-based)
   if key == "efx_type_select" then
     local efxNum, btnIdx = value:match("^(%d+),(%d+)$")
-    efxNum = tonumber(efxNum)
-    btnIdx = tonumber(btnIdx)
+    efxNum  = tonumber(efxNum)
+    btnIdx  = tonumber(btnIdx)
     if efxNum and btnIdx then
-      local typeIndex = btnIdx - 1  -- 0-based type
+      local typeIndex   = btnIdx - 1  -- 0-based
       local sectionName = efxNum == 1 and "efx1_section" or "efx2_section"
-      local section = findByName(sectionName)
+      local section     = findByName(sectionName)
       if section then section:notify("type_set", typeIndex) end
     end
     return
@@ -389,6 +368,5 @@ end
 -- ---------------------------------------------------------------------------
 
 function init()
-  -- Start in VCO mode (lfo_group hidden)
-  setVcoLfoMode("vco")
+  -- lfo_group is permanently visible — nothing to hide/show here.
 end

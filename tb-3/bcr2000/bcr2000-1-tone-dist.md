@@ -10,31 +10,31 @@ Controls the core TB-3 synthesis engine and distortion section.
 
 ---
 
-## VCO / LFO Dual-Mode (Row 0 + Row B CC19)
+## VCO / LFO Dual-Mode (Row 0)
 
-Row 0's 8 encoders are shared between two BCR2000 encoder groups:
+Row 0's 8 encoders are shared between two BCR2000 encoder groups. **No mode toggle button is needed** — the two groups send on different MIDI channels, which `root.lua` uses for stateless routing:
 
-- **Group 1 — VCO mode** (default): CC1–8 → VCO source levels + patch volume
-- **Group 2 — LFO mode**: CC1–8 → LFO rate, delay, wave levels, sync
+- **Group 1 — VCO (MIDI channel 6):** CC1–8 → VCO source levels + patch volume; CC9–14 push → source switches
+- **Group 2 — LFO (MIDI channel 3):** CC1–8 → LFO params (Dope Robot order); CC9 push → BPM SYNC; CC10 push → RETRIGGER
 
-**Mode toggle:** BCR1 Row B button CC19 sends value 127 to TouchOSC, which swaps `vco_group` ↔ `lfo_group` visibility and routes CC1–8 to the correct SysEx addresses. The BCR2000 hardware GROUP button switches encoder layers in sync.
+`lfo_group` is **permanently visible** alongside the VCO section. Switching BCR hardware groups switches both the MIDI channel and the encoder layer simultaneously.
 
 ---
 
 ## Physical Layout
 
 ```
-Row 0 (macro push-encoders, 8) — VCO MODE:
+Row 0 — VCO Group (MIDI CH 6):
   [SAW   ][SQR   ][SIN   ][WHITE ][PINK  ][RING  ][LFO   ][PATCH ]
    lev/SW  lev/SW  lev/SW  lev/SW  lev/SW  lev/SW  VCO dep  VOL
 
-Row 0 (macro push-encoders, 8) — LFO MODE (same CCs, different layer):
-  [RATE  ][DELAY ][W.SAW ][W.SQR ][W.TRI ][W.SIN ][W.S&H ][SYNC  ]
+Row 0 — LFO Group (MIDI CH 3, same physical encoders, different BCR layer):
+  [RATE  ][CVOFF ][DELAY ][TRI   ][SAW   ][SQR   ][SIN   ][S&H   ]
+  SYNC push↑ RETRIG push↑
 
 Row B (dedicated buttons, 8):
-  [DIST  ][COLOR ][VCO/  ][      ][      ][      ][DIST  ][DIST  ]
-   ON/OFF         LFO     spare   spare   spare   TYPE ↑   TYPE ↓
-                  MODE
+  [DIST  ][COLOR ][      ][      ][      ][      ][DIST  ][DIST  ]
+   ON/OFF         spare   spare   spare   spare   TYPE ↑   TYPE ↓
 
 Row 1 (encoders, 8):
   [VCA A ][VCA D ][VCA S ][VCA R ][VCALFO][DRIVE ][BOTTOM][TONE  ]
@@ -63,18 +63,20 @@ Row 3 (encoders, 8):
 | 7 | **CC 7** | **CC 15** | VCO LFO DEPTH | — (spare push) | `10 00 00 08` / — | 7-bit (signed¹) |
 | 8 | **CC 8** | **CC 16** | PATCH VOLUME | — (spare push) | `10 00 0C 04` / — | 7-bit |
 
-### Row 0 — LFO Mode (Group 2, same CC numbers, different BCR encoder layer)
+### Row 0 — LFO Mode (Group 2, MIDI channel 3, Dope Robot ordering)
 
-| Col | Rotate CC | Push CC | Function (rotate) | Function (push) | SysEx addr | Type |
-|-----|-----------|---------|-------------------|-----------------|------------|------|
-| 1 | **CC 1** | — | LFO RATE | — | `10 00 00 00` | 7-bit |
-| 2 | **CC 2** | — | LFO DELAY | — | `10 00 00 01` | 7-bit |
-| 3 | **CC 3** | — | LFO WAVE SAW | — | `10 00 00 02` | 7-bit |
-| 4 | **CC 4** | — | LFO WAVE SQR | — | `10 00 00 03` | 7-bit |
-| 5 | **CC 5** | — | LFO WAVE TRI | — | `10 00 00 04` | 7-bit |
-| 6 | **CC 6** | — | LFO WAVE SIN | — | `10 00 00 05` | 7-bit |
-| 7 | **CC 7** | — | LFO WAVE S&H | — | `10 00 00 07` | 7-bit |
-| 8 | **CC 8** | — | LFO SYNC | — | `10 00 00 0B` | bool (toggle) |
+| Col | Rotate CC | Push CC | Function (rotate) | SysEx (rotate) | Function (push) | SysEx (push) |
+|-----|-----------|---------|-------------------|----------------|-----------------|--------------|
+| 1 | **CC 1** | **CC 9** | LFO RATE | `10 00 00 00` | **BPM SYNC** | `10 00 00 0B` |
+| 2 | **CC 2** | **CC 10** | LFO CV OFFSET | `10 00 00 06` | **RETRIGGER** | `10 00 00 0C` |
+| 3 | **CC 3** | — | LFO DELAY | `10 00 00 01` | — | — |
+| 4 | **CC 4** | — | WAVE TRI | `10 00 00 04` | — | — |
+| 5 | **CC 5** | — | WAVE SAW | `10 00 00 02` | — | — |
+| 6 | **CC 6** | — | WAVE SQR | `10 00 00 03` | — | — |
+| 7 | **CC 7** | — | WAVE SIN | `10 00 00 05` | — | — |
+| 8 | **CC 8** | — | WAVE S&H | `10 00 00 07` | — | — |
+
+All Group 2 CCs are on **MIDI channel 3**. `root.lua` detects channel 3 and routes to `BCR1_LFO_MAP` (rotate) or `BCR1_LFO_PUSH_MAP` (push CC9/CC10). No state variable; no mode toggle button required.
 
 ¹ Signed offset-encode: raw 64 = 0, 0 = −64, 127 = +63. Display adjusted in Lua.
 
