@@ -1,80 +1,26 @@
-# TB-3 Lua Contributor Guide
+# TB-3 — Lua contributor guide
+
+General TouchOSC/Lua patterns (naming, scoping, `findByName`, Lua 5.1 constraints,
+namespace rules, 200-local limit, grid scope, button state) live in the shared
+[**`docs/lua-guide.md`**](../../docs/lua-guide.md). Read that first.
+
+---
 
 ## Build pipeline
 
 ```bash
-python3 tools/toscbuild.py build tb-3      # inject scripts into TB3.tosc
-python3 tools/toscbuild.py build tb-3 --dry-run  # check without writing
-python3 tools/toscbuild.py tree tb-3/TB3.tosc    # inspect node hierarchy
+python3 tools/toscbuild.py build tb-3           # inject scripts into TB3.tosc
+python3 tools/toscbuild.py build tb-3 --dry-run # check without writing
+python3 tools/toscbuild.py tree tb-3/TB3.tosc   # inspect node hierarchy
 ```
 
 Scripts are concatenated and injected at build time per `toscbuild.json`.
 The root script injection order is: `bcr_map.lua` → `patch_manager.lua` → `root.lua`.
-This means variables declared in earlier files are visible to later ones (shared
-chunk scope), which is intentional for shared state like `distType`.
+Variables declared in earlier files are visible to later ones (shared chunk scope),
+which is intentional — e.g. `distType` is declared in `patch_manager.lua` and used
+in `root.lua`.
 
 ---
-
-## TouchOSC Lua environment — known gotchas
-
-### Lua version: 5.1 (no bitwise operators)
-
-TouchOSC uses **Lua 5.1**. The Lua 5.3 bitwise operators (`&`, `|`, `~`, `<<`,
-`>>`) are **syntax errors**. Use arithmetic/modulo equivalents:
-
-| Lua 5.3        | Lua 5.1 equivalent               | Notes |
-|----------------|----------------------------------|-------|
-| `x & 0xF0`     | `x - (x % 16)`                  | upper nibble (mask low 4 bits) |
-| `x & 0x0F`     | `x % 16`                        | lower nibble |
-| `0xB0 \| ch`   | `0xB0 + ch`                     | safe when `0xB0` lower nibble = 0 |
-
-The symptom when `|` appears inside a table constructor is exactly:
-`SYNTAX ERROR: N: '}' expected near '|'`.
-
-### `findByName` is an instance method, not a global
-
-**Wrong:** `findByName("vcf_cutoff_enc")`  
-**Right:** `root:findByName("vcf_cutoff_enc", true)`
-
-`root` is a TouchOSC-provided global referring to the root layout node.
-The second argument `true` enables recursive (deep) search — required because
-most nodes are grandchildren or deeper, not direct children of root.
-
-For child lookup within a known parent, use the `children` dictionary:
-```lua
-local group = root:findByName("lfo_rate_enc", true)
-local fader = group.children["control_fader"]
-local swBtn = group.children["sw_button"]
-```
-
-### `self.values`, not bare `values`
-
-In a node's own script, access the node's values as `self.values.x`, not the
-bare global `values` (which is nil in Lua 5.1 TouchOSC).
-
-```lua
--- Wrong:
-if values.x == 1 then ...
-
--- Right:
-if self.values.x == 1 then ...
-```
-
-### `self` is the current node in callbacks
-
-`self` is set by the TouchOSC runtime for the duration of each callback
-(`onValueChanged`, `onReceiveMIDI`, `onReceiveOSC`, etc.). It is **not** a
-persistent global between calls — do not store it at module level expecting
-it to be available later. Use `root` for persistent cross-script references.
-
----
-
-## Naming conventions
-
-- **Lua variables/functions:** camelCase (`parseBlock`, `sendDistType`)
-- **Constants:** UPPER_SNAKE_CASE (`DIST_NUM_TYPES`, `BCR1_CHANNEL`)
-- **TouchOSC node names:** snake_case (`vcf_cutoff_enc`, `lfo_rate_enc`)
-- Encoder groups follow pattern `<param>_enc`; switches follow `<param>_button`
 
 ## Script responsibilities
 
@@ -82,9 +28,24 @@ it to be available later. Use `root` for persistent cross-script references.
 |------|--------------|---------|
 | `bcr_map.lua` | root (include) | CC→SysEx address table; EFX slot/button index helpers |
 | `patch_manager.lua` | root (include) | SysEx receive registry; `parseBlock`; shared dist type state |
-| `root.lua` | root node | MIDI routing; SysEx send helpers; RQ1 dump request |
+| `root.lua` | root node | MIDI routing; SysEx send/request helpers; BCR2000 handling |
 | `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay |
 | `receive_button.lua` | `receive_button` BUTTON | Notifies root to send patch dump request |
+
+---
+
+## SysEx protocol quick reference
+
+```
+Send (DT1):    F0 41 10 00 00 7B 12  [addr×4]  [data…]  [checksum]  F7
+Request (RQ1): F0 41 10 00 00 7B 11  [addr×4]  [size×4] [checksum]  F7
+Checksum: (0x100 − (sum of addr+data bytes % 256)) % 128
+7-bit param:  single byte 0x00–0x7F
+16-bit param: MSB = value // 16, LSB = value % 16 (nibble-packed)
+Signed param: raw 64 = 0; range 0–127 → −64 to +63
+```
+
+---
 
 ## Adding a new encoder script
 
@@ -93,4 +54,27 @@ it to be available later. Use `root` for persistent cross-script references.
    ```json
    {"lua": "<name>.lua", "node_name": "<node_name>"}
    ```
-3. Run `python3 tools/toscbuild.py build tb-3` to inject
+   or for multiple nodes sharing the same script:
+   ```json
+   {"lua": "<name>.lua", "node_names": ["node_a", "node_b"]}
+   ```
+3. Run `python3 tools/toscbuild.py build tb-3`
+
+Encoder scripts typically follow this pattern:
+
+```lua
+-- my_enc.lua — injected into <node_name>
+function init()
+  -- optional setup
+end
+
+function onValueChanged(key)
+  if key ~= "x" then return end
+  local raw = math.floor(self.values.x * MAX + 0.5)
+  -- call root helpers via notify or direct SysEx from root.lua functions
+end
+```
+
+Because encoder scripts run in their own node scope (not root), they cannot call
+`tb3Send7bit` directly. Use `self.parent:notify(...)` to reach the root or a
+parent group that has the SysEx helpers.
