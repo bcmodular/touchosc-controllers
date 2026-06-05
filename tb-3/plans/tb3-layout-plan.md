@@ -111,6 +111,72 @@ Completed:
 - lfo_group added with Dope Robot ordering and BPM SYNC/RETRIGGER push functions
 - BCR1 LFO group uses CH3 for stateless channel-based routing
 
+### Phase 1.5 — Patch Receive + Map Validation (NEW — do this first)
+
+**Rationale:** A single patch dump exercises *every* SysEx address at once. By
+decoding a dump and comparing against the Dope Robot Ctrlr panel (load the same
+`.syx` in both), we validate the entire address map — offsets, 16-bit packing,
+signed centers — *before* writing any send-side scripts. The address registry
+this produces is the single source of truth that later drives both send and the
+Phase 5 parameter-assign feature, so the work is foundational, not throwaway.
+
+**Done:**
+- `tools/decode_patch.py` — offline decoder for the 422-byte dump (11 blocks).
+  Decodes LFO/Tuning/XMod/RingMod/VCO/VCF/VCA/Dist/ParamAssign by name; EFX1/EFX2
+  dumped as raw indexed bytes (type-dependent). All 4 sample dumps checksum-OK.
+
+**Validated against Dope Robot panel (Starter Bass Reso 2, 2026-06-05):**
+Near-total match across all three panel pages — VCO/VCF/VCA/LFO/Dist/RingMod
+values all identical. Resolutions:
+- **LFO depths (VCO/VCF/VCA): center 64 CONFIRMED.** Panel VCF LFO MOD = 63 ↔
+  raw 127; VCA/VCO LFO MOD = 0 ↔ raw 64. Decoder `s7` (raw−64) is correct.
+- **CV OFFSET tuning: center 128 CONFIRMED, NOT 64** (my earlier guess was
+  wrong). Panel SQR −64 ↔ raw 64 (exact); SAW/RING within ±2 (panel rounding).
+  Decoder now uses `s16` (raw−128). Panel's 4th "TUNING" knob (=62) is the
+  separate **global tune (CC104)**, not in this block.
+- **DIST BOTTOM/TONE: display RAW 0–100** (panel shows 59 / 25 raw, not signed
+  ±50). Decoder reverted to `u7`. Layout encoders should show raw 0–100 to match.
+- **ACCENT (`14 0E`): CONFIRMED** = 5 ↔ panel VCF ACCENT = 5.
+- **VCO RING LEVEL (`08 07`) = RING MOD "LEVEL"** on panel (=79). Same byte,
+  different section label — value matches.
+
+**Still open:**
+- **BENDER RANGE (`14 03`):** decoder reads raw **23** (0x17), panel shows
+  **17**. Mapping unresolved (note the hex/decimal coincidence). Offsets around
+  it all validate (PORTA SW/TIME/MODE match panel exactly), so it IS at `14 03`.
+  Need a second patch with a different bender value, or a hardware test, to
+  derive the scaling. Store/recall raw for now.
+- **Global TUNING (CC104):** panel shows 62; not located in the dump. Likely a
+  device-global setting (not restorable from patch). Confirm it's absent.
+- **PARAM ID assignments (`14 04`–`14 0B`):** decode to 16-bit IDs (74/69/56/58);
+  not shown on the panel pages provided. Build the spec's `(*1)` ID→name table
+  for the Phase 5 assign UI.
+
+#### OSC patch-restore as test harness (folded into Phase 1.5)
+
+Embed an OSC receiver in the layout that accepts patch data and feeds the **same
+parse path** as MIDI receive. This doubles as the Phase 5 restore-from-backup
+feature *and* a fast test loop (push a `.syx` from the Python app over OSC, watch
+faders populate — no TB-3 or MIDI round-trip needed).
+
+**Single-parser architecture (critical):**
+- One `parseBlock(addrBytes, dataBytes)` routine drives fader/label updates.
+- `onReceiveMIDI` accumulates each complete `F0…F7` SysEx message → `parseBlock`.
+- `onReceiveOSC` reconstructs the **identical raw bytes** from the OSC payload →
+  same `parseBlock`. Because both entry points hand over raw SysEx bytes, the
+  formats are equal by construction.
+- Python app: read `.syx`, split into the 11 block messages, send each over OSC
+  (e.g. `/tb3/patch` with the raw bytes). TODO: confirm TouchOSC OSC arg
+  encoding (blob vs int-array vs hex string) and that MIDI-received SysEx is
+  delivered whole (per message) by `onReceiveMIDI`.
+
+**Remaining:**
+- Master parameter **registry** (addr → {param name, decode rule, target encoder
+  node name}) — keyed so it serves parse-in, send-out, and assign lookup.
+- `patch_manager.lua`: parse incoming dump → `setValue` on each encoder/fader via
+  the registry; request-dump button (Roland data-request SysEx).
+- EFX1/EFX2 per-type slot decoding (deferred until Phase 4 effect maps are firm).
+
 ### Phase 2 — LFO + Modulation Scripts
 
 **Goal:** Encoder groups in the layout sending correct SysEx. Popup panels working.
