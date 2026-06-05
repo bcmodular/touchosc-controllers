@@ -5,8 +5,12 @@
 
 function onValueChanged(key)
   if key ~= "x" then return end
+  local v = math.floor(self.values.x + 0.5)
+  -- Update the sibling label to show current mode text.
+  local lbl = self.parent.children["porta_mode_label"]
+  if lbl then lbl.values.text = v == 1 and "ALWAYS" or "LEGATO" end
   root:notify("sw_toggled",
     self.parent.name .. "," ..
     self.name        .. "," ..
-    tostring(math.floor(self.values.x + 0.5)))
+    tostring(v))
 end

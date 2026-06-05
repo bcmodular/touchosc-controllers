@@ -283,6 +283,37 @@ local function handleBCR2(cc, ccVal)
 end
 
 -- ---------------------------------------------------------------------------
+-- TB-3 CC receive — hardware knob feedback updates the layout display.
+-- CCs 74 (Cutoff) and 71 (Resonance) are standard MIDI; their faders are
+-- updated directly. CCs 16/17 (Accent, Effect) pass through the parameter
+-- assign system and will be mapped properly in Phase 5.
+-- We update the display only — no SysEx is re-sent (TB-3 already changed).
+-- ---------------------------------------------------------------------------
+
+local TB3_CC_DISPLAY_MAP = {
+  [71] = "vcf_group,vcf_resonance_enc",
+  [74] = "vcf_group,vcf_cutoff_enc",
+  -- [16] = accent — parameter-assign dependent, Phase 5
+  -- [17] = effect — parameter-assign dependent, Phase 5
+}
+
+local function handleTB3CC(cc, ccVal)
+  local encPath = TB3_CC_DISPLAY_MAP[cc]
+  if not encPath then return end
+  local encName = encPath:match(",(.+)$")
+  local encGrp  = root:findByName(encName, true)
+  if not encGrp then return end
+  local x = ccVal / 127
+  local fader = encGrp.children["control_fader"]
+  if fader then fader.values.x = x end
+  local lbl = encGrp.children["value_label"]
+  if lbl then
+    -- Scale to the SysEx range for display (u16 params span 0–255).
+    lbl.values.text = tostring(math.floor(x * 255 + 0.5))
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- TB-3 SysEx receive (patch dump) — calls parseBlock from patch_manager.lua
 -- ---------------------------------------------------------------------------
 
@@ -329,8 +360,15 @@ function onReceiveMIDI(message, connections)
 
   -- TB-3 (connection 6)
   if connections[6] then
-    if message[1] == 0xF0 then
+    local status  = message[1]
+    local msgType = status - (status % 16)
+    if msgType == 0xF0 or status == 0xF0 then
       handleTB3SysEx(message)
+    elseif msgType == 0xB0 then
+      local ch = (status % 16) + 1
+      if ch == TB3_MIDI_CHANNEL then
+        handleTB3CC(message[2], message[3])
+      end
     end
     return
   end
@@ -374,6 +412,18 @@ function onReceiveNotify(key, value)
         tb3Send7bit(a[1], a[2], a[3], a[4], tonumber(vs))
       end
     end
+    return
+  end
+
+  -- Sent by dist_type_button.lua (momentary ↑/↓ buttons in the layout).
+  if key == "dist_type_up" then
+    distType = (distType + 1) % DIST_NUM_TYPES
+    sendDistType()
+    return
+  end
+  if key == "dist_type_dn" then
+    distType = (distType - 1 + DIST_NUM_TYPES) % DIST_NUM_TYPES
+    sendDistType()
     return
   end
 
