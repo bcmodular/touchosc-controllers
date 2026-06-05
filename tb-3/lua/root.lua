@@ -25,6 +25,8 @@
 local BCR_CONNECTION      = {false, true}
 -- TB-3 USB MIDI is on connection 6.
 local TB3_CONNECTION      = {false, false, false, false, false, true}
+-- TB-3 MIDI receive channel (default 2 per user setup).
+local TB3_MIDI_CHANNEL    = 2
 
 local BCR1_CHANNEL        = 3   -- BCR2000 #1 Group 1: VCO / Dist
 local BCR1_LFO_CHANNEL    = 4   -- BCR2000 #1 Group 2: LFO (same unit, different channel)
@@ -171,6 +173,14 @@ local function handleBCR1(cc, ccVal)
     local entry = BCR1_VCO_MAP[cc]
     if not entry then return end
     sendFromEntry(entry, ccVal)
+    return
+  end
+
+  -- CC 44: GLOBAL TUNING — plain MIDI CC 104 to TB-3 (not SysEx).
+  -- The TB-3 has no SysEx address for global tuning; it responds to CC 104
+  -- via standard MIDI. Device-global setting, not saved in patch dumps.
+  if cc == 44 then
+    sendMIDI({0xB0 | (TB3_MIDI_CHANNEL - 1), 104, ccVal}, TB3_CONNECTION)
     return
   end
 

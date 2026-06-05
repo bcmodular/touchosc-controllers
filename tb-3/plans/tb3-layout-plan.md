@@ -241,9 +241,9 @@ local PARAM_ID = {
 
 ## Open Items
 
-- **GLOBAL TUNING (CC44)**: Not a SysEx parameter. Dope Robot panel sends **CC 104** on MIDI CH1 to the TB-3 directly (no SysEx formula). The TB-3 responds to CC 104 for global fine tuning via its standard MIDI implementation — it is a device-global setting, not stored in patch dumps. Our layout should send `CC 104` to the TB-3 (connection 6, CH2) rather than SysEx. Update `bcr_map.lua` CC44 stub and the tuning encoder script accordingly.
-- **PORTAMENTO SW**: Missing from layout. The porta_time_enc group has a `sw_button` which is the on/off switch (`10 00 14 00`). Label convention: static label ("PORTA"), color encodes state (bright = on, dim = off) — consistent with VCO source switches. No text switching.
-- **BENDER RANGE**: Add encoder next to portamento (`10 00 14 03`, range 0–17 semitones). Phase 5 layout addition.
+- **GLOBAL TUNING (CC44)**: Resolved. BCR1 CC44 sends plain MIDI CC 104 to TB-3 (CH2, connection 6) via special handler in `root.lua` — not SysEx. Device-global setting, not in patch dumps. `bcr_map.lua` updated with note; `tuning_enc` script (Phase 2) should do the same.
+- **PORTAMENTO SW**: Missing from layout. The `porta_time_enc` group has a `sw_button` which is the on/off switch (`10 00 14 00`). Label convention: static label ("PORTA"), color encodes state (bright = on, dim = off) — consistent with VCO source switches. No text switching.
+- **BENDER RANGE**: Now in layout as `pitch_bend_group` / `pitch_bend_range_enc` (SysEx `10 00 14 03`, range 0–17 semitones). Script needed in Phase 2. Not on BCR2000 — TouchOSC-only.
 - **BCR2000 #1 physical programming**: Group 1 on CH3, Group 2 on CH4.
 - **BCR2000 #2 physical programming**: CH5.
 - **TB3.tosc naming fixes**: see "Naming issues still outstanding" above

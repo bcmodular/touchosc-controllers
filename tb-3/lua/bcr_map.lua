@@ -98,7 +98,7 @@ local BCR1_MAP = {
   [41] = { addr = {0x10,0x00,0x02,0x02}, bits = 16, max = 255 },-- SAW TUNING (CV offset SAW pitch)
   [42] = { addr = {0x10,0x00,0x02,0x00}, bits = 16, max = 255 },-- SQR TUNING (CV offset SQR pitch)
   [43] = { addr = {0x10,0x00,0x02,0x04}, bits = 16, max = 255 },-- RING+SIN TUNING (CV offset RING pitch)
-  -- CC 44: GLOBAL TUNING — SysEx address TBD (not yet identified in spec/dumps; stub)
+  -- CC 44: GLOBAL TUNING — plain MIDI CC 104 to TB-3, handled in root.lua (not a SysEx address)
   [45] = { addr = {0x10,0x00,0x0A,0x04}, bits = 16, max = 255 },-- VCF ENV DEPTH (MSB 0x04, LSB 0x05)
   [46] = { addr = {0x10,0x00,0x0A,0x0A}, bits = 7 },            -- VCF KEY FOLLOW
   [47] = { addr = {0x10,0x00,0x00,0x09}, bits = 7, signed = true }, -- VCF LFO DEPTH
