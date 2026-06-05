@@ -180,8 +180,9 @@ local function handleBCR1(cc, ccVal)
   -- GLOBAL TUNING (CC 100) — plain MIDI CC 104 to TB-3, not SysEx.
   -- The TB-3 has no SysEx address for global tuning; responds to CC 104
   -- via standard MIDI. Device-global, not saved in patch dumps.
+  -- Note: addition is equivalent to bitwise OR here because 0xB0 lower nibble = 0.
   if cc == 100 then
-    sendMIDI({0xB0 | (TB3_MIDI_CHANNEL - 1), 104, ccVal}, TB3_CONNECTION)
+    sendMIDI({0xB0 + (TB3_MIDI_CHANNEL - 1), 104, ccVal}, TB3_CONNECTION)
     return
   end
 
@@ -286,9 +287,12 @@ function onReceiveMIDI(message, connections)
   -- BCR2000 units (both on connection 2)
   if connections[2] then
     local status  = message[1]
-    local msgType = status & 0xF0
-    local channel = (status & 0x0F) + 1  -- 1-indexed
+    local msgType = status - (status % 16)   -- equiv: status & 0xF0
+    local channel = (status % 16) + 1        -- equiv: (status & 0x0F) + 1, 1-indexed
 
+    -- Lua 5.1 has no bitwise operators; use modulo/subtraction instead.
+    -- msgType = status & 0xF0  →  status - (status % 16)
+    -- channel = (status & 0x0F) + 1  →  (status % 16) + 1
     if msgType == 0xB0 then
       local cc    = message[2]
       local ccVal = message[3]
