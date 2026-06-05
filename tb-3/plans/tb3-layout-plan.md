@@ -55,6 +55,21 @@ Both units use the same BC Manager preset template, differing only in channel. R
 
 ## Architecture
 
+### TouchOSC Lua Constraints (Lua 5.1)
+
+**No bitwise operators** — use arithmetic equivalents:
+- `status & 0xF0` → `status - (status % 16)`
+- `status & 0x0F` → `status % 16`
+- `0xB0 | ch` → `0xB0 + ch` (safe when lower nibble of 0xB0 is 0)
+
+**`findByName` is an instance method** — never a global:
+- Always: `root:findByName("node_name", true)` (second arg = recursive)
+- Child lookup: `group.children["child_name"]`
+
+**`self.values`** — node's own values are `self.values.x`, not bare `values`.
+
+Full details and rationale in `tb-3/lua/README.md`.
+
 ### SysEx Protocol
 
 ```
