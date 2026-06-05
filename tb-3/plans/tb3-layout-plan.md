@@ -156,9 +156,9 @@ Distortion type state machine already in `root.lua` (types 0–24, named array).
 - TR TYPE: encoder slot S03 (range 0–5)
 - PH TYPE: 4 dedicated buttons B4–B7 (4Stage/8Stage/12Stage/Bi-Phase)
 
-### Phase 5 — Patch Management + Python Qt App
+### Phase 5 — Patch Management, Parameter Assign + Python Qt App
 
-**Goal:** Full preset workflow — dump/restore patches to/from hardware; desktop app for backup.
+**Goal:** Full preset workflow — dump/restore patches to/from hardware; parameter assign UI; desktop app for backup.
 
 **TouchOSC side (`patch_manager.lua`):**
 - Send Roland SysEx all-data request to TB-3
@@ -169,6 +169,61 @@ Distortion type state machine already in `root.lua` (types 0–24, named array).
 - Modelled on `sp404-mk2/preset-manager/python/`
 - Receives OSC from TouchOSC, stores as JSON patch files
 - Sends OSC back to layout for recall
+
+---
+
+#### Parameter Assign UI (Phase 5)
+
+Assigns synthesis parameters to the TB-3's four hardware controls: EFFECT knob, PAD X, PAD Y, PAD Z. SysEx: `10 00 14 04–0B` (four 16-bit parameter IDs).
+
+**UX flow (reverse of Ctrlr panel):**
+1. User clicks one of four assign buttons ([EFFECT] / [PAD X] / [PAD Y] / [PAD Z]) in a dedicated assign section of the layout
+2. Layout enters assign mode for that slot; button highlights; a status label reads e.g. "Tap encoder to assign to EFFECT knob"
+3. User can drag any encoder to audition what they're about to assign (normal fader behaviour still works)
+4. User taps any encoder → that parameter gets assigned to the selected slot; mode exits; button un-highlights
+
+**Architecture — root-centric (no param IDs in encoder tags):**
+
+`root.lua` owns all param ID knowledge. `pointer.lua` stays simple.
+
+```lua
+-- pointer.lua: single extra branch at PointerState.END
+local as = findByName("assign_state")
+if as and as.tag ~= "" then
+    findByName("root"):notify("encoder_tapped", self.parent.name)
+    return   -- skip double-tap logic
+end
+-- else: normal double-tap behaviour
+
+-- root.lua: central lookup table (16-bit param IDs from spec §*1 table)
+local PARAM_ID = {
+    lfo_rate_enc        = {0x00, 0x00},
+    lfo_cv_offset_enc   = {0x00, 0x06},
+    lfo_delay_enc       = {0x00, 0x01},
+    lfo_wave_tri_enc    = {0x00, 0x04},
+    lfo_wave_saw_enc    = {0x00, 0x02},
+    lfo_wave_sqr_enc    = {0x00, 0x03},
+    lfo_wave_sin_enc    = {0x00, 0x05},
+    lfo_wave_sh_enc     = {0x00, 0x07},
+    -- VCO depths, VCF, VCA, etc. — all encoders that are XY-assignable
+}
+-- onReceiveNotify "encoder_tapped":
+--   look up PARAM_ID[value], send assignment SysEx, clear assign_state.tag
+```
+
+**Shared state:** a hidden LABEL element named `assign_state` whose `tag` stores `""` | `"effect"` | `"pad_x"` | `"pad_y"` | `"pad_z"`. Root writes it; pointer.lua reads it. No cross-script function calls or injected tags needed.
+
+**Why root-centric is simpler than encoder-centric:**
+- `pointer.lua` needs zero knowledge of param IDs — nothing extra injected at build time
+- The full assignment map is auditable and editable in one place (`root.lua`)
+- Encoders with no assignable parameter are handled by simply omitting them from `PARAM_ID` — the tap is silently ignored
+- The same table can drive a "currently assigned to:" display label
+
+**Layout additions needed:**
+- 4 assign mode buttons (EFFECT / PAD X / PAD Y / PAD Z) with highlight state
+- `assign_state` hidden LABEL element
+- Status label showing current assign mode and currently-assigned parameter name
+- BENDER RANGE encoder (`10 00 14 03`, 0–17 semitones) placed next to portamento section
 
 ---
 
@@ -186,8 +241,11 @@ Distortion type state machine already in `root.lua` (types 0–24, named array).
 
 ## Open Items
 
-- **GLOBAL TUNING address** (CC44): not identified in spec or dumps; stub in `bcr_map.lua`
-- **BCR2000 #1 physical programming**: Group 2 must send all CCs on MIDI CH3
+- **GLOBAL TUNING (CC44)**: Not a SysEx parameter. Dope Robot panel sends **CC 104** on MIDI CH1 to the TB-3 directly (no SysEx formula). The TB-3 responds to CC 104 for global fine tuning via its standard MIDI implementation — it is a device-global setting, not stored in patch dumps. Our layout should send `CC 104` to the TB-3 (connection 6, CH2) rather than SysEx. Update `bcr_map.lua` CC44 stub and the tuning encoder script accordingly.
+- **PORTAMENTO SW**: Missing from layout. The porta_time_enc group has a `sw_button` which is the on/off switch (`10 00 14 00`). Label convention: static label ("PORTA"), color encodes state (bright = on, dim = off) — consistent with VCO source switches. No text switching.
+- **BENDER RANGE**: Add encoder next to portamento (`10 00 14 03`, range 0–17 semitones). Phase 5 layout addition.
+- **BCR2000 #1 physical programming**: Group 1 on CH3, Group 2 on CH4.
+- **BCR2000 #2 physical programming**: CH5.
 - **TB3.tosc naming fixes**: see "Naming issues still outstanding" above
 - **Popup scripts**: Phase 2 work
 - **EFX type numbering in `efx_section.lua`**: EFX2 type 9 = RV; EFX1 type 9 = PS; EFX1 type 10 = EQ (EFX2 has no PS, no type 10)
