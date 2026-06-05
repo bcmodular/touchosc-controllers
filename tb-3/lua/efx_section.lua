@@ -408,31 +408,29 @@ local function applyType(typeIdx)
 
   -- Slot faders (S01–S12)
   for i = 1, 12 do
-    local grpName  = slotGroupName(i)
-    local slotGrp  = self.children[grpName]
-    if not slotGrp then goto continue_slot end
+    local grpName = slotGroupName(i)
+    local slotGrp = self.children[grpName]
+    if slotGrp then
+      local slotDef = def and def.slots and def.slots[i]
+      local fader   = slotGrp.children["control_fader"]
+      local nameLbl = slotGrp.children["name_label"]
+      local valLbl  = slotGrp.children["value_label"]
 
-    local slotDef  = def and def.slots and def.slots[i]
-    local fader    = slotGrp.children["control_fader"]
-    local nameLbl  = slotGrp.children["name_label"]
-    local valLbl   = slotGrp.children["value_label"]
-
-    if slotDef and #rawData > 0 then
-      local raw = rawData[slotDef.off + 1] or 0
-      local x   = math.max(0, math.min(1, raw / slotDef.max))
-      if fader   then fader.values.x         = x end
-      if nameLbl then nameLbl.values.text    = slotDef.name end
-      if valLbl  then valLbl.values.text     = tostring(raw) end
-      sendBCRcc(SLOT_CC[i], math.floor(x * 127 + 0.5))
-    else
-      -- Spare or no data yet
-      if fader   then fader.values.x         = 0 end
-      if nameLbl then nameLbl.values.text    = slotDef and slotDef.name or "---" end
-      if valLbl  then valLbl.values.text     = "--" end
-      sendBCRcc(SLOT_CC[i], 0)
+      if slotDef and #rawData > 0 then
+        local raw = rawData[slotDef.off + 1] or 0
+        local x   = math.max(0, math.min(1, raw / slotDef.max))
+        if fader   then fader.values.x      = x end
+        if nameLbl then nameLbl.values.text = slotDef.name end
+        if valLbl  then valLbl.values.text  = tostring(raw) end
+        sendBCRcc(SLOT_CC[i], math.floor(x * 127 + 0.5))
+      else
+        -- Spare slot or no data yet
+        if fader   then fader.values.x      = 0 end
+        if nameLbl then nameLbl.values.text = slotDef and slotDef.name or "---" end
+        if valLbl  then valLbl.values.text  = "--" end
+        sendBCRcc(SLOT_CC[i], 0)
+      end
     end
-
-    ::continue_slot::
   end
 
   -- B1: EFX SW (always present when effect is not BYPASS)
