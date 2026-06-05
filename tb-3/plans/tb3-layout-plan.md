@@ -20,11 +20,10 @@ Resources: `tb-3/resources/` — Ctrlr `.panel` file, SysEx spec v1.4.1, FX para
 
 | Channel | Unit | Group | Controls |
 |---------|------|-------|----------|
-| **CH 3** | BCR2000 #1 | Group 1 | VCO source levels, switches, distortion, VCF, VCA, tuning |
-| **CH 4** | BCR2000 #1 | Group 2 | LFO parameters (Dope Robot order); CC9/CC10 push = BPM SYNC / RETRIGGER |
-| **CH 5** | BCR2000 #2 | — | EFX1 + EFX2 |
+| **CH 1** | BCR2000 #1 | All groups | VCO (Grp1), LFO (Grp2), fixed rows VCA/VCF/Tuning, buttons |
+| **CH 2** | BCR2000 #2 | — | EFX1 + EFX2 |
 
-CH3/4/5 avoids all clashes: SP-404 MK2 uses CH6–10; the TB-3 itself uses CH2. Both BCR2000s require reprogramming for the TB-3 layout regardless. CH4 for the LFO group means the BCR2000 group button simultaneously switches both the hardware encoder layer and the MIDI channel, so `root.lua` can route statlessly by channel alone.
+Both units use the same BC Manager preset template, differing only in channel. Routing is by CC number alone within each channel — no mode state needed. Encoder group switching on BCR2000 #1 changes which CC range the top-row encoders emit (Grp1: CC1–8/CC33–40 for VCO; Grp2: CC9–16/CC41–48 for LFO), all on CH1. CH1/2 avoids clash with SP-404 MK2 (CH6–10) and the TB-3 itself (CH2 for standard MIDI).
 
 ---
 
@@ -244,8 +243,8 @@ local PARAM_ID = {
 - **GLOBAL TUNING (CC44)**: Resolved. BCR1 CC44 sends plain MIDI CC 104 to TB-3 (CH2, connection 6) via special handler in `root.lua` — not SysEx. Device-global setting, not in patch dumps. `bcr_map.lua` updated with note; `tuning_enc` script (Phase 2) should do the same.
 - **PORTAMENTO SW**: Missing from layout. The `porta_time_enc` group has a `sw_button` which is the on/off switch (`10 00 14 00`). Label convention: static label ("PORTA"), color encodes state (bright = on, dim = off) — consistent with VCO source switches. No text switching.
 - **BENDER RANGE**: Now in layout as `pitch_bend_group` / `pitch_bend_range_enc` (SysEx `10 00 14 03`, range 0–17 semitones). Script needed in Phase 2. Not on BCR2000 — TouchOSC-only.
-- **BCR2000 #1 physical programming**: Group 1 on CH3, Group 2 on CH4.
-- **BCR2000 #2 physical programming**: CH5.
+- **BCR2000 #1 physical programming**: All groups on CH1 (same BC Manager template as BCR2).
+- **BCR2000 #2 physical programming**: CH2 (same template, different channel).
 - **TB3.tosc naming fixes**: see "Naming issues still outstanding" above
 - **Popup scripts**: Phase 2 work
 - **EFX type numbering in `efx_section.lua`**: EFX2 type 9 = RV; EFX1 type 9 = PS; EFX1 type 10 = EQ (EFX2 has no PS, no type 10)

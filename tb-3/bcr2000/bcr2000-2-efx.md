@@ -2,115 +2,110 @@
 
 Controls both effect chains. The controller is split symmetrically: left half = EFX1, right half = EFX2.
 
-- **MIDI Channel:** 5 — must differ from BCR2000 #1 (channels 3 and 4). **Channel is the differentiator between the two units** since both arrive on the same connection.
+- **MIDI Channel:** 2 — BCR2000 #1 is on channel 1; channel alone differentiates the two units.
 - **Connection in TouchOSC:** connection 2 — same port as BCR2000 #1.
-- **Channel selection rationale:** CH5 avoids clash with SP-404 MK2 (CH6–10), TB-3 (CH2), and BCR2000 #1 (CH3/4).
+- **Preset:** same BC Manager template as BCR2000 #1, set to channel 2.
 - **All encoders:** absolute CC (0–127)
-- **Type-select encoder push:** spare (SW moved to dedicated button B1 per side — see below)
+- **Type-select encoder push:** spare (SW on dedicated button B1 per side — see below)
 - **Buttons:** CC, value 127 = press
 
 ---
 
-## Physical Layout
+## BC Manager Preset Layout (same template as BCR2000 #1, channel 2)
 
 ```
-Row 0 (macro push-encoders, 8):
-  EFX1 side                         EFX2 side
-  [TYPE  ][spare ][spare ][spare ]  [TYPE  ][spare ][spare ][spare ]
-   rot=type  (CC 3,4 reserved)        rot=type  (CC 7,8 reserved)
-   push=spare                         push=spare
-
-Rows 1–3 (4×3 parameter blocks, 12 slots per side):
-  EFX1                              EFX2
-  [S01   ][S02   ][S03   ][S04   ]  [S01   ][S02   ][S03   ][S04   ]
-  [S05   ][S06   ][S07   ][S08   ]  [S05   ][S06   ][S07   ][S08   ]
-  [S09   ][S10   ][S11   ][S12   ]  [S09   ][S10   ][S11   ][S12   ]
-                                     S12 = spare except for EQ
-
-Row B (dedicated buttons, 8 total, split 4+4):
-  EFX1 side            EFX2 side
-  [B1][B2][B3][B4]    [B5][B6][B7][B8]
-   SW                   SW
-  (physical buttons 1–4)   (physical buttons 5–8)
+CC 97–100  Fixed row 3 left  → EFX1 S09–S12
+CC 101–104 Fixed row 3 right → EFX2 S09–S12
+CC  89– 92 Fixed row 2 left  → EFX1 S05–S08
+CC  93– 96 Fixed row 2 right → EFX2 S05–S08
+CC  81– 84 Fixed row 1 left  → EFX1 S01–S04
+CC  85– 88 Fixed row 1 right → EFX2 S01–S04
+CC  65– 68 Button row 1 left → EFX1 B1–B4  (B1 = EFX1 SW)
+CC  69– 72 Button row 1 right→ EFX2 B1–B4  (B1 = EFX2 SW, physical button 5)
+CC  73– 76 Button row 2 left → EFX1 B5–B8
+CC  77– 80 Button row 2 right→ EFX2 B5–B8
+CC   1      Enc Grp 1 rotate → EFX1 type select
+CC  33      Enc Grp 1 push   → spare (future: type-select mode engage)
+CC   5      Enc Grp 1 rotate → EFX2 type select
+CC  37      Enc Grp 1 push   → spare
 ```
 
-**B1 = EFX1 SW, B5 = EFX2 SW** — these are always on/off for the effect chain regardless of effect type. Remaining buttons are effect-specific (see per-effect tables).
+**B1 = EFX1 SW (CC 65), EFX2 SW (CC 69)** — always on/off regardless of effect type.
 
 ---
 
 ## CC Assignment
 
-### Row 0 — Type Select
+### Type Select
 
 | Control | CC | Function |
 |---------|-----|----------|
 | EFX1 type encoder rotate | **CC 1** | EFX1 type (0–10: BYPASS/CS/RM/BC/TR/CH/FL/PH/DD/PS/EQ) |
-| EFX1 type encoder push | **CC 2** | spare |
+| EFX1 type encoder push | **CC 33** | spare (future: type-select mode) |
 | EFX2 type encoder rotate | **CC 5** | EFX2 type (0–9: BYPASS/CS/RM/BC/TR/CH/FL/PH/DD/RV) |
-| EFX2 type encoder push | **CC 6** | spare |
-| CC 3, 4, 7, 8 | reserved | spare top-row encoders |
+| EFX2 type encoder push | **CC 37** | spare |
 
-### EFX1 Parameter Slots — CC 11–22
+### EFX1 Parameter Slots
 
 CC numbers are fixed. `efx_section.lua` remaps each slot's SysEx target and label when the effect type changes.
 
 | Slot | CC | Grid pos |
 |------|----|---------|
-| S01 | **CC 11** | Row 1 Col 1 |
-| S02 | **CC 12** | Row 1 Col 2 |
-| S03 | **CC 13** | Row 1 Col 3 |
-| S04 | **CC 14** | Row 1 Col 4 |
-| S05 | **CC 15** | Row 2 Col 1 |
-| S06 | **CC 16** | Row 2 Col 2 |
-| S07 | **CC 17** | Row 2 Col 3 |
-| S08 | **CC 18** | Row 2 Col 4 |
-| S09 | **CC 19** | Row 3 Col 1 |
-| S10 | **CC 20** | Row 3 Col 2 |
-| S11 | **CC 21** | Row 3 Col 3 |
-| S12 | **CC 22** | Row 3 Col 4 — active only for EQ |
+| S01 | **CC 81** | Fixed row 1, col 1 |
+| S02 | **CC 82** | Fixed row 1, col 2 |
+| S03 | **CC 83** | Fixed row 1, col 3 |
+| S04 | **CC 84** | Fixed row 1, col 4 |
+| S05 | **CC 89** | Fixed row 2, col 1 |
+| S06 | **CC 90** | Fixed row 2, col 2 |
+| S07 | **CC 91** | Fixed row 2, col 3 |
+| S08 | **CC 92** | Fixed row 2, col 4 |
+| S09 | **CC 97** | Fixed row 3, col 1 |
+| S10 | **CC 98** | Fixed row 3, col 2 |
+| S11 | **CC 99** | Fixed row 3, col 3 |
+| S12 | **CC 100** | Fixed row 3, col 4 — active only for EQ |
 
-### EFX1 Buttons — CC 31–38
+### EFX1 Buttons
 
 | Btn | CC | Always-on function |
 |-----|----|--------------------|
-| B1 | **CC 31** | **EFX1 SW toggle** (all effect types) |
-| B2 | **CC 32** | Effect-specific (see per-effect tables) |
-| B3 | **CC 33** | Effect-specific |
-| B4 | **CC 34** | Effect-specific |
-| B5 | **CC 35** | Effect-specific |
-| B6 | **CC 36** | Effect-specific |
-| B7 | **CC 37** | Effect-specific |
-| B8 | **CC 38** | Effect-specific |
+| B1 | **CC 65** | **EFX1 SW toggle** (all effect types) |
+| B2 | **CC 66** | Effect-specific (see per-effect tables) |
+| B3 | **CC 67** | Effect-specific |
+| B4 | **CC 68** | Effect-specific |
+| B5 | **CC 73** | Effect-specific |
+| B6 | **CC 74** | Effect-specific |
+| B7 | **CC 75** | Effect-specific |
+| B8 | **CC 76** | Effect-specific |
 
-### EFX2 Parameter Slots — CC 41–52
+### EFX2 Parameter Slots
 
 | Slot | CC | Grid pos |
 |------|----|---------|
-| S01 | **CC 41** | Row 1 Col 1 |
-| S02 | **CC 42** | Row 1 Col 2 |
-| S03 | **CC 43** | Row 1 Col 3 |
-| S04 | **CC 44** | Row 1 Col 4 |
-| S05 | **CC 45** | Row 2 Col 1 |
-| S06 | **CC 46** | Row 2 Col 2 |
-| S07 | **CC 47** | Row 2 Col 3 |
-| S08 | **CC 48** | Row 2 Col 4 |
-| S09 | **CC 49** | Row 3 Col 1 |
-| S10 | **CC 50** | Row 3 Col 2 |
-| S11 | **CC 51** | Row 3 Col 3 |
-| S12 | **CC 52** | Row 3 Col 4 — active only for EQ |
+| S01 | **CC 85** | Fixed row 1, col 5 |
+| S02 | **CC 86** | Fixed row 1, col 6 |
+| S03 | **CC 87** | Fixed row 1, col 7 |
+| S04 | **CC 88** | Fixed row 1, col 8 |
+| S05 | **CC 93** | Fixed row 2, col 5 |
+| S06 | **CC 94** | Fixed row 2, col 6 |
+| S07 | **CC 95** | Fixed row 2, col 7 |
+| S08 | **CC 96** | Fixed row 2, col 8 |
+| S09 | **CC 101** | Fixed row 3, col 5 |
+| S10 | **CC 102** | Fixed row 3, col 6 |
+| S11 | **CC 103** | Fixed row 3, col 7 |
+| S12 | **CC 104** | Fixed row 3, col 8 — active only for EQ |
 
-### EFX2 Buttons — CC 61–68
+### EFX2 Buttons
 
 | Btn | CC | Always-on function |
 |-----|----|--------------------|
-| B1 | **CC 61** | **EFX2 SW toggle** (all effect types) — physical button 5 |
-| B2 | **CC 62** | Effect-specific |
-| B3 | **CC 63** | Effect-specific |
-| B4 | **CC 64** | Effect-specific |
-| B5 | **CC 65** | Effect-specific |
-| B6 | **CC 66** | Effect-specific |
-| B7 | **CC 67** | Effect-specific |
-| B8 | **CC 68** | Effect-specific |
+| B1 | **CC 69** | **EFX2 SW toggle** (all effect types) — physical button 5 |
+| B2 | **CC 70** | Effect-specific |
+| B3 | **CC 71** | Effect-specific |
+| B4 | **CC 72** | Effect-specific |
+| B5 | **CC 77** | Effect-specific |
+| B6 | **CC 78** | Effect-specific |
+| B7 | **CC 79** | Effect-specific |
+| B8 | **CC 80** | Effect-specific |
 
 ---
 
@@ -454,13 +449,13 @@ Row 3:  (all spare)
 **Buttons (B2–B8) — one per reverb type:**
 | Btn | CC (EFX2) | Type | Sets `10 00 12 48` = |
 |-----|-----------|------|----------------------|
-| B2 | CC 62 | AMBIENT | 0 |
-| B3 | CC 63 | ROOM | 1 |
-| B4 | CC 64 | HALL 1 | 2 |
-| B5 | CC 65 | HALL 2 | 3 |
-| B6 | CC 66 | PLATE | 4 |
-| B7 | CC 67 | SPRING | 5 |
-| B8 | CC 68 | MODULATION | 6 |
+| B2 | CC 70 | AMBIENT | 0 |
+| B3 | CC 71 | ROOM | 1 |
+| B4 | CC 72 | HALL 1 | 2 |
+| B5 | CC 77 | HALL 2 | 3 |
+| B6 | CC 78 | PLATE | 4 |
+| B7 | CC 79 | SPRING | 5 |
+| B8 | CC 80 | MODULATION | 6 |
 
 ---
 
