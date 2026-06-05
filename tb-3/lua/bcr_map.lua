@@ -75,8 +75,8 @@ local BCR1_MAP = {
 
   -- ---- Dedicated buttons (right-aligned in layout) ----
   [71] = { addr = {0x10,0x00,0x0E,0x00}, bits = 7, max = 1 },     -- DIST ON/OFF
-  [72] = { addr = {0x10,0x00,0x0E,0x07}, bits = 7, max = 1 },     -- DIST COLOR
-  -- CC 79: DIST TYPE ↑ — handled in root.lua (increment distType)
+  -- CC 72: DIST TYPE ↑ — handled in root.lua (increment distType)
+  [79] = { addr = {0x10,0x00,0x0E,0x07}, bits = 7, max = 1 },     -- DIST COLOR
   -- CC 80: DIST TYPE ↓ — handled in root.lua (decrement distType)
 
   -- ---- Fixed encoder row 1: VCA + Distortion character ----

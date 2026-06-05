@@ -122,11 +122,12 @@ local SW_SEND_MAP = {
   ["portamento_group,porta_time_enc"] = { addr={0x10,0x00,0x14,0x00}, bits=7 },
 
   -- ---- Portamento mode (standalone toggle: 0=LEGATO, 1=ALWAYS) ----
-  ["portamento_group,porta_mode_button"] = { addr={0x10,0x00,0x14,0x02}, bits=7 },
+  ["portamento_group,porta_mode_button"] = { addr={0x10,0x00,0x14,0x02}, bits=7, btn=true },
 
   -- ---- Distortion toggles — Phase 3 (included here for completeness) ----
-  ["dist_group,dist_on_off"] = { addr={0x10,0x00,0x0E,0x00}, bits=7 },
-  ["dist_group,dist_color"]  = { addr={0x10,0x00,0x0E,0x07}, bits=7 },
+  -- btn=true: these are standalone BUTTON nodes, not enc_groups with sw_button children.
+  ["dist_group,dist_on_off"] = { addr={0x10,0x00,0x0E,0x00}, bits=7, btn=true },
+  ["dist_group,dist_color"]  = { addr={0x10,0x00,0x0E,0x07}, bits=7, btn=true },
 }
 
 -- ---------------------------------------------------------------------------

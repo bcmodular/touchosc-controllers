@@ -54,6 +54,7 @@ end
 -- Sizes and checksums taken directly from Dope Robot Ctrlr panel source.
 local function requestPatchDump()
   awaitingBlocks = 11  -- countdown; BCR1 sync fires when this reaches 0
+  syncTimer = 180      -- fallback: sync ~3s after request (catches split SysEx)
   tb3Request(0x10,0x00,0x00,0x00, 0x00,0x00,0x00,0x0D)  -- LFO
   tb3Request(0x10,0x00,0x02,0x00, 0x00,0x00,0x00,0x06)  -- CV Offset / Tuning
   tb3Request(0x10,0x00,0x04,0x00, 0x00,0x00,0x00,0x0A)  -- Cross Modulation
@@ -148,11 +149,16 @@ local function updateSwUIForAddr(addr, v)
     addr[1], addr[2], addr[3], addr[4])
   local hit = ADDR_TO_SW[key]
   if not hit then return end
-  local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
-  if not encGrp then return end
-  -- sw_button child for encoder groups, or the node itself for standalone toggles
-  local btn = encGrp.children["sw_button"] or encGrp
-  btn.values.x = v
+  local node = root:findByName(hit.path:match(",(.+)$"), true)
+  if not node then return end
+  if hit.entry.btn then
+    -- Standalone BUTTON node: set value directly (no children to look up).
+    node.values.x = v
+  else
+    -- enc_group: the sw_button is a child of the group.
+    local swBtn = node.children["sw_button"]
+    if swBtn then swBtn.values.x = v end
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -160,7 +166,9 @@ end
 -- fader positions to the BCR2000 so its LED rings reflect the patch.
 -- ---------------------------------------------------------------------------
 
-local awaitingBlocks = 0  -- counts DT1 blocks expected after requestPatchDump
+local awaitingBlocks = 0   -- counts DT1 blocks expected after requestPatchDump
+local pushToggleState = {} -- BCR push-encoder toggle state; key = channel*1000+cc
+local syncTimer = 0        -- frame countdown; fires syncBCR1() as a fallback
 
 local function syncBCR1()
   for cc, entry in pairs(BCR1_MAP) do
@@ -171,13 +179,20 @@ local function syncBCR1()
         -- Toggle switch: read sw_button / standalone button state
         local hit = ADDR_TO_SW[key]
         if hit then
-          local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
-          if encGrp then
-            local btn = encGrp.children["sw_button"] or encGrp
-            local v = btn.values.x >= 0.5 and 1 or 0
-            -- Keep pushToggleState consistent so ↑/↓ toggles stay in step
-            pushToggleState[BCR1_CHANNEL * 1000 + cc] = v
-            sendMIDI({0xB0, cc, v * 127}, BCR_CONNECTION)
+          local node = root:findByName(hit.path:match(",(.+)$"), true)
+          if node then
+            local btn
+            if hit.entry.btn then
+              btn = node  -- standalone BUTTON
+            else
+              btn = node.children["sw_button"]  -- child of enc_group
+            end
+            if btn then
+              local v = btn.values.x >= 0.5 and 1 or 0
+              -- Keep pushToggleState consistent so ↑/↓ toggles stay in step
+              pushToggleState[BCR1_CHANNEL * 1000 + cc] = v
+              sendMIDI({0xB0, cc, v * 127}, BCR_CONNECTION)
+            end
           end
         end
       else
@@ -241,20 +256,18 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Push-encoder toggle state
--- BCR sends 127 on press, 0 on release; toggle on rising edge only.
+-- BCR2000 buttons are in "Toggle On" mode: sends 127 when latched on, 0 off.
+-- Use CC value directly — BCR owns the latch state, we just mirror it.
 -- Key = channel * 1000 + cc to avoid any cross-unit collision.
+-- (pushToggleState declared above syncBCR1 so both can reference it.)
 -- ---------------------------------------------------------------------------
 
-local pushToggleState = {}
-
 local function handlePushToggle(stateKey, entry, ccVal)
-  if ccVal ~= 127 then return end
-  local cur = pushToggleState[stateKey] or 0
-  local nxt = 1 - cur
-  pushToggleState[stateKey] = nxt
+  local v = ccVal >= 64 and 1 or 0
+  pushToggleState[stateKey] = v
   local a = entry.addr
-  tb3Send7bit(a[1], a[2], a[3], a[4], nxt)
-  updateSwUIForAddr(a, nxt)  -- keep layout switch in step with BCR
+  tb3Send7bit(a[1], a[2], a[3], a[4], v)
+  updateSwUIForAddr(a, v)  -- keep layout switch in step with BCR
 end
 
 -- ---------------------------------------------------------------------------
@@ -263,20 +276,24 @@ end
 -- ---------------------------------------------------------------------------
 
 local function handleBCR1(cc, ccVal)
-  -- DIST TYPE ↑ (dedicated button, right-aligned in BC Manager layout)
-  if cc == 79 then
+  -- DIST TYPE ↑ / ↓ — "Toggle On" auto-reset pattern:
+  -- On 127 (latch on): act, then immediately send 0 back to reset the BCR latch
+  -- so the next press generates another 127 rather than a 0 (which we'd ignore).
+  -- On 0 (latch off, from normal Toggle On second-press): ignore.
+  if cc == 72 then
     if ccVal == 127 then
       distType = (distType + 1) % DIST_NUM_TYPES
       sendDistType()
+      sendMIDI({0xB0, 72, 0}, BCR_CONNECTION)  -- reset BCR latch
     end
     return
   end
 
-  -- DIST TYPE ↓
   if cc == 80 then
     if ccVal == 127 then
       distType = (distType - 1 + DIST_NUM_TYPES) % DIST_NUM_TYPES
       sendDistType()
+      sendMIDI({0xB0, 80, 0}, BCR_CONNECTION)  -- reset BCR latch
     end
     return
   end
@@ -412,11 +429,20 @@ local function handleTB3SysEx(message)
   for i = 12, #message - 2 do  -- strip checksum and F7
     data[#data + 1] = message[i]
   end
-  parseBlock(addr, data)
-  -- Count down; when all expected blocks have arrived, sync BCR2000 #1.
+
+  -- Decrement BEFORE parseBlock so a Lua error inside parseBlock cannot
+  -- prevent the countdown from completing and syncBCR1() from firing.
+  local triggerSync = false
   if awaitingBlocks > 0 then
     awaitingBlocks = awaitingBlocks - 1
-    if awaitingBlocks == 0 then syncBCR1() end
+    if awaitingBlocks == 0 then triggerSync = true end
+  end
+
+  parseBlock(addr, data)
+
+  if triggerSync then
+    syncTimer = 0  -- cancel fallback timer; awaitingBlocks beat it
+    syncBCR1()
   end
 end
 
@@ -484,8 +510,20 @@ function onReceiveNotify(key, value)
   if key == "enc_moved" then
     local sec, enc, xs = value:match("^([^,]+),([^,]+),(.+)$")
     if sec and enc and xs then
+      local x = tonumber(xs) or 0
       local entry = ENC_SEND_MAP[sec .. "," .. enc]
-      if entry then sendFromEntryFloat(entry, tonumber(xs) or 0) end
+      if entry then
+        sendFromEntryFloat(entry, x)
+        -- Mirror to BCR2000 #1 so its LED ring tracks the on-screen fader.
+        if entry.addr then
+          local addrKey = string.format("%02X%02X%02X%02X",
+            entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+          local bcr1cc = ADDR_TO_BCR1_CC[addrKey]
+          if bcr1cc then
+            sendMIDI({0xB0, bcr1cc, math.floor(x * 127 + 0.5)}, BCR_CONNECTION)
+          end
+        end
+      end
     end
     return
   end
@@ -498,7 +536,14 @@ function onReceiveNotify(key, value)
       local entry = SW_SEND_MAP[sec .. "," .. enc]
       if entry then
         local a = entry.addr
-        tb3Send7bit(a[1], a[2], a[3], a[4], tonumber(vs))
+        local v = tonumber(vs) or 0
+        tb3Send7bit(a[1], a[2], a[3], a[4], v)
+        -- Mirror to BCR2000 #1 if this switch has a BCR mapping.
+        local addrKey = string.format("%02X%02X%02X%02X", a[1],a[2],a[3],a[4])
+        local bcr1cc = ADDR_TO_BCR1_CC[addrKey]
+        if bcr1cc then
+          sendMIDI({0xB0, bcr1cc, v * 127}, BCR_CONNECTION)
+        end
       end
     end
     return
@@ -571,9 +616,25 @@ function onReceiveOSC(message, connections)
 end
 
 -- ---------------------------------------------------------------------------
+-- update — frame callback used as a reliable post-receive BCR sync fallback.
+-- syncTimer is set by requestPatchDump(); the awaitingBlocks countdown clears
+-- it early if all 11 DT1 blocks arrive intact. Otherwise it fires after ~3s,
+-- catching cases where large EFX blocks are split by the MIDI interface.
+-- ---------------------------------------------------------------------------
+
+function update()
+  if syncTimer > 0 then
+    syncTimer = syncTimer - 1
+    if syncTimer == 0 then syncBCR1() end
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- init
 -- ---------------------------------------------------------------------------
 
 function init()
-  -- lfo_group is permanently visible — nothing to hide/show here.
+  -- Push current fader positions to BCR2000 #1 on layout load so its LED
+  -- rings reflect whatever values the layout last had.
+  syncBCR1()
 end
