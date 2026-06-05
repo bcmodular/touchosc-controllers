@@ -128,3 +128,28 @@ local SW_SEND_MAP = {
   ["dist_group,dist_on_off"] = { addr={0x10,0x00,0x0E,0x00}, bits=7 },
   ["dist_group,dist_color"]  = { addr={0x10,0x00,0x0E,0x07}, bits=7 },
 }
+
+-- ---------------------------------------------------------------------------
+-- Reverse lookups: SysEx addr key → {path, entry}
+-- Built at module load time. Used by root.lua to update UI from BCR input
+-- and to find BCR CC when syncing BCR2000 after a patch receive.
+-- key format: string.format("%02X%02X%02X%02X", a1,a2,a3,a4)
+-- ---------------------------------------------------------------------------
+
+local ADDR_TO_ENC = {}
+for path, entry in pairs(ENC_SEND_MAP) do
+  if entry.addr then
+    local k = string.format("%02X%02X%02X%02X",
+      entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+    ADDR_TO_ENC[k] = { path=path, entry=entry }
+  end
+end
+
+local ADDR_TO_SW = {}
+for path, entry in pairs(SW_SEND_MAP) do
+  if entry.addr then
+    local k = string.format("%02X%02X%02X%02X",
+      entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+    ADDR_TO_SW[k] = { path=path, entry=entry }
+  end
+end

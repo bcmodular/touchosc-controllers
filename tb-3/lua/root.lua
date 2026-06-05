@@ -53,6 +53,7 @@ end
 -- Request all 11 synthesis blocks (sound only — no pattern data).
 -- Sizes and checksums taken directly from Dope Robot Ctrlr panel source.
 local function requestPatchDump()
+  awaitingBlocks = 11  -- countdown; BCR1 sync fires when this reaches 0
   tb3Request(0x10,0x00,0x00,0x00, 0x00,0x00,0x00,0x0D)  -- LFO
   tb3Request(0x10,0x00,0x02,0x00, 0x00,0x00,0x00,0x06)  -- CV Offset / Tuning
   tb3Request(0x10,0x00,0x04,0x00, 0x00,0x00,0x00,0x0A)  -- Cross Modulation
@@ -116,6 +117,87 @@ local function sendFromEntryFloat(entry, x)
 end
 
 -- ---------------------------------------------------------------------------
+-- UI update helpers — called after BCR input so faders reflect hardware state
+-- ---------------------------------------------------------------------------
+
+-- Update a control_fader (and its value_label) by SysEx address.
+-- ccVal is the raw BCR CC value (0–127); srcEntry gives the parameter's max.
+local function updateUIForAddr(addr, ccVal, srcEntry)
+  local key = string.format("%02X%02X%02X%02X",
+    addr[1], addr[2], addr[3], addr[4])
+  local hit = ADDR_TO_ENC[key]
+  if not hit then return end
+  local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+  if not encGrp then return end
+  local x = ccVal / 127
+  local fader = encGrp.children["control_fader"]
+  if fader then fader.values.x = x end
+  local lbl = encGrp.children["value_label"]
+  if lbl then
+    local max = (srcEntry and srcEntry.max) or
+                hit.entry.max or
+                (hit.entry.bits == 16 and 255 or 127)
+    lbl.values.text = tostring(math.floor(x * max + 0.5))
+  end
+end
+
+-- Update a sw_button (or standalone toggle button) by SysEx address.
+-- v is 0 or 1.
+local function updateSwUIForAddr(addr, v)
+  local key = string.format("%02X%02X%02X%02X",
+    addr[1], addr[2], addr[3], addr[4])
+  local hit = ADDR_TO_SW[key]
+  if not hit then return end
+  local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+  if not encGrp then return end
+  -- sw_button child for encoder groups, or the node itself for standalone toggles
+  local btn = encGrp.children["sw_button"] or encGrp
+  btn.values.x = v
+end
+
+-- ---------------------------------------------------------------------------
+-- BCR2000 #1 sync — called after a full patch receive to push current
+-- fader positions to the BCR2000 so its LED rings reflect the patch.
+-- ---------------------------------------------------------------------------
+
+local awaitingBlocks = 0  -- counts DT1 blocks expected after requestPatchDump
+
+local function syncBCR1()
+  for cc, entry in pairs(BCR1_MAP) do
+    if entry.addr then
+      local key = string.format("%02X%02X%02X%02X",
+        entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+      if entry.max == 1 then
+        -- Toggle switch: read sw_button / standalone button state
+        local hit = ADDR_TO_SW[key]
+        if hit then
+          local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+          if encGrp then
+            local btn = encGrp.children["sw_button"] or encGrp
+            local v = btn.values.x >= 0.5 and 1 or 0
+            -- Keep pushToggleState consistent so ↑/↓ toggles stay in step
+            pushToggleState[BCR1_CHANNEL * 1000 + cc] = v
+            sendMIDI({0xB0, cc, v * 127}, BCR_CONNECTION)
+          end
+        end
+      else
+        -- Regular encoder: read fader position
+        local hit = ADDR_TO_ENC[key]
+        if hit then
+          local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+          if encGrp then
+            local fader = encGrp.children["control_fader"]
+            if fader then
+              sendMIDI({0xB0, cc, math.floor(fader.values.x * 127 + 0.5)}, BCR_CONNECTION)
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- Generic SysEx send from a bcr_map entry
 -- ---------------------------------------------------------------------------
 
@@ -172,6 +254,7 @@ local function handlePushToggle(stateKey, entry, ccVal)
   pushToggleState[stateKey] = nxt
   local a = entry.addr
   tb3Send7bit(a[1], a[2], a[3], a[4], nxt)
+  updateSwUIForAddr(a, nxt)  -- keep layout switch in step with BCR
 end
 
 -- ---------------------------------------------------------------------------
@@ -218,6 +301,7 @@ local function handleBCR1(cc, ccVal)
   end
 
   sendFromEntry(entry, ccVal)
+  updateUIForAddr(entry.addr, ccVal, entry)  -- keep layout fader in step with BCR
 end
 
 -- ---------------------------------------------------------------------------
@@ -329,6 +413,11 @@ local function handleTB3SysEx(message)
     data[#data + 1] = message[i]
   end
   parseBlock(addr, data)
+  -- Count down; when all expected blocks have arrived, sync BCR2000 #1.
+  if awaitingBlocks > 0 then
+    awaitingBlocks = awaitingBlocks - 1
+    if awaitingBlocks == 0 then syncBCR1() end
+  end
 end
 
 -- ---------------------------------------------------------------------------

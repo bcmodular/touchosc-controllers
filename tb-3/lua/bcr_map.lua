@@ -155,3 +155,17 @@ local BCR2_MAP = {
   -- All EFX routing is handled via the helper functions above.
   -- No fixed-address entries: all EFX params are context-sensitive.
 }
+
+-- ---------------------------------------------------------------------------
+-- ADDR_TO_BCR1_CC — reverse lookup for BCR1 sync after patch receive.
+-- key = "%02X%02X%02X%02X" of the SysEx address, value = BCR1 CC number.
+-- ---------------------------------------------------------------------------
+
+local ADDR_TO_BCR1_CC = {}
+for cc, entry in pairs(BCR1_MAP) do
+  if entry.addr then
+    local k = string.format("%02X%02X%02X%02X",
+      entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+    ADDR_TO_BCR1_CC[k] = cc
+  end
+end
