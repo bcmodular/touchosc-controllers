@@ -215,15 +215,7 @@ local function handleBCR2(cc, ccVal)
     if efx1 then efx1:notify("type_cc", ccVal) end
     return
   end
-
-  -- EFX1 SW toggle
-  if cc == 2 then
-    if ccVal == 127 then
-      local efx1 = findByName("efx1_section")
-      if efx1 then efx1:notify("sw_toggle", 0) end
-    end
-    return
-  end
+  -- CC 2 (EFX1 type encoder push) — spare
 
   -- EFX2 type rotate
   if cc == 5 then
@@ -231,15 +223,11 @@ local function handleBCR2(cc, ccVal)
     if efx2 then efx2:notify("type_cc", ccVal) end
     return
   end
+  -- CC 6 (EFX2 type encoder push) — spare
 
-  -- EFX2 SW toggle
-  if cc == 6 then
-    if ccVal == 127 then
-      local efx2 = findByName("efx2_section")
-      if efx2 then efx2:notify("sw_toggle", 0) end
-    end
-    return
-  end
+  -- EFX1/EFX2 SW is on dedicated buttons B1 (CC31) and B1 (CC61).
+  -- Those fall into the button-range handlers below, which forward btn_press=1
+  -- to efx_section.lua — SW toggling is handled there in Phase 4.
 
   -- EFX1 param slots
   if cc >= EFX1_SLOT_CC_MIN and cc <= EFX1_SLOT_CC_MAX then
