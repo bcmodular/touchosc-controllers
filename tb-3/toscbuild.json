@@ -8,7 +8,8 @@
       "node_id": "root",
       "include": [
         "bcr_map.lua",
-        "patch_manager.lua"
+        "patch_manager.lua",
+        "enc_map.lua"
       ]
     },
     {
@@ -20,6 +21,18 @@
     {
       "lua": "receive_button.lua",
       "node_name": "receive_button"
+    },
+    {
+      "lua": "control_fader.lua",
+      "node_names": ["control_fader"]
+    },
+    {
+      "lua": "sw_button.lua",
+      "node_names": ["sw_button"]
+    },
+    {
+      "lua": "porta_mode_button.lua",
+      "node_name": "porta_mode_button"
     }
   ],
   "layout": {

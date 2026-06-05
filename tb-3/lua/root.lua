@@ -95,6 +95,27 @@ local function ccScale(ccVal, maxVal)
 end
 
 -- ---------------------------------------------------------------------------
+-- SysEx send from an enc_map / sw_map entry given a 0–1 float fader value.
+-- Used by the enc_moved / sw_toggled notify handlers below.
+-- ---------------------------------------------------------------------------
+
+local function sendFromEntryFloat(entry, x)
+  if entry.sp == "global_tuning" then
+    local ccVal = math.floor(x * 127 + 0.5)
+    sendMIDI({0xB0 + (TB3_MIDI_CHANNEL - 1), 104, ccVal}, TB3_CONNECTION)
+    return
+  end
+  local a = entry.addr
+  if entry.bits == 16 then
+    local raw = math.floor(x * (entry.max or 255) + 0.5)
+    tb3Send16bit(a[1], a[2], a[3], a[4], raw)
+  else
+    local raw = math.floor(x * (entry.max or 127) + 0.5)
+    tb3Send7bit(a[1], a[2], a[3], a[4], raw)
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- Generic SysEx send from a bcr_map entry
 -- ---------------------------------------------------------------------------
 
@@ -328,6 +349,31 @@ function onReceiveNotify(key, value)
   -- Sent by receive_button.lua (or any other trigger).
   if key == "request_patch_dump" then
     requestPatchDump()
+    return
+  end
+
+  -- Sent by control_fader.lua when a fader is moved.
+  -- value = "section,enc,x"  (x is a 0–1 float string)
+  if key == "enc_moved" then
+    local sec, enc, xs = value:match("^([^,]+),([^,]+),(.+)$")
+    if sec and enc and xs then
+      local entry = ENC_SEND_MAP[sec .. "," .. enc]
+      if entry then sendFromEntryFloat(entry, tonumber(xs) or 0) end
+    end
+    return
+  end
+
+  -- Sent by sw_button.lua and porta_mode_button.lua when a toggle is pressed.
+  -- value = "section,enc,v"  (v is 0 or 1)
+  if key == "sw_toggled" then
+    local sec, enc, vs = value:match("^([^,]+),([^,]+),(%d+)$")
+    if sec and enc and vs then
+      local entry = SW_SEND_MAP[sec .. "," .. enc]
+      if entry then
+        local a = entry.addr
+        tb3Send7bit(a[1], a[2], a[3], a[4], tonumber(vs))
+      end
+    end
     return
   end
 
