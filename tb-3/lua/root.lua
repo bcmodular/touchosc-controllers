@@ -41,6 +41,31 @@ local function tb3Checksum(addrAndData)
   return (0x100 - (sum % 256)) % 128
 end
 
+-- Send a Roland RQ1 (data request) for one parameter block.
+-- a1–a4 = block start address; s1–s4 = byte count (4-byte big-endian).
+local function tb3Request(a1, a2, a3, a4, s1, s2, s3, s4)
+  local body = {a1, a2, a3, a4, s1, s2, s3, s4}
+  local cs = tb3Checksum(body)
+  sendMIDI({0xF0, 0x41, 0x10, 0x00, 0x00, 0x7B, 0x11,
+            a1, a2, a3, a4, s1, s2, s3, s4, cs, 0xF7}, TB3_CONNECTION)
+end
+
+-- Request all 11 synthesis blocks (sound only — no pattern data).
+-- Sizes and checksums taken directly from Dope Robot Ctrlr panel source.
+local function requestPatchDump()
+  tb3Request(0x10,0x00,0x00,0x00, 0x00,0x00,0x00,0x0D)  -- LFO
+  tb3Request(0x10,0x00,0x02,0x00, 0x00,0x00,0x00,0x06)  -- CV Offset / Tuning
+  tb3Request(0x10,0x00,0x04,0x00, 0x00,0x00,0x00,0x0A)  -- Cross Modulation
+  tb3Request(0x10,0x00,0x06,0x00, 0x00,0x00,0x00,0x0E)  -- Ring Modulation
+  tb3Request(0x10,0x00,0x08,0x00, 0x00,0x00,0x00,0x0E)  -- VCO
+  tb3Request(0x10,0x00,0x0A,0x00, 0x00,0x00,0x00,0x0B)  -- VCF
+  tb3Request(0x10,0x00,0x0C,0x00, 0x00,0x00,0x00,0x05)  -- VCA
+  tb3Request(0x10,0x00,0x0E,0x00, 0x00,0x00,0x00,0x09)  -- Distortion
+  tb3Request(0x10,0x00,0x10,0x00, 0x00,0x00,0x00,0x5F)  -- EFX1
+  tb3Request(0x10,0x00,0x12,0x00, 0x00,0x00,0x00,0x54)  -- EFX2
+  tb3Request(0x10,0x00,0x14,0x00, 0x00,0x00,0x00,0x12)  -- Param Assign
+end
+
 -- Send a 7-bit (single byte) SysEx parameter.
 function tb3Send7bit(a1, a2, a3, a4, value)
   local data = {a1, a2, a3, a4, value}
@@ -296,6 +321,12 @@ function onReceiveNotify(key, value)
     return
   end
 
+  -- Sent by receive_button.lua (or any other trigger).
+  if key == "request_patch_dump" then
+    requestPatchDump()
+    return
+  end
+
   -- EFX type direct-select from efx_1_chooser / efx_2_chooser button grids
   -- value = "N,M": N = EFX number (1 or 2), M = button index (1-based)
   if key == "efx_type_select" then
@@ -320,6 +351,12 @@ end
 -- ---------------------------------------------------------------------------
 
 function onReceiveOSC(message, connections)
+  -- Allow external tools (Python, other apps) to trigger a dump request.
+  if message.address == "/tb3/request_dump" then
+    requestPatchDump()
+    return
+  end
+
   if message.address ~= "/tb3/patch" then return end
   local arg = message.arguments[1]
   if not arg then return end

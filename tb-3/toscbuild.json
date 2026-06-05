@@ -16,6 +16,10 @@
       "node_names": [
         "pointer"
       ]
+    },
+    {
+      "lua": "receive_button.lua",
+      "node_name": "receive_button"
     }
   ],
   "layout": {
