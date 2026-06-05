@@ -2,8 +2,9 @@
 
 Controls both effect chains. The controller is split symmetrically: left half = EFX1, right half = EFX2.
 
-- **MIDI Channel:** 7 — matches the existing SP-404 BCR2000 preset. Must differ from BCR2000 #1 (channel 6) — **channel is the differentiator between the two units** since both arrive on the same connection.
-- **Connection in TouchOSC:** connection 2 — same port as BCR2000 #1 and the SP-404 layout's BCR2000.
+- **MIDI Channel:** 5 — must differ from BCR2000 #1 (channels 3 and 4). **Channel is the differentiator between the two units** since both arrive on the same connection.
+- **Connection in TouchOSC:** connection 2 — same port as BCR2000 #1.
+- **Channel selection rationale:** CH5 avoids clash with SP-404 MK2 (CH6–10), TB-3 (CH2), and BCR2000 #1 (CH3/4).
 - **All encoders:** absolute CC (0–127)
 - **Type-select encoder push:** spare (SW moved to dedicated button B1 per side — see below)
 - **Buttons:** CC, value 127 = press

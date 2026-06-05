@@ -2,8 +2,9 @@
 
 Controls the core TB-3 synthesis engine and distortion section.
 
-- **MIDI Channel:** 6 — matches the existing SP-404 BCR2000 preset. Both BCR2000s arrive on the same connection, so **channel is the differentiator between the two units**.
-- **Connection in TouchOSC:** connection 2 — same port used by the SP-404 layout's BCR2000. Detection in `onReceiveMIDI` checks both connection 2 and the MIDI channel.
+- **MIDI Channel:** 3 (Group 1 / VCO) and 4 (Group 2 / LFO) — both BCR2000s arrive on the same connection, so **channel is the differentiator between units and groups**.
+- **Connection in TouchOSC:** connection 2 — same port used by the SP-404 layout's BCR2000.
+- **Channel selection rationale:** CH3/4/5 avoids clash with the SP-404 MK2 layout (CH6–10) and the TB-3 itself (CH2). BCR2000s require reprogramming regardless.
 - **All encoders:** absolute CC (0–127)
 - **Push-encoder pushes:** CC with value 127 = down, 0 = up (toggle on rising edge in Lua)
 - **Buttons:** CC with value 127 = press (latching or momentary as noted)
@@ -14,8 +15,8 @@ Controls the core TB-3 synthesis engine and distortion section.
 
 Row 0's 8 encoders are shared between two BCR2000 encoder groups. **No mode toggle button is needed** — the two groups send on different MIDI channels, which `root.lua` uses for stateless routing:
 
-- **Group 1 — VCO (MIDI channel 6):** CC1–8 → VCO source levels + patch volume; CC9–14 push → source switches
-- **Group 2 — LFO (MIDI channel 3):** CC1–8 → LFO params (Dope Robot order); CC9 push → BPM SYNC; CC10 push → RETRIGGER
+- **Group 1 — VCO (MIDI channel 3):** CC1–8 → VCO source levels + patch volume; CC9–14 push → source switches
+- **Group 2 — LFO (MIDI channel 4):** CC1–8 → LFO params (Dope Robot order); CC9 push → BPM SYNC; CC10 push → RETRIGGER
 
 `lfo_group` is **permanently visible** alongside the VCO section. Switching BCR hardware groups switches both the MIDI channel and the encoder layer simultaneously.
 
@@ -28,7 +29,7 @@ Row 0 — VCO Group (MIDI CH 6):
   [SAW   ][SQR   ][SIN   ][WHITE ][PINK  ][RING  ][LFO   ][PATCH ]
    lev/SW  lev/SW  lev/SW  lev/SW  lev/SW  lev/SW  VCO dep  VOL
 
-Row 0 — LFO Group (MIDI CH 3, same physical encoders, different BCR layer):
+Row 0 — LFO Group (MIDI CH 4, same physical encoders, different BCR layer):
   [RATE  ][CVOFF ][DELAY ][TRI   ][SAW   ][SQR   ][SIN   ][S&H   ]
   SYNC push↑ RETRIG push↑
 
@@ -63,7 +64,7 @@ Row 3 (encoders, 8):
 | 7 | **CC 7** | **CC 15** | VCO LFO DEPTH | — (spare push) | `10 00 00 08` / — | 7-bit (signed¹) |
 | 8 | **CC 8** | **CC 16** | PATCH VOLUME | — (spare push) | `10 00 0C 04` / — | 7-bit |
 
-### Row 0 — LFO Mode (Group 2, MIDI channel 3, Dope Robot ordering)
+### Row 0 — LFO Mode (Group 2, MIDI channel 4, Dope Robot ordering)
 
 | Col | Rotate CC | Push CC | Function (rotate) | SysEx (rotate) | Function (push) | SysEx (push) |
 |-----|-----------|---------|-------------------|----------------|-----------------|--------------|
@@ -76,7 +77,7 @@ Row 3 (encoders, 8):
 | 7 | **CC 7** | — | WAVE SIN | `10 00 00 05` | — | — |
 | 8 | **CC 8** | — | WAVE S&H | `10 00 00 07` | — | — |
 
-All Group 2 CCs are on **MIDI channel 3**. `root.lua` detects channel 3 and routes to `BCR1_LFO_MAP` (rotate) or `BCR1_LFO_PUSH_MAP` (push CC9/CC10). No state variable; no mode toggle button required.
+All Group 2 CCs are on **MIDI channel 4**. `root.lua` detects channel 4 and routes to `BCR1_LFO_MAP` (rotate) or `BCR1_LFO_PUSH_MAP` (push CC9/CC10). No state variable; no mode toggle button required.
 
 ¹ Signed offset-encode: raw 64 = 0, 0 = −64, 127 = +63. Display adjusted in Lua.
 

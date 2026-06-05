@@ -8,9 +8,9 @@
 --   • EFX type button grid (efx_1_chooser / efx_2_chooser) → notify efx_section
 --
 -- BCR2000 channel routing:
---   CH6 (BCR1_CHANNEL)     — BCR2000 #1 VCO/Dist group (Group 1)
---   CH3 (BCR1_LFO_CHANNEL) — BCR2000 #1 LFO group (Group 2, same unit, same CCs)
---   CH7 (BCR2_CHANNEL)     — BCR2000 #2 EFX1/EFX2
+--   CH3 (BCR1_CHANNEL)     — BCR2000 #1 VCO/Dist group (Group 1)
+--   CH4 (BCR1_LFO_CHANNEL) — BCR2000 #1 LFO group (Group 2, same unit, same CCs)
+--   CH5 (BCR2_CHANNEL)     — BCR2000 #2 EFX1/EFX2
 -- No mode state needed: channel alone determines routing.
 --
 -- Included files (concatenated at build time):
@@ -26,9 +26,9 @@ local BCR_CONNECTION      = {false, true}
 -- TB-3 USB MIDI is on connection 6.
 local TB3_CONNECTION      = {false, false, false, false, false, true}
 
-local BCR1_CHANNEL        = 6   -- BCR2000 #1 Group 1: VCO / Dist
-local BCR1_LFO_CHANNEL    = 3   -- BCR2000 #1 Group 2: LFO (same unit, different channel)
-local BCR2_CHANNEL        = 7   -- BCR2000 #2: EFX1 + EFX2
+local BCR1_CHANNEL        = 3   -- BCR2000 #1 Group 1: VCO / Dist
+local BCR1_LFO_CHANNEL    = 4   -- BCR2000 #1 Group 2: LFO (same unit, different channel)
+local BCR2_CHANNEL        = 5   -- BCR2000 #2: EFX1 + EFX2
 
 -- ---------------------------------------------------------------------------
 -- SysEx helpers

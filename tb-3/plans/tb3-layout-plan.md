@@ -20,11 +20,11 @@ Resources: `tb-3/resources/` — Ctrlr `.panel` file, SysEx spec v1.4.1, FX para
 
 | Channel | Unit | Group | Controls |
 |---------|------|-------|----------|
-| **CH 6** | BCR2000 #1 | Group 1 | VCO source levels, switches, distortion, VCF, VCA, tuning |
-| **CH 3** | BCR2000 #1 | Group 2 | LFO parameters (Dope Robot order); CC9/CC10 push = BPM SYNC / RETRIGGER |
-| **CH 7** | BCR2000 #2 | — | EFX1 + EFX2 |
+| **CH 3** | BCR2000 #1 | Group 1 | VCO source levels, switches, distortion, VCF, VCA, tuning |
+| **CH 4** | BCR2000 #1 | Group 2 | LFO parameters (Dope Robot order); CC9/CC10 push = BPM SYNC / RETRIGGER |
+| **CH 5** | BCR2000 #2 | — | EFX1 + EFX2 |
 
-Channels 6 and 7 match the existing SP-404 BCR2000 preset — both units can be used with the SP-404 layout without reprogramming. CH 3 for the LFO group was chosen because the BCR2000 group button simultaneously switches both the hardware encoder layer and the MIDI channel, so `root.lua` can route statlessly by channel alone.
+CH3/4/5 avoids all clashes: SP-404 MK2 uses CH6–10; the TB-3 itself uses CH2. Both BCR2000s require reprogramming for the TB-3 layout regardless. CH4 for the LFO group means the BCR2000 group button simultaneously switches both the hardware encoder layer and the MIDI channel, so `root.lua` can route statlessly by channel alone.
 
 ---
 
