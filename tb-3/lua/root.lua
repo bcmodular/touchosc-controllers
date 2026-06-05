@@ -440,6 +440,22 @@ local function handleTB3SysEx(message)
 
   parseBlock(addr, data)
 
+  -- Forward EFX blocks to their section nodes as hex CSV strings.
+  -- efx_section.lua stores the raw bytes and remaps slots when it receives them.
+  if addr[1] == 0x10 and addr[2] == 0x00 then
+    local efxSection
+    if addr[3] == 0x10 then
+      efxSection = root:findByName("efx1_section", true)
+    elseif addr[3] == 0x12 then
+      efxSection = root:findByName("efx2_section", true)
+    end
+    if efxSection then
+      local hex = {}
+      for _, b in ipairs(data) do hex[#hex + 1] = string.format("%02X", b) end
+      efxSection:notify("patch_data", table.concat(hex, ","))
+    end
+  end
+
   if triggerSync then
     syncTimer = 0  -- cancel fallback timer; awaitingBlocks beat it
     syncBCR1()
@@ -523,6 +539,11 @@ function onReceiveNotify(key, value)
             sendMIDI({0xB0, bcr1cc, math.floor(x * 127 + 0.5)}, BCR_CONNECTION)
           end
         end
+      else
+        -- Not in ENC_SEND_MAP — route EFX slot faders to their section.
+        -- sec = "efx1_section" or "efx2_section"; enc = "efx1_s03" etc.
+        local efxSection = root:findByName(sec, true)
+        if efxSection then efxSection:notify("slot_moved", enc .. "," .. xs) end
       end
     end
     return
@@ -572,6 +593,20 @@ function onReceiveNotify(key, value)
       local sectionName = efxNum == 1 and "efx1_section" or "efx2_section"
       local section     = root:findByName(sectionName, true)
       if section then section:notify("type_set", typeIndex) end
+    end
+    return
+  end
+
+  -- EFX type step (PREV/NEXT) from on-screen chooser buttons.
+  -- value = "N,D": N = EFX number (1 or 2), D = direction (+1 or -1)
+  if key == "efx_type_step" then
+    local efxNum, dir = value:match("^(%d+),([-]?%d+)$")
+    efxNum = tonumber(efxNum)
+    dir    = tonumber(dir) or 0
+    if efxNum then
+      local sectionName = efxNum == 1 and "efx1_section" or "efx2_section"
+      local section     = root:findByName(sectionName, true)
+      if section then section:notify("type_step", dir) end
     end
     return
   end
