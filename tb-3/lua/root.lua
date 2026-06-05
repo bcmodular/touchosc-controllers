@@ -95,11 +95,15 @@ local DIST_NUM_TYPES = 25
 local distType = 0  -- current distortion type (0–24)
 
 local DIST_TYPE_NAMES = {
-  "MILD OD", "OD1", "OD2", "OD3", "OD4",
-  "WARM DS", "DS1", "DS2", "DS3", "DS4",
-  "WARM FUZZ", "FUZZ1", "FUZZ2", "FUZZ3", "FUZZ4",
-  "AMP SIM 1", "AMP SIM 2", "AMP SIM 3", "AMP SIM 4", "AMP SIM 5",
-  "VINYL CRUSH", "CLEAN", "AMP SIM 6", "DS5", "RECTIFY",
+  "Mid Boost", "Clean Boost", "Treble Bst",
+  "Blues OD",  "Crunch",      "Natural OD",
+  "OD-1",      "T-Scream",    "Turbo OD",
+  "Warm OD",   "Distortion",  "Mild DS",
+  "Mid DS",    "RAT",         "GUV DS",
+  "DST+",      "Modern DS",   "Solid DS",
+  "Stack",     "Loud",        "Metal Zone",
+  "Lead",      "'60s FUZZ",   "Oct FUZZ",
+  "MUFF FUZZ",
 }
 
 local DIST_TYPE_ADDR = {0x10, 0x00, 0x0E, 0x01}
