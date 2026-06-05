@@ -161,10 +161,10 @@ local REGISTRY = {
 -- Find a node: if par is set, go via parent.children[enc]; else global search.
 local function findEncoderGroup(field)
   if field.par then
-    local parent = findByName(field.par)
+    local parent = root:findByName(field.par, true)
     return parent and parent.children[field.enc]
   end
-  return findByName(field.enc)
+  return root:findByName(field.enc, true)
 end
 
 -- Set a fader/button value and update its value_label if present.
@@ -174,7 +174,7 @@ local function applyValue(field, raw)
 
   -- ---- standalone button (btn=true) ----
   if field.btn then
-    local btn = findByName(field.enc)
+    local btn = root:findByName(field.enc, true)
     if btn then btn.values.x = raw end
     return
   end
@@ -228,7 +228,7 @@ local function parseSpecial(sp, raw)
   if sp == "dist_type" then
     distType = raw
     local name = DIST_TYPE_NAMES[raw + 1] or tostring(raw)
-    local lbl = findByName("distortion_section_label")
+    local lbl = root:findByName("distortion_section_label", true)
     if lbl then lbl.values.text = "DISTORTION: " .. name end
     -- Note: does NOT send SysEx (we are receiving, not sending).
     return

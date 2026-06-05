@@ -121,7 +121,7 @@ local DIST_TYPE_ADDR = {0x10, 0x00, 0x0E, 0x01}
 local function sendDistType()
   tb3Send7bit(DIST_TYPE_ADDR[1], DIST_TYPE_ADDR[2],
               DIST_TYPE_ADDR[3], DIST_TYPE_ADDR[4], distType)
-  local lbl = findByName("distortion_section_label")
+  local lbl = root:findByName("distortion_section_label", true)
   if lbl then
     lbl.values.text = "DISTORTION: " .. (DIST_TYPE_NAMES[distType + 1] or tostring(distType))
   end
@@ -132,7 +132,7 @@ end
 -- ---------------------------------------------------------------------------
 
 local function togglePopup(groupName)
-  local grp = findByName(groupName)
+  local grp = root:findByName(groupName, true)
   if grp then grp.visible = not grp.visible end
 end
 
@@ -208,7 +208,7 @@ end
 local function handleBCR2(cc, ccVal)
   -- EFX1 type rotate
   if cc == 1 then
-    local efx1 = findByName("efx1_section")
+    local efx1 = root:findByName("efx1_section", true)
     if efx1 then efx1:notify("type_cc", ccVal) end
     return
   end
@@ -216,7 +216,7 @@ local function handleBCR2(cc, ccVal)
 
   -- EFX2 type rotate
   if cc == 5 then
-    local efx2 = findByName("efx2_section")
+    local efx2 = root:findByName("efx2_section", true)
     if efx2 then efx2:notify("type_cc", ccVal) end
     return
   end
@@ -227,7 +227,7 @@ local function handleBCR2(cc, ccVal)
   local b1 = efx1BtnIndex(cc)
   if b1 then
     if ccVal == 127 then
-      local efx1 = findByName("efx1_section")
+      local efx1 = root:findByName("efx1_section", true)
       if efx1 then efx1:notify("btn_press", b1) end
     end
     return
@@ -238,7 +238,7 @@ local function handleBCR2(cc, ccVal)
   local b2 = efx2BtnIndex(cc)
   if b2 then
     if ccVal == 127 then
-      local efx2 = findByName("efx2_section")
+      local efx2 = root:findByName("efx2_section", true)
       if efx2 then efx2:notify("btn_press", b2) end
     end
     return
@@ -247,7 +247,7 @@ local function handleBCR2(cc, ccVal)
   -- EFX1 param slots (CC 81–84 → S01–S04, 89–92 → S05–S08, 97–100 → S09–S12)
   local s1 = efx1SlotIndex(cc)
   if s1 then
-    local efx1 = findByName("efx1_section")
+    local efx1 = root:findByName("efx1_section", true)
     if efx1 then efx1:notify("slot_cc", s1 .. "," .. ccVal) end
     return
   end
@@ -255,7 +255,7 @@ local function handleBCR2(cc, ccVal)
   -- EFX2 param slots (CC 85–88 → S01–S04, 93–96 → S05–S08, 101–104 → S09–S12)
   local s2 = efx2SlotIndex(cc)
   if s2 then
-    local efx2 = findByName("efx2_section")
+    local efx2 = root:findByName("efx2_section", true)
     if efx2 then efx2:notify("slot_cc", s2 .. "," .. ccVal) end
     return
   end
@@ -340,7 +340,7 @@ function onReceiveNotify(key, value)
     if efxNum and btnIdx then
       local typeIndex   = btnIdx - 1
       local sectionName = efxNum == 1 and "efx1_section" or "efx2_section"
-      local section     = findByName(sectionName)
+      local section     = root:findByName(sectionName, true)
       if section then section:notify("type_set", typeIndex) end
     end
     return
