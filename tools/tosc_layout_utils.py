@@ -71,8 +71,14 @@ def find_node_block(xml: str, name: str, start: int = 0, end: int | None = None)
 
 def find_children_section(node_block: str) -> tuple[int, int] | None:
     """Return (content_start, content_end) for this node's direct <children> section."""
-    values_end = node_block.find("</values>")
-    search_from = values_end + len("</values>") if values_end >= 0 else 0
+    # Search for <children> after the parent's own </properties> tag.
+    # Using </values> as the anchor was wrong: when the parent has <values/>
+    # (self-closing, common for GROUP nodes), find("</values>") returns the first
+    # </values> found inside a *child* node, placing search_from past the parent's
+    # <children> opening and causing the function to return None.
+    # </properties> always belongs to the parent and always precedes <children>.
+    props_end = node_block.find("</properties>")
+    search_from = props_end + len("</properties>") if props_end >= 0 else 0
     children_open = node_block.find("<children>", search_from)
     if children_open == -1:
         return None

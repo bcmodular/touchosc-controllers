@@ -390,6 +390,16 @@ local function updateLabel(text)
   if lbl then lbl.values.text = text end
 end
 
+-- Helper: get the chooser button group for this section
+local function chooserGroup()
+  return self.children["efx_" .. efxNum .. "_chooser"]
+end
+
+-- Helper: get the B-button labels group for this section
+local function btnLabelsGroup()
+  return self.children["efx" .. efxNum .. "_b_labels"]
+end
+
 -- ---------------------------------------------------------------------------
 -- applyType — remaps all slots, buttons, BCR rings, and labels for typeIdx.
 -- Reads parameter values from rawData if available, otherwise shows zeroed state.
@@ -406,45 +416,72 @@ local function applyType(typeIdx)
   local typeCCval = (MAX_TYPE > 0) and math.floor(typeIdx / MAX_TYPE * 127 + 0.5) or 0
   sendBCRcc(TYPE_CC, typeCCval)
 
-  -- Slot faders (S01–S12)
+  -- Radio-button state on chooser (one lit, rest off; none for BYPASS)
+  local cgrp = chooserGroup()
+  if cgrp then
+    for i = 1, MAX_TYPE do
+      local cb = cgrp.children[tostring(i)]
+      if cb then cb.values.x = (i == curType) and 1 or 0 end
+    end
+  end
+
+  -- Slot faders (S01–S12) — hide unused slots
   for i = 1, 12 do
-    local grpName = slotGroupName(i)
-    local slotGrp = self.children[grpName]
+    local slotGrp = self.children[slotGroupName(i)]
     if slotGrp then
       local slotDef = def and def.slots and def.slots[i]
-      local fader   = slotGrp.children["control_fader"]
-      local nameLbl = slotGrp.children["name_label"]
-      local valLbl  = slotGrp.children["value_label"]
+      slotGrp.visible = (slotDef ~= nil)
 
-      if slotDef and #rawData > 0 then
-        local raw = rawData[slotDef.off + 1] or 0
-        local x   = math.max(0, math.min(1, raw / slotDef.max))
-        if fader   then fader.values.x      = x end
+      if slotDef then
+        local fader   = slotGrp.children["control_fader"]
+        local nameLbl = slotGrp.children["name_label"]
+        local valLbl  = slotGrp.children["value_label"]
+
         if nameLbl then nameLbl.values.text = slotDef.name end
-        if valLbl  then valLbl.values.text  = tostring(raw) end
-        sendBCRcc(SLOT_CC[i], math.floor(x * 127 + 0.5))
+
+        if slotDef and #rawData > 0 then
+          local raw = rawData[slotDef.off + 1] or 0
+          local x   = math.max(0, math.min(1, raw / slotDef.max))
+          if fader  then fader.values.x     = x end
+          if valLbl then valLbl.values.text = tostring(raw) end
+          sendBCRcc(SLOT_CC[i], math.floor(x * 127 + 0.5))
+        else
+          if fader  then fader.values.x     = 0 end
+          if valLbl then valLbl.values.text = "--" end
+          sendBCRcc(SLOT_CC[i], 0)
+        end
       else
-        -- Spare slot or no data yet
-        if fader   then fader.values.x      = 0 end
-        if nameLbl then nameLbl.values.text = slotDef and slotDef.name or "---" end
-        if valLbl  then valLbl.values.text  = "--" end
         sendBCRcc(SLOT_CC[i], 0)
       end
     end
   end
 
-  -- B1: EFX SW (always present when effect is not BYPASS)
-  local swVal = 0
-  if def and def.swOff then
-    swVal = (#rawData > 0) and (rawData[def.swOff + 1] or 0) or 0
-  end
-  local b1 = self.children[btnNodeName(1)]
-  if b1 then b1.values.x = swVal end
-  sendBCRcc(BTN_CC[1], swVal * 127)
+  -- B buttons + their labels — hide unused; B1 = SW, B2-B8 = per-type
+  local lblGrp = btnLabelsGroup()
 
-  -- B2–B8: per-effect buttons
+  -- B1: EFX SW — visible only when a real effect is active
+  local hasSW  = (def ~= nil and def.swOff ~= nil)
+  local b1     = self.children[btnNodeName(1)]
+  local lbl1   = lblGrp and lblGrp.children["1"]
+  if b1 then
+    b1.visible = hasSW
+    if hasSW then
+      local swVal = (#rawData > 0) and (rawData[def.swOff + 1] or 0) or 0
+      b1.values.x = swVal
+      sendBCRcc(BTN_CC[1], swVal * 127)
+    else
+      sendBCRcc(BTN_CC[1], 0)
+    end
+  end
+  if lbl1 then
+    lbl1.visible    = hasSW
+    lbl1.values.text = "ON/OFF"
+  end
+
+  -- B2–B8: per-effect action buttons
   for i = 2, 8 do
     local btn    = self.children[btnNodeName(i)]
+    local lbl    = lblGrp and lblGrp.children[tostring(i)]
     local btnDef = def and def.btns and def.btns[i - 1]
     local bcrVal = 0
     local uiVal  = 0
@@ -460,10 +497,17 @@ local function applyType(typeIdx)
         bcrVal = uiVal * 127
         if cur > 0 then bpmDiv[btnDef.off] = cur end
       end
-      -- "set" action buttons: not latched, shown off
+      -- "set" buttons: momentary, always shown off
     end
 
-    if btn then btn.values.x = uiVal end
+    if btn then
+      btn.visible  = (btnDef ~= nil)
+      btn.values.x = uiVal
+    end
+    if lbl then
+      lbl.visible     = (btnDef ~= nil)
+      lbl.values.text = btnDef and btnDef.name or ""
+    end
     sendBCRcc(BTN_CC[i], bcrVal)
   end
 end
@@ -518,9 +562,11 @@ function onReceiveNotify(key, value)
     return
   end
 
-  -- Direct type select (0-based index) from on-screen chooser button or root
+  -- Direct type select from on-screen chooser (button name = 1-based type index).
+  -- Re-pressing the active type toggles to BYPASS (0).
   if key == "type_set" then
     local typeIdx = math.min(math.max(tonumber(value) or 0, 0), MAX_TYPE)
+    if typeIdx ~= 0 and typeIdx == curType then typeIdx = 0 end  -- toggle off → BYPASS
     applyType(typeIdx)
     return
   end
