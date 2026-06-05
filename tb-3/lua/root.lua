@@ -86,22 +86,10 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Distortion type state
+-- NOTE: distType, DIST_TYPE_NAMES and DIST_NUM_TYPES are declared in
+-- patch_manager.lua (included before this file) so that parseBlock can
+-- share the same variables.  Do NOT re-declare them here.
 -- ---------------------------------------------------------------------------
-
-local DIST_NUM_TYPES = 25
-local distType = 0  -- current distortion type (0–24)
-
-local DIST_TYPE_NAMES = {
-  "Mid Boost", "Clean Boost", "Treble Bst",
-  "Blues OD",  "Crunch",      "Natural OD",
-  "OD-1",      "T-Scream",    "Turbo OD",
-  "Warm OD",   "Distortion",  "Mild DS",
-  "Mid DS",    "RAT",         "GUV DS",
-  "DST+",      "Modern DS",   "Solid DS",
-  "Stack",     "Loud",        "Metal Zone",
-  "Lead",      "'60s FUZZ",   "Oct FUZZ",
-  "MUFF FUZZ",
-}
 
 local DIST_TYPE_ADDR = {0x10, 0x00, 0x0E, 0x01}
 
@@ -248,7 +236,7 @@ local function handleBCR2(cc, ccVal)
 end
 
 -- ---------------------------------------------------------------------------
--- TB-3 SysEx receive (patch dump)
+-- TB-3 SysEx receive (patch dump) — calls parseBlock from patch_manager.lua
 -- ---------------------------------------------------------------------------
 
 local function handleTB3SysEx(message)
@@ -256,14 +244,13 @@ local function handleTB3SysEx(message)
   if message[1] ~= 0xF0 then return end
   if message[2] ~= 0x41 then return end
   if message[7] ~= 0x12 then return end
-  local pm = findByName("patch_manager")
-  if pm then
-    local parts = {}
-    for _, b in ipairs(message) do
-      parts[#parts + 1] = string.format("%02X", b)
-    end
-    pm:notify("sysex_receive", table.concat(parts, ","))
+
+  local addr = {message[8], message[9], message[10], message[11]}
+  local data = {}
+  for i = 12, #message - 2 do  -- strip checksum and F7
+    data[#data + 1] = message[i]
   end
+  parseBlock(addr, data)
 end
 
 -- ---------------------------------------------------------------------------
@@ -323,6 +310,38 @@ function onReceiveNotify(key, value)
     end
     return
   end
+end
+
+-- ---------------------------------------------------------------------------
+-- OSC receive — test harness for patch restore without live TB-3.
+-- Python sender: split .syx into F0…F7 blocks, send each as hex CSV string
+-- to address /tb3/patch on whatever port TouchOSC is listening on.
+-- e.g.  /tb3/patch  "F0,41,10,00,00,7B,12,10,00,0C,00,00,2A,00,00,52,68,F7"
+-- ---------------------------------------------------------------------------
+
+function onReceiveOSC(message, connections)
+  if message.address ~= "/tb3/patch" then return end
+  local arg = message.arguments[1]
+  if not arg then return end
+  local hexStr = arg.value
+  if type(hexStr) ~= "string" then return end
+
+  -- Parse comma-separated hex bytes back into a byte array.
+  local bytes = {}
+  for hex in hexStr:gmatch("[^,]+") do
+    bytes[#bytes + 1] = tonumber(hex, 16)
+  end
+
+  -- Validate Roland TB-3 SysEx framing.
+  if #bytes < 14 then return end
+  if bytes[1] ~= 0xF0 then return end
+  if bytes[2] ~= 0x41 then return end
+  if bytes[7] ~= 0x12 then return end
+
+  local addr = {bytes[8], bytes[9], bytes[10], bytes[11]}
+  local data = {}
+  for i = 12, #bytes - 2 do data[#data + 1] = bytes[i] end
+  parseBlock(addr, data)
 end
 
 -- ---------------------------------------------------------------------------
