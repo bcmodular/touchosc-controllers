@@ -308,20 +308,19 @@ local TYPE_DEFS = {
   },
 
   -- 4: TREMOLO
-  --    RATE 0-100 = ~8000-20 ms (disabled when BPM SYNC ≠ 0)
-  --    BPM SYNC 0-20 = beat divisions (0=free)  ← now a slot
+  --    S01-S02: time row — BPM SYNC then RATE (greyed when SYNC ≠ OFF)
   --    TYPE 0-5 = TRI/UP SAW/DN SAW/SIN/SQR/RND
   --    PHASE 0-100 = 0°-360°
   [4] = { name="TREMOLO",
     swOff = 0x18,
     slots = {
+      {off=0x1C, name="BPM SYNC", max=20,  display=dispBpmDiv},
       {off=0x1B, name="RATE",     max=100, display=dispRate, disabledBy={0x1C}},
       {off=0x1E, name="DEPTH",    max=100},
       {off=0x19, name="TYPE",     max=5,   display=dispTrType},
       {off=0x20, name="LEVEL",    max=100},
       {off=0x1A, name="PHASE",    max=100, display=dispPhase},
       {off=0x1D, name="SHAPE",    max=100},
-      {off=0x1C, name="BPM SYNC", max=20,  display=dispBpmDiv},
     },
     btns = {
       nil, nil, nil,
@@ -331,20 +330,19 @@ local TYPE_DEFS = {
   },
 
   -- 5: CHORUS
-  --    RATE 0-100 = ~8000-20 ms (disabled when BPM SYNC ≠ 0)
-  --    BPM SYNC 0-20 = beat divisions           ← now a slot
+  --    S01-S02: time row — BPM SYNC then RATE (greyed when SYNC ≠ OFF)
   --    PRE DLY 0-80 = 0-80 ms
   --    HPF 0-17 = Flat-800 Hz  |  LPF 0-14 = 630 Hz-Flat
   [5] = { name="CHORUS",
     swOff = 0x21,
     slots = {
+      {off=0x24, name="BPM SYNC", max=20,  display=dispBpmDiv},
       {off=0x23, name="RATE",     max=100, display=dispRate, disabledBy={0x24}},
       {off=0x25, name="DEPTH",    max=100},
       {off=0x26, name="PRE DLY",  max=80,  display=dispMs},
       {off=0x29, name="LEVEL",    max=100},
       {off=0x27, name="HPF",      max=17,  display=dispHPF},
       {off=0x28, name="LPF",      max=14,  display=dispLPF},
-      {off=0x24, name="BPM SYNC", max=20,  display=dispBpmDiv},
     },
     btns = {
       nil, nil, nil,
@@ -355,13 +353,13 @@ local TYPE_DEFS = {
   },
 
   -- 6: FLANGER
-  --    RATE 0-100 = ~8000-20 ms (disabled when BPM SYNC ≠ 0)
-  --    BPM SYNC 0-20 = beat divisions           ← now a slot
+  --    S01-S02: time row — BPM SYNC then RATE (greyed when SYNC ≠ OFF)
   --    MANUAL 0-100 = −50…+50
   --    HPF 0-10 = Flat-800 Hz (11-step condensed table, verify against hardware)
   [6] = { name="FLANGER",
     swOff = 0x2A,
     slots = {
+      {off=0x2C, name="BPM SYNC",   max=20,  display=dispBpmDiv},
       {off=0x2B, name="RATE",       max=100, display=dispRate, disabledBy={0x2C}},
       {off=0x2D, name="DEPTH",      max=100},
       {off=0x2E, name="MANUAL",     max=100, display=dispBipolar50},
@@ -370,27 +368,24 @@ local TYPE_DEFS = {
       {off=0x31, name="HPF",        max=10,  display=dispFLHPF},
       {off=0x32, name="EFX LVL",    max=100},
       {off=0x33, name="DIRECT LVL", max=100},
-      {off=0x2C, name="BPM SYNC",   max=20,  display=dispBpmDiv},
     },
     btns = {},
   },
 
   -- 7: PHASER
-  --    RATE 0-100 = ~8000-20 ms (disabled when BPM SYNC or STEP RATE ≠ 0)
-  --    BPM SYNC 0-20 = beat divisions           ← now a slot
-  --    STEP RATE 0-20 = stepped beat divisions  ← now a slot (was B3 button)
+  --    S01-S03: time row — BPM SYNC, RATE (greyed when S01 or S03 ≠ OFF), STEP RATE
   --    MANUAL 0-100 = −50…+50
   [7] = { name="PHASER",
     swOff = 0x34,
     slots = {
+      {off=0x37, name="BPM SYNC",   max=20,  display=dispBpmDiv},
       {off=0x36, name="RATE",       max=100, display=dispRate, disabledBy={0x37, 0x3B}},
+      {off=0x3B, name="STEP RATE",  max=20,  display=dispBpmDiv},
       {off=0x38, name="DEPTH",      max=100},
       {off=0x39, name="MANUAL",     max=100, display=dispBipolar50},
       {off=0x3A, name="RESONANCE",  max=127},
       {off=0x3C, name="EFX LVL",    max=100},
       {off=0x3D, name="DIRECT LVL", max=100},
-      {off=0x37, name="BPM SYNC",   max=20,  display=dispBpmDiv},
-      {off=0x3B, name="STEP RATE",  max=20,  display=dispBpmDiv},
     },
     btns = {
       nil, nil, nil,
@@ -402,20 +397,19 @@ local TYPE_DEFS = {
   },
 
   -- 8: DELAY
-  --    TIME 0-100 = 0-100 ms (disabled when BPM SYNC ≠ 0)
-  --    TAP TIME 0-100 = 0-100 % (L-channel relative to R; PAN mode only)
-  --    BPM SYNC 0-13 = beat divisions (Delay supports 14 divisions) ← now a slot
+  --    S01-S03: time row — BPM SYNC, TIME (greyed when SYNC ≠ OFF), TAP TIME
+  --    BPM SYNC 0-13 = 14 beat divisions (Delay has a shorter sync range than others)
   --    LPF 0-14 = 630 Hz-Flat
   [8] = { name="DELAY",
     swOff = 0x3E,
     slots = {
+      {off=0x42, name="BPM SYNC",   max=13,  display=dispBpmDiv},
       {off=0x40, name="TIME",       max=100, display=dispMs, disabledBy={0x42}},
       {off=0x41, name="TAP TIME",   max=100, display=dispPct},
       {off=0x43, name="FEEDBACK",   max=100},
       {off=0x44, name="LPF",        max=14,  display=dispLPF},
       {off=0x45, name="EFX LVL",    max=100},
       {off=0x46, name="DIRECT LVL", max=100},
-      {off=0x42, name="BPM SYNC",   max=13,  display=dispBpmDiv},
     },
     btns = {
       nil, nil, nil,
@@ -558,6 +552,8 @@ local function refreshDisabledLabels(def)
     local slotDef = def.slots[i]
     local slotGrp = self.children[slotGroupName(i)]
     if slotGrp then
+      local nameLbl = slotGrp.children["name_label"]
+      local valLbl  = slotGrp.children["value_label"]
       if slotDef and slotDef.disabledBy then
         local disabled = false
         for _, dOff in ipairs(slotDef.disabledBy) do
@@ -565,16 +561,17 @@ local function refreshDisabledLabels(def)
             disabled = true; break
           end
         end
-        local nameLbl = slotGrp.children["name_label"]
-        if nameLbl then
-          nameLbl.textColor = Color.fromHexString(disabled and DIM_COLOR or LIT_COLOR)
-        end
-        -- Signal to pointer.lua: "disabled" blocks drag input on this slot.
+        local clr = disabled and DIM_COLOR or LIT_COLOR
+        if nameLbl then nameLbl.textColor = Color.fromHexString(clr) end
+        if valLbl  then valLbl.textColor  = Color.fromHexString(clr) end
         slotGrp.tag = disabled and "disabled" or ""
       else
-        -- No disabledBy condition — always interactive.  Clear any stale tag
-        -- that might persist if we just switched away from an effect where this
-        -- same slot index was disabled.
+        -- No disabledBy condition — always interactive.
+        -- Reset any stale dim colours left over from a previous effect type
+        -- that had a disabledBy slot at this same index (e.g. switching from
+        -- Chorus RATE at S01 to EQ LOW CUT at S01).
+        if nameLbl then nameLbl.textColor = Color.fromHexString(LIT_COLOR) end
+        if valLbl  then valLbl.textColor  = Color.fromHexString(LIT_COLOR) end
         slotGrp.tag = ""
       end
     end
