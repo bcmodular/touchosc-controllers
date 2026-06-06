@@ -5,7 +5,7 @@
 -- Colour tiers (set dynamically via Color.fromHexString so all effects,
 -- including Reverb whose type buttons span B2–B8, are coloured correctly):
 --   SEL_HEX  — "selector" accent: chooser grid labels + type-option radio buttons
---   BASE_HEX — section base: knobs, SW, utility buttons (BPM SYNC, POLARITY…)
+--   BASE_HEX — section base: knobs, SW, utility buttons (POLARITY…)
 --
 -- Toggle Release guard: self.tag = "prog" during all programmatic button value
 -- writes so efx_button.lua / efx_chooser_button.lua can distinguish user presses
@@ -13,6 +13,10 @@
 --
 -- Text colour: label textColor flips black (ON_TXT) when button is active so
 -- the text stays readable against the bright lit button background.
+--
+-- Slot display: each slot def can include a display(raw) function that converts
+-- the raw SysEx value to a human-readable string (dB, Hz, ms, beat divisions…).
+-- When absent, the raw integer is shown.
 
 -- ---------------------------------------------------------------------------
 -- Identity: EFX1 or EFX2
@@ -48,19 +52,12 @@ local TYPE_CC = (efxNum == 1) and 1 or 5
 
 -- ---------------------------------------------------------------------------
 -- Colour hex strings for Color.fromHexString (RRGGBBAA, 8 hex chars)
--- Selector tier = effect-type chooser grid + type-option radio buttons.
--- Base tier     = knobs, SW, BPM SYNC, POLARITY, etc.
--- Text colours  = white when button unlit, black when button lit.
 -- ---------------------------------------------------------------------------
 
--- EFX1 selector ≈ (0.70, 0.95, 1.00) — pale icy cyan, near-white
--- EFX1 base     ≈ (0.20, 0.70, 0.75) — teal
--- EFX2 selector ≈ (1.00, 0.65, 0.35) — bright coral-orange
--- EFX2 base     ≈ (0.85, 0.38, 0.12) — coral/rust
 local SEL_HEX  = (efxNum == 1) and "B3F2FFFF" or "FFA659FF"
 local BASE_HEX = (efxNum == 1) and "33B3BFFF" or "D9611FFF"
-local ON_TXT   = "000000FF"   -- black: readable on lit (bright) button
-local OFF_TXT  = "FFFFFFFF"   -- white: readable on unlit (dark) button
+local ON_TXT   = "000000FF"
+local OFF_TXT  = "FFFFFFFF"
 
 -- ---------------------------------------------------------------------------
 -- SysEx helpers
@@ -84,10 +81,23 @@ local function sendBCRcc(cc, ccVal)
 end
 
 -- ---------------------------------------------------------------------------
--- BPM sync beat-division display strings (index 1 = value 0 = "OFF")
--- Source: Unofficial TB-3 FX Parameter Guide v1.07 (Dope Robot)
+-- Module-level state
 -- ---------------------------------------------------------------------------
 
+local curType = 0
+local rawData = {}
+
+-- ---------------------------------------------------------------------------
+-- Display functions
+-- Source: Unofficial TB-3 FX Parameter Guide v1.07 (Dope Robot)
+--
+-- Each function takes a raw SysEx integer and returns a display string.
+-- Referenced by name in TYPE_DEFS slot entries via the "display" field.
+-- ---------------------------------------------------------------------------
+
+-- Beat-division strings (index 1 = value 0 = "OFF", … index 21 = value 20)
+-- Tremolo/Chorus/Flanger/Phaser BPM SYNC: values 0–20.
+-- Delay BPM SYNC:                          values 0–13 (max=13 in slot def).
 local BPM_DIVS = {
   "OFF",   "2",    "3/2",  "4/3",  "1",
   "3/4",   "2/3",  "1/2",  "3/8",  "1/3",
@@ -95,43 +105,156 @@ local BPM_DIVS = {
   "1/12",  "1/16", "3/64", "1/24", "1/32",
   "3/128"
 }
+local function dispBpmDiv(raw)
+  return BPM_DIVS[raw + 1] or tostring(raw)
+end
 
--- ---------------------------------------------------------------------------
--- Module-level state
--- ---------------------------------------------------------------------------
+-- Signed dB (range straddles 0 — use explicit sign)
+local function dispDb20(raw)     -- 0-40 → −20 dB…+20 dB
+  local db = raw - 20
+  return (db >= 0 and "+" or "") .. db .. " dB"
+end
+local function dispDb15(raw)     -- 0-30 → −15 dB…+15 dB
+  local db = raw - 15
+  return (db >= 0 and "+" or "") .. db .. " dB"
+end
+local function dispDb40(raw)     -- 0-80 → −40 dB…+40 dB  (COMP GAIN)
+  local db = raw - 40
+  return (db >= 0 and "+" or "") .. db .. " dB"
+end
+local function dispThreshold(raw) -- 0-40 → −40 dB…0 dB  (always ≤ 0)
+  return (raw - 40) .. " dB"
+end
 
-local curType    = 0
-local rawData    = {}
-local bpmDiv     = {}
+-- Bipolar linear (centre = max/2)
+local function dispBipolar50(raw) -- 0-100 → −50…+50
+  local v = raw - 50
+  return (v >= 0 and "+" or "") .. v
+end
+
+-- Compressor ratio lookup (0-13)
+local CS_RATIOS = {
+  "1:1.0","1:1.1","1:1.2","1:1.4","1:1.6","1:1.8",
+  "1:2.0","1:2.5","1:3.2","1:4.0","1:5.6","1:8.0","1:16","1:INF"
+}
+local function dispRatio(raw)
+  return CS_RATIOS[raw + 1] or tostring(raw)
+end
+
+-- Compressor knee (0-9)
+local function dispKnee(raw)
+  return raw == 0 and "Hard" or ("Soft " .. raw)
+end
+
+-- Compressor attack/release (0-124, linear approximation)
+local function dispCsAttack(raw)   -- 0-124 → 0-800 ms
+  return math.floor(raw / 124 * 800) .. " ms"
+end
+local function dispCsRelease(raw)  -- 0-124 → 0-8000 ms
+  return math.floor(raw / 124 * 8000) .. " ms"
+end
+
+-- HPF table (0-17): Flat → 800 Hz  (shared by Chorus, Phaser, Reverb, EQ)
+local HPF_FREQS = {
+  "Flat","20 Hz","25 Hz","31 Hz","40 Hz","50 Hz","63 Hz","80 Hz","100 Hz",
+  "125 Hz","160 Hz","200 Hz","250 Hz","315 Hz","400 Hz","500 Hz","630 Hz","800 Hz"
+}
+local function dispHPF(raw)
+  return HPF_FREQS[raw + 1] or tostring(raw)
+end
+
+-- LPF table (0-14): 630 Hz → Flat  (shared by multiple effects)
+local LPF_FREQS = {
+  "630 Hz","800 Hz","1 kHz","1.25 kHz","1.6 kHz","2 kHz","2.5 kHz",
+  "3.15 kHz","4 kHz","5 kHz","6.3 kHz","8 kHz","10 kHz","12.5 kHz","Flat"
+}
+local function dispLPF(raw)
+  return LPF_FREQS[raw + 1] or tostring(raw)
+end
+
+-- EQ parametric frequency (0-27): 20 Hz → 10 kHz  (log-spaced Roland standard)
+local EQ_FREQS = {
+  "20 Hz","25 Hz","31 Hz","40 Hz","50 Hz","63 Hz","80 Hz","100 Hz","125 Hz",
+  "160 Hz","200 Hz","250 Hz","315 Hz","400 Hz","500 Hz","630 Hz","800 Hz",
+  "1 kHz","1.25 kHz","1.6 kHz","2 kHz","2.5 kHz","3.15 kHz","4 kHz",
+  "5 kHz","6.3 kHz","8 kHz","10 kHz"
+}
+local function dispEQFreq(raw)
+  return EQ_FREQS[raw + 1] or tostring(raw)
+end
+
+-- EQ Q (0-5): 0.5 → 16
+local EQ_Q = {"0.5","1.0","2.0","4.0","8.0","16"}
+local function dispEQQ(raw)
+  return "Q " .. (EQ_Q[raw + 1] or tostring(raw))
+end
+
+-- Tremolo waveform type (0-5)
+local TR_TYPES = {"TRI","UP SAW","DN SAW","SIN","SQR","RND"}
+local function dispTrType(raw)
+  return TR_TYPES[raw + 1] or tostring(raw)
+end
+
+-- Tremolo phase (0-100 → 0°–360°)
+local function dispPhase(raw)
+  return math.floor(raw * 3.6 + 0.5) .. "\194\176"  -- \194\176 = UTF-8 degree sign
+end
+
+-- Rate/period (0-100 → ~8000 ms … 20 ms, linear approximation)
+-- Real mapping is logarithmic; this first-pass display is directionally correct.
+local function dispRate(raw)
+  return math.floor((1 - raw / 100) * 7980 + 20) .. " ms"
+end
+
+-- Direct millisecond mappings (value = ms)
+local function dispMs(raw)   return raw .. " ms"  end
+local function dispPct(raw)  return raw .. "%"     end
+
+-- Reverb time (0-99 → 0.0 s … 9.9 s in 0.1 s steps)
+local function dispRevTime(raw)
+  return string.format("%.1f s", raw / 10)
+end
+
+-- Pitch shift in semitones (0-48, centre 24 = 0 st)
+local function dispPitchSt(raw)
+  local st = raw - 24
+  return (st >= 0 and "+" or "") .. st .. " st"
+end
 
 -- ---------------------------------------------------------------------------
 -- EFX type definitions
 -- ---------------------------------------------------------------------------
--- slot  : { off, name, max }
--- btn   : { off, name, action, val, max }
---   action "set"      → radio preset; write val; light this, unlight siblings
---   action "toggle"   → binary flip at offset
---   action "bpm_sync" → toggle 0 ↔ last-non-zero
+-- slot  : { off, name, max [, display] }
+--   display(raw) → string — optional human-readable conversion.
+--   Omit for plain 0-N integer display.
 --
--- Type-option ("set") buttons sit at the bottom row (btns[4]–[7] = B5–B8)
--- where possible.  Reverb fills all 7 slots B2–B8 (btns[1]–[7]).
--- Dynamic Lua coloring in applyType correctly handles all cases.
+-- btn   : { off, name, action [, val, max] }
+--   action "set"    → radio preset; write val; light this, unlight siblings
+--   action "toggle" → binary flip at offset
+--
+-- Type-option ("set") buttons sit at the bottom row (btns[4]–[7] = B5–B8).
+-- Reverb fills all 7 B-button slots B2–B8 (btns[1]–[7]).
+-- BPM SYNC / STEP RATE are regular slots — not buttons.
 
 local TYPE_DEFS = {
 
   [0] = { name="BYPASS" },
 
   -- 1: COMP — Compressor/Sustainer
+  --    CS ATTACK 0-124 = 0-800ms  |  CS RELEASE 0-124 = 0-8000ms
+  --    CS THRESHOLD 0-40 = −40 to 0 dB  |  CS RATIO 0-13 = 14 ratios
+  --    CS KNEE 0-9 = Hard/Soft1-9  |  CS GAIN 0-80 = ±40 dB
+  --    CS BALANCE 0-100 = −50…+50
   [1] = { name="COMP",
     swOff = 0x01,
     slots = {
-      {off=0x04, name="THRESHOLD", max=40},
-      {off=0x05, name="RATIO",     max=13},
-      {off=0x02, name="ATTACK",    max=124},
-      {off=0x03, name="RELEASE",   max=124},
-      {off=0x06, name="KNEE",      max=9},
-      {off=0x07, name="GAIN",      max=80},
-      {off=0x08, name="BALANCE",   max=100},
+      {off=0x04, name="THRESHOLD", max=40,  display=dispThreshold},
+      {off=0x05, name="RATIO",     max=13,  display=dispRatio},
+      {off=0x02, name="ATTACK",    max=124, display=dispCsAttack},
+      {off=0x03, name="RELEASE",   max=124, display=dispCsRelease},
+      {off=0x06, name="KNEE",      max=9,   display=dispKnee},
+      {off=0x07, name="GAIN",      max=80,  display=dispDb40},
+      {off=0x08, name="BALANCE",   max=100, display=dispBipolar50},
     },
     btns = {
       nil, nil, nil,
@@ -142,15 +265,16 @@ local TYPE_DEFS = {
   },
 
   -- 2: RING MOD
+  --    EQ LOW/HIGH 0-30 = ±15 dB  |  BALANCE 0-100 = −50…+50
   [2] = { name="RING MOD",
     swOff = 0x09,
     slots = {
       {off=0x0A, name="FREQ",    max=127},
       {off=0x0B, name="SENS",    max=127},
-      {off=0x0F, name="BALANCE", max=100},
+      {off=0x0F, name="BALANCE", max=100, display=dispBipolar50},
       {off=0x10, name="LEVEL",   max=127},
-      {off=0x0D, name="EQ LOW",  max=30},
-      {off=0x0E, name="EQ HIGH", max=30},
+      {off=0x0D, name="EQ LOW",  max=30,  display=dispDb15},
+      {off=0x0E, name="EQ HIGH", max=30,  display=dispDb15},
     },
     btns = {
       {off=0x0C, name="POLARITY", action="toggle", max=1},
@@ -158,6 +282,7 @@ local TYPE_DEFS = {
   },
 
   -- 3: BIT CRUSH
+  --    EQ LOW/HIGH 0-30 = ±15 dB
   [3] = { name="BIT CRUSH",
     swOff = 0x11,
     slots = {
@@ -165,45 +290,53 @@ local TYPE_DEFS = {
       {off=0x13, name="SAMP RATE", max=127},
       {off=0x17, name="LEVEL",     max=127},
       nil,
-      {off=0x15, name="EQ LOW",   max=30},
-      {off=0x16, name="EQ HIGH",  max=30},
+      {off=0x15, name="EQ LOW",    max=30, display=dispDb15},
+      {off=0x16, name="EQ HIGH",   max=30, display=dispDb15},
     },
     btns = {},
   },
 
   -- 4: TREMOLO
+  --    RATE 0-100 = ~8000-20 ms (disabled when BPM SYNC ≠ 0)
+  --    BPM SYNC 0-20 = beat divisions (0=free)  ← now a slot
+  --    TYPE 0-5 = TRI/UP SAW/DN SAW/SIN/SQR/RND
+  --    PHASE 0-100 = 0°-360°
   [4] = { name="TREMOLO",
     swOff = 0x18,
     slots = {
-      {off=0x1B, name="RATE",  max=100, bpmSync={off=0x1C}},
-      {off=0x1E, name="DEPTH", max=100},
-      {off=0x19, name="TYPE",  max=5},
-      {off=0x20, name="LEVEL", max=100},
-      {off=0x1A, name="PHASE", max=100},
-      {off=0x1D, name="SHAPE", max=100},
+      {off=0x1B, name="RATE",     max=100, display=dispRate},
+      {off=0x1E, name="DEPTH",    max=100},
+      {off=0x19, name="TYPE",     max=5,   display=dispTrType},
+      {off=0x20, name="LEVEL",    max=100},
+      {off=0x1A, name="PHASE",    max=100, display=dispPhase},
+      {off=0x1D, name="SHAPE",    max=100},
+      {off=0x1C, name="BPM SYNC", max=20,  display=dispBpmDiv},
     },
     btns = {
-      {off=0x1C, name="BPM SYNC", action="bpm_sync", max=20},
-      nil, nil,
-      {off=0x1F, name="TREMOLO",  action="set", val=0},
-      {off=0x1F, name="PAN",      action="set", val=1},
+      nil, nil, nil,
+      {off=0x1F, name="TREMOLO", action="set", val=0},
+      {off=0x1F, name="PAN",     action="set", val=1},
     },
   },
 
   -- 5: CHORUS
+  --    RATE 0-100 = ~8000-20 ms (disabled when BPM SYNC ≠ 0)
+  --    BPM SYNC 0-20 = beat divisions           ← now a slot
+  --    PRE DLY 0-80 = 0-80 ms
+  --    HPF 0-17 = Flat-800 Hz  |  LPF 0-14 = 630 Hz-Flat
   [5] = { name="CHORUS",
     swOff = 0x21,
     slots = {
-      {off=0x23, name="RATE",    max=100, bpmSync={off=0x24}},
-      {off=0x25, name="DEPTH",   max=100},
-      {off=0x26, name="PRE DLY", max=80},
-      {off=0x29, name="LEVEL",   max=100},
-      {off=0x27, name="HPF",     max=17},
-      {off=0x28, name="LPF",     max=14},
+      {off=0x23, name="RATE",     max=100, display=dispRate},
+      {off=0x25, name="DEPTH",    max=100},
+      {off=0x26, name="PRE DLY",  max=80,  display=dispMs},
+      {off=0x29, name="LEVEL",    max=100},
+      {off=0x27, name="HPF",      max=17,  display=dispHPF},
+      {off=0x28, name="LPF",      max=14,  display=dispLPF},
+      {off=0x24, name="BPM SYNC", max=20,  display=dispBpmDiv},
     },
     btns = {
-      {off=0x24, name="BPM SYNC", action="bpm_sync", max=20},
-      nil, nil,
+      nil, nil, nil,
       {off=0x22, name="MONO",    action="set", val=0},
       {off=0x22, name="STEREO1", action="set", val=1},
       {off=0x22, name="STEREO2", action="set", val=2},
@@ -211,38 +344,45 @@ local TYPE_DEFS = {
   },
 
   -- 6: FLANGER
+  --    RATE 0-100 = ~8000-20 ms (disabled when BPM SYNC ≠ 0)
+  --    BPM SYNC 0-20 = beat divisions           ← now a slot
+  --    MANUAL 0-100 = −50…+50
+  --    HPF 0-10 = Flat-800 Hz
   [6] = { name="FLANGER",
     swOff = 0x2A,
     slots = {
-      {off=0x2B, name="RATE",       max=100, bpmSync={off=0x2C}},
+      {off=0x2B, name="RATE",       max=100, display=dispRate},
       {off=0x2D, name="DEPTH",      max=100},
-      {off=0x2E, name="MANUAL",     max=100},
+      {off=0x2E, name="MANUAL",     max=100, display=dispBipolar50},
       {off=0x2F, name="RESONANCE",  max=100},
       {off=0x30, name="SEPARATN",   max=100},
-      {off=0x31, name="HPF",        max=10},
+      {off=0x31, name="HPF",        max=10,  display=dispHPF},
       {off=0x32, name="EFX LVL",    max=100},
       {off=0x33, name="DIRECT LVL", max=100},
+      {off=0x2C, name="BPM SYNC",   max=20,  display=dispBpmDiv},
     },
-    btns = {
-      {off=0x2C, name="BPM SYNC", action="bpm_sync", max=20},
-    },
+    btns = {},
   },
 
   -- 7: PHASER
+  --    RATE 0-100 = ~8000-20 ms (disabled when BPM SYNC or STEP RATE ≠ 0)
+  --    BPM SYNC 0-20 = beat divisions           ← now a slot
+  --    STEP RATE 0-20 = stepped beat divisions  ← now a slot (was B3 button)
+  --    MANUAL 0-100 = −50…+50
   [7] = { name="PHASER",
     swOff = 0x34,
     slots = {
-      {off=0x36, name="RATE",       max=100, bpmSync={off=0x37}},
+      {off=0x36, name="RATE",       max=100, display=dispRate},
       {off=0x38, name="DEPTH",      max=100},
-      {off=0x39, name="MANUAL",     max=100},
+      {off=0x39, name="MANUAL",     max=100, display=dispBipolar50},
       {off=0x3A, name="RESONANCE",  max=127},
       {off=0x3C, name="EFX LVL",    max=100},
       {off=0x3D, name="DIRECT LVL", max=100},
+      {off=0x37, name="BPM SYNC",   max=20,  display=dispBpmDiv},
+      {off=0x3B, name="STEP RATE",  max=20,  display=dispBpmDiv},
     },
     btns = {
-      {off=0x37, name="BPM SYNC",  action="bpm_sync", max=20},
-      {off=0x3B, name="STEP RATE", action="bpm_sync", max=20},
-      nil,
+      nil, nil, nil,
       {off=0x35, name="4STAGE",  action="set", val=0},
       {off=0x35, name="8STAGE",  action="set", val=1},
       {off=0x35, name="12STAGE", action="set", val=2},
@@ -251,19 +391,23 @@ local TYPE_DEFS = {
   },
 
   -- 8: DELAY
+  --    TIME 0-100 = 0-100 ms (disabled when BPM SYNC ≠ 0)
+  --    TAP TIME 0-100 = 0-100 % (L-channel relative to R; PAN mode only)
+  --    BPM SYNC 0-13 = beat divisions (Delay supports 14 divisions) ← now a slot
+  --    LPF 0-14 = 630 Hz-Flat
   [8] = { name="DELAY",
     swOff = 0x3E,
     slots = {
-      {off=0x40, name="TIME",       max=100, bpmSync={off=0x42}},
-      {off=0x41, name="TAP TIME",   max=100},
+      {off=0x40, name="TIME",       max=100, display=dispMs},
+      {off=0x41, name="TAP TIME",   max=100, display=dispPct},
       {off=0x43, name="FEEDBACK",   max=100},
-      {off=0x44, name="LPF",        max=14},
+      {off=0x44, name="LPF",        max=14,  display=dispLPF},
       {off=0x45, name="EFX LVL",    max=100},
       {off=0x46, name="DIRECT LVL", max=100},
+      {off=0x42, name="BPM SYNC",   max=13,  display=dispBpmDiv},
     },
     btns = {
-      {off=0x42, name="BPM SYNC", action="bpm_sync", max=20},
-      nil, nil,
+      nil, nil, nil,
       {off=0x3F, name="SINGLE", action="set", val=0},
       {off=0x3F, name="PAN",    action="set", val=1},
       {off=0x3F, name="STEREO", action="set", val=2},
@@ -272,20 +416,23 @@ local TYPE_DEFS = {
 }
 
 -- ---------------------------------------------------------------------------
--- EFX1-specific types (PS type 9, EQ type 10)
+-- EFX1-specific types (PITCH SHIFT type 9, EQ type 10)
 -- ---------------------------------------------------------------------------
 
 if efxNum == 1 then
 
+  -- 9: PITCH SHIFT (EFX1 only)
+  --    PITCH 0-48 = −24…+24 semitones (raw 24 = 0 st)
+  --    PRE DLY 0-100 = 0-100 ms
   TYPE_DEFS[9] = { name="PITCH SHIFT",
     swOff = 0x47,
     slots = {
-      {off=0x49, name="PITCH 1",    max=48},
-      {off=0x4A, name="PRE DLY 1",  max=100},
+      {off=0x49, name="PITCH 1",    max=48,  display=dispPitchSt},
+      {off=0x4A, name="PRE DLY 1",  max=100, display=dispMs},
       {off=0x4C, name="EFX LVL 1",  max=100},
       {off=0x4B, name="FEEDBACK",   max=100},
-      {off=0x4D, name="PITCH 2",    max=48},
-      {off=0x4E, name="PRE DLY 2",  max=100},
+      {off=0x4D, name="PITCH 2",    max=48,  display=dispPitchSt},
+      {off=0x4E, name="PRE DLY 2",  max=100, display=dispMs},
       {off=0x50, name="EFX LVL 2",  max=100},
       {off=0x51, name="DIRECT LVL", max=100},
     },
@@ -297,41 +444,48 @@ if efxNum == 1 then
     },
   }
 
+  -- 10: EQ (EFX1 only)
+  --    GAIN params 0-40 = ±20 dB
+  --    LOW/HI CUT: HPF (0-17) / LPF (0-14) tables
+  --    FREQ 0-27 = 20 Hz-10 kHz  |  Q 0-5 = 0.5-16
   TYPE_DEFS[10] = { name="EQ",
     swOff = 0x53,
     slots = {
-      {off=0x54, name="LOW CUT",  max=17},
-      {off=0x55, name="LOW GAIN", max=40},
-      {off=0x5C, name="HI CUT",   max=14},
-      {off=0x5D, name="HI GAIN",  max=40},
-      {off=0x56, name="LM FREQ",  max=27},
-      {off=0x57, name="LM Q",     max=5},
-      {off=0x58, name="LM GAIN",  max=40},
+      {off=0x54, name="LOW CUT",  max=17, display=dispHPF},
+      {off=0x55, name="LOW GAIN", max=40, display=dispDb20},
+      {off=0x5C, name="HI CUT",   max=14, display=dispLPF},
+      {off=0x5D, name="HI GAIN",  max=40, display=dispDb20},
+      {off=0x56, name="LM FREQ",  max=27, display=dispEQFreq},
+      {off=0x57, name="LM Q",     max=5,  display=dispEQQ},
+      {off=0x58, name="LM GAIN",  max=40, display=dispDb20},
       nil,
-      {off=0x59, name="HM FREQ",  max=27},
-      {off=0x5A, name="HM Q",     max=5},
-      {off=0x5B, name="HM GAIN",  max=40},
-      {off=0x5E, name="LEVEL",    max=40},
+      {off=0x59, name="HM FREQ",  max=27, display=dispEQFreq},
+      {off=0x5A, name="HM Q",     max=5,  display=dispEQQ},
+      {off=0x5B, name="HM GAIN",  max=40, display=dispDb20},
+      {off=0x5E, name="LEVEL",    max=40, display=dispDb20},
     },
     btns = {},
   }
 
 -- ---------------------------------------------------------------------------
--- EFX2-specific types (RV type 9)
+-- EFX2-specific types (REVERB type 9)
 -- ---------------------------------------------------------------------------
 
 else
 
-  -- Reverb: all 7 type-option buttons (B2–B8) — dynamic coloring handles this
+  -- 9: REVERB (EFX2 only)
+  --    TIME 0-99 = 0.0-9.9 s  |  PRE DLY 0-100 = 0-100 ms
+  --    HPF 0-17 = Flat-800 Hz  |  LPF 0-14 = 630 Hz-Flat
+  --    All 7 B-buttons (B2–B8) are reverb-type presets.
   TYPE_DEFS[9] = { name="REVERB",
     swOff = 0x47,
     slots = {
-      {off=0x49, name="TIME",       max=99},
-      {off=0x4A, name="PRE DLY",    max=100},
+      {off=0x49, name="TIME",       max=99,  display=dispRevTime},
+      {off=0x4A, name="PRE DLY",    max=100, display=dispMs},
       {off=0x4D, name="DENSITY",    max=10},
       {off=0x50, name="SPRING SNS", max=100},
-      {off=0x4B, name="HPF",        max=17},
-      {off=0x4C, name="LPF",        max=14},
+      {off=0x4B, name="HPF",        max=17,  display=dispHPF},
+      {off=0x4C, name="LPF",        max=14,  display=dispLPF},
       {off=0x4E, name="EFX LVL",    max=100},
       {off=0x4F, name="DIRECT LVL", max=100},
     },
@@ -380,10 +534,8 @@ end
 -- ---------------------------------------------------------------------------
 -- applyType — remaps slots, buttons, colours, labels, BCR rings.
 --
--- Button colour rules (applied dynamically so Reverb is handled correctly):
---   "set" action  → SEL_HEX  (type-option radio — selector tier)
---   everything else → BASE_HEX (utility — base tier)
--- Text colour flips black when active so text stays readable on lit buttons.
+-- Slot display: if slotDef.display is set, calls display(raw) for the label.
+-- Button colour: "set" → SEL_HEX, everything else → BASE_HEX.
 -- ---------------------------------------------------------------------------
 
 local function applyType(typeIdx)
@@ -410,10 +562,7 @@ local function applyType(typeIdx)
   end
   self.tag = ""
 
-  -- ── Slot faders (S01–S12) — hide unused ─────────────────────────────────
-  -- BPM dual-mode: if a slot has a bpmSync field and BPM SYNC is currently
-  -- active (rawData[bpmSync.off+1] > 0), show the division value and name
-  -- instead of the primary rate parameter.
+  -- ── Slot faders (S01–S12) ────────────────────────────────────────────────
   for i = 1, 12 do
     local slotGrp = self.children[slotGroupName(i)]
     if slotGrp then
@@ -425,18 +574,10 @@ local function applyType(typeIdx)
         local valLbl  = slotGrp.children["value_label"]
         if nameLbl then nameLbl.values.text = slotDef.name end
         if #rawData > 0 then
-          local bpmActive = slotDef.bpmSync and (rawData[slotDef.bpmSync.off + 1] or 0) > 0
-          local x, txt
-          if bpmActive then
-            local div = rawData[slotDef.bpmSync.off + 1] or 1
-            x   = div / 20
-            txt = BPM_DIVS[div + 1] or tostring(div)
-          else
-            local raw = rawData[slotDef.off + 1] or 0
-            x   = math.max(0, math.min(1, raw / slotDef.max))
-            txt = tostring(raw)
-          end
-          if fader  then fader.values.x    = math.max(0, math.min(1, x)) end
+          local raw = rawData[slotDef.off + 1] or 0
+          local x   = math.max(0, math.min(1, raw / slotDef.max))
+          local txt = slotDef.display and slotDef.display(raw) or tostring(raw)
+          if fader  then fader.values.x    = x end
           if valLbl then valLbl.values.text = txt end
           sendBCRcc(SLOT_CC[i], math.floor(x * 127 + 0.5))
         else
@@ -450,9 +591,8 @@ local function applyType(typeIdx)
     end
   end
 
-  -- ── B buttons + labels — colour, visibility, state, text colour ──────────
+  -- ── B buttons + labels ───────────────────────────────────────────────────
   local lblGrp = btnLabelsGroup()
-
   self.tag = "prog"
 
   -- B1: EFX SW (always utility colour)
@@ -477,8 +617,7 @@ local function applyType(typeIdx)
     lbl1.values.text = "ON/OFF"
   end
 
-  -- B2–B8: per-effect action buttons
-  -- Colour: "set" → SEL_HEX (type-option), anything else → BASE_HEX (utility)
+  -- B2–B8: per-effect action buttons ("set" or "toggle")
   for i = 2, 8 do
     local btn    = self.children[btnNodeName(i)]
     local lbl    = lblGrp and lblGrp.children[tostring(i)]
@@ -491,11 +630,6 @@ local function applyType(typeIdx)
         local cur = (#rawData > 0) and (rawData[btnDef.off + 1] or 0) or 0
         uiVal  = (cur > 0) and 1 or 0
         bcrVal = uiVal * 127
-      elseif btnDef.action == "bpm_sync" then
-        local cur = (#rawData > 0) and (rawData[btnDef.off + 1] or 0) or 0
-        uiVal  = (cur > 0) and 1 or 0
-        bcrVal = uiVal * 127
-        if cur > 0 then bpmDiv[btnDef.off] = cur end
       elseif btnDef.action == "set" then
         local cur = (#rawData > 0) and rawData[btnDef.off + 1] or nil
         uiVal  = (cur ~= nil and cur == btnDef.val) and 1 or 0
@@ -503,7 +637,6 @@ local function applyType(typeIdx)
       end
     end
 
-    -- Selector tier if "set", base tier for everything else
     local clrHex = (btnDef and btnDef.action == "set") and SEL_HEX or BASE_HEX
 
     if btn then
@@ -524,46 +657,21 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Slot SysEx send helpers
--- BPM dual-mode: when a slot has a bpmSync field and BPM SYNC is currently
--- active, the encoder controls the beat-division value (1–20) instead of the
--- primary rate parameter.  Both sendSlotFromFloat and sendSlotFromCC share the
--- same BPM branch so BCR and on-screen encoders behave identically.
+-- Uses slotDef.display for label when available; falls back to tostring(raw).
 -- ---------------------------------------------------------------------------
-
-local function applyBpmSlot(slotDef, slotIdx, divVal)
-  -- divVal: desired division integer (1–20).  Clamp and record.
-  divVal = math.max(1, math.min(20, divVal))
-  sendParam(slotDef.bpmSync.off, divVal)
-  rawData[slotDef.bpmSync.off + 1] = divVal
-  bpmDiv[slotDef.bpmSync.off]      = divVal
-  local slotGrp = self.children[slotGroupName(slotIdx)]
-  if slotGrp then
-    local fader  = slotGrp.children["control_fader"]
-    local valLbl = slotGrp.children["value_label"]
-    if fader  then fader.values.x     = divVal / 20 end
-    if valLbl then valLbl.values.text = BPM_DIVS[divVal + 1] or tostring(divVal) end
-  end
-end
 
 local function sendSlotFromFloat(slotIdx, x)
   local def     = TYPE_DEFS[curType]
   local slotDef = def and def.slots and def.slots[slotIdx]
   if not slotDef then return end
-
-  -- BPM dual-mode: redirect to division parameter when sync is active.
-  if slotDef.bpmSync and (rawData[slotDef.bpmSync.off + 1] or 0) > 0 then
-    local divVal = math.floor(x * 20 + 0.5)
-    applyBpmSlot(slotDef, slotIdx, divVal)
-    return
-  end
-
   local raw = math.floor(x * slotDef.max + 0.5)
   sendParam(slotDef.off, raw)
   rawData[slotDef.off + 1] = raw
   local slotGrp = self.children[slotGroupName(slotIdx)]
   if slotGrp then
     local valLbl = slotGrp.children["value_label"]
-    if valLbl then valLbl.values.text = tostring(raw) end
+    local txt    = slotDef.display and slotDef.display(raw) or tostring(raw)
+    if valLbl then valLbl.values.text = txt end
   end
 end
 
@@ -571,14 +679,6 @@ local function sendSlotFromCC(slotIdx, ccVal)
   local def     = TYPE_DEFS[curType]
   local slotDef = def and def.slots and def.slots[slotIdx]
   if not slotDef then return end
-
-  -- BPM dual-mode: redirect to division parameter when sync is active.
-  if slotDef.bpmSync and (rawData[slotDef.bpmSync.off + 1] or 0) > 0 then
-    local divVal = math.floor(ccVal / 127 * 20 + 0.5)
-    applyBpmSlot(slotDef, slotIdx, divVal)
-    return
-  end
-
   local raw = math.floor(ccVal / 127 * slotDef.max + 0.5)
   sendParam(slotDef.off, raw)
   rawData[slotDef.off + 1] = raw
@@ -586,8 +686,9 @@ local function sendSlotFromCC(slotIdx, ccVal)
   if slotGrp then
     local fader  = slotGrp.children["control_fader"]
     local valLbl = slotGrp.children["value_label"]
+    local txt    = slotDef.display and slotDef.display(raw) or tostring(raw)
     if fader  then fader.values.x     = raw / slotDef.max end
-    if valLbl then valLbl.values.text = tostring(raw) end
+    if valLbl then valLbl.values.text = txt end
   end
 end
 
@@ -709,53 +810,6 @@ function onReceiveNotify(key, value)
       if lbl then lbl.textColor  = Color.fromHexString(nxt >= 0.5 and ON_TXT or OFF_TXT) end
       self.tag = ""
       sendBCRcc(BTN_CC[btnIdx], nxt * 127)
-
-    elseif btnDef.action == "bpm_sync" then
-      local cur = rawData[btnDef.off + 1] or 0
-      local nxt
-      if cur > 0 then
-        bpmDiv[btnDef.off] = cur
-        nxt = 0
-      else
-        nxt = bpmDiv[btnDef.off] or 8
-      end
-      sendParam(btnDef.off, nxt)
-      rawData[btnDef.off + 1] = nxt
-      local uiV = (nxt > 0) and 1 or 0
-      self.tag = "prog"
-      local btn = self.children[btnNodeName(btnIdx)]
-      local lbl = lblGrp and lblGrp.children[tostring(btnIdx)]
-      if btn then btn.values.x   = uiV end
-      if lbl then lbl.textColor  = Color.fromHexString(uiV >= 0.5 and ON_TXT or OFF_TXT) end
-      self.tag = ""
-      sendBCRcc(BTN_CC[btnIdx], uiV * 127)
-
-      -- Refresh S01 when BPM SYNC is linked to it (TREMOLO/CHORUS/FLANGER/PHASER/DELAY).
-      -- When SYNC turns on:  S01 shows the beat division name.
-      -- When SYNC turns off: S01 reverts to the primary rate value.
-      local s1def = def and def.slots and def.slots[1]
-      if s1def and s1def.bpmSync and s1def.bpmSync.off == btnDef.off then
-        local s1grp  = self.children[slotGroupName(1)]
-        if s1grp then
-          local s1fader  = s1grp.children["control_fader"]
-          local s1valLbl = s1grp.children["value_label"]
-          local newX, newTxt
-          if nxt > 0 then
-            newX   = nxt / 20
-            newTxt = BPM_DIVS[nxt + 1] or tostring(nxt)
-          else
-            local raw = rawData[s1def.off + 1] or 0
-            newX   = raw / s1def.max
-            newTxt = tostring(raw)
-          end
-          newX = math.max(0, math.min(1, newX))
-          self.tag = "prog"
-          if s1fader  then s1fader.values.x     = newX end
-          if s1valLbl then s1valLbl.values.text  = newTxt end
-          self.tag = ""
-          sendBCRcc(SLOT_CC[1], math.floor(newX * 127 + 0.5))
-        end
-      end
     end
 
     return
