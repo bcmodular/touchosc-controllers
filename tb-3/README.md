@@ -18,15 +18,17 @@ A full-featured TouchOSC layout for the Roland TB-3 synthesizer, providing compl
 
 ### TouchOSC Connections
 
-Configure **Connection 2** in TouchOSC to your TB-3 USB MIDI port (bidirectional). The controller sends SysEx on this connection and receives patch dumps back.
+| Connection | Device | Notes |
+|------------|--------|-------|
+| **Connection 2** | BCR2000 (both units) | Both units share one port; differentiated by MIDI channel |
+| **Connection 6** | TB-3 (USB MIDI) | Bidirectional — SysEx out and patch dump receive |
 
-If using BCR2000 units, both connect on the **same port** as the TB-3 (or a separate MIDI interface on connection 2) — they are differentiated by MIDI channel:
+The TB-3 and BCR2000 units use separate connections so SysEx to the TB-3 never reaches the BCR2000.
 
 | Device | MIDI Channel | Purpose |
 |--------|-------------|---------|
 | BCR2000 #1 | Ch 1 | Tone + Distortion |
 | BCR2000 #2 | Ch 2 | EFX1 + EFX2 |
-| TB-3 | Ch 2 (receive) | SysEx / MIDI CC |
 
 ### BCR2000 Presets
 
