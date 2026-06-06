@@ -28,10 +28,10 @@ local ENC_SEND_MAP = {
   ["lfo_group,lfo_wave_sin_enc"]  = { addr={0x10,0x00,0x00,0x05}, bits=7 },
   ["lfo_group,lfo_cv_offset_enc"] = { addr={0x10,0x00,0x00,0x06}, bits=7 },
   ["lfo_group,lfo_wave_sh_enc"]   = { addr={0x10,0x00,0x00,0x07}, bits=7 },
-  -- LFO depths live in the LFO block but their encoder groups are in other sections
-  ["vco_group,vco_lfo_depth_enc"] = { addr={0x10,0x00,0x00,0x08}, bits=7 },
-  ["vcf_group,vcf_lfo_depth_enc"] = { addr={0x10,0x00,0x00,0x09}, bits=7 },
-  ["vca_group,vca_lfo_depth_enc"] = { addr={0x10,0x00,0x00,0x0A}, bits=7 },
+  -- LFO depth params: signed, offset-encoded (raw 64 = 0; display raw−64).
+  ["vco_group,vco_lfo_depth_enc"] = { addr={0x10,0x00,0x00,0x08}, bits=7, signed=true },
+  ["vcf_group,vcf_lfo_depth_enc"] = { addr={0x10,0x00,0x00,0x09}, bits=7, signed=true },
+  ["vca_group,vca_lfo_depth_enc"] = { addr={0x10,0x00,0x00,0x0A}, bits=7, signed=true },
 
   -- ---- CV OFFSET / TUNING  10 00 02 00 ----
   ["tuning_group,sqr_tuning_enc"]      = { addr={0x10,0x00,0x02,0x00}, bits=16 },
@@ -40,14 +40,15 @@ local ENC_SEND_MAP = {
   ["tuning_group,tuning_enc"]          = { sp="global_tuning" },
 
   -- ---- CROSS MODULATION  10 00 04 00 ----
-  ["cross_mod_group,sqr_saw_enc"]   = { addr={0x10,0x00,0x04,0x00}, bits=7 },
-  ["cross_mod_group,saw_saw_enc"]   = { addr={0x10,0x00,0x04,0x02}, bits=7 },
-  ["cross_mod_group,white_saw_enc"] = { addr={0x10,0x00,0x04,0x03}, bits=7 },
-  ["cross_mod_group,pink_saw_enc"]  = { addr={0x10,0x00,0x04,0x04}, bits=7 },
-  ["cross_mod_group,sqr_sqr_enc"]   = { addr={0x10,0x00,0x04,0x05}, bits=7 },
-  ["cross_mod_group,saw_sqr_enc"]   = { addr={0x10,0x00,0x04,0x07}, bits=7 },
-  ["cross_mod_group,white_sqr_enc"] = { addr={0x10,0x00,0x04,0x08}, bits=7 },
-  ["cross_mod_group,pink_sqr_enc"]  = { addr={0x10,0x00,0x04,0x09}, bits=7 },
+  -- All cross-mod params are signed, offset-encoded (raw 64 = 0; display raw−64).
+  ["cross_mod_group,sqr_saw_enc"]   = { addr={0x10,0x00,0x04,0x00}, bits=7, signed=true },
+  ["cross_mod_group,saw_saw_enc"]   = { addr={0x10,0x00,0x04,0x02}, bits=7, signed=true },
+  ["cross_mod_group,white_saw_enc"] = { addr={0x10,0x00,0x04,0x03}, bits=7, signed=true },
+  ["cross_mod_group,pink_saw_enc"]  = { addr={0x10,0x00,0x04,0x04}, bits=7, signed=true },
+  ["cross_mod_group,sqr_sqr_enc"]   = { addr={0x10,0x00,0x04,0x05}, bits=7, signed=true },
+  ["cross_mod_group,saw_sqr_enc"]   = { addr={0x10,0x00,0x04,0x07}, bits=7, signed=true },
+  ["cross_mod_group,white_sqr_enc"] = { addr={0x10,0x00,0x04,0x08}, bits=7, signed=true },
+  ["cross_mod_group,pink_sqr_enc"]  = { addr={0x10,0x00,0x04,0x09}, bits=7, signed=true },
 
   -- ---- RING MODULATION  10 00 06 00 ----
   -- Note: enc names collide with vco_group; section prefix disambiguates.

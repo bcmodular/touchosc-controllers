@@ -530,6 +530,33 @@ function onReceiveNotify(key, value)
       local entry = ENC_SEND_MAP[sec .. "," .. enc]
       if entry then
         sendFromEntryFloat(entry, x)
+
+        -- Correct the value_label: control_fader.lua shows a fallback 0-127
+        -- value; override it here with the parameter's actual range/encoding.
+        -- Use section-scoped child lookup to handle name collisions (e.g.
+        -- ring_mod_group and vco_group both have a child named "saw_enc").
+        local lbl_text
+        if entry.signed then
+          -- Signed offset-encoded: raw 64 = 0; display range −64…+63.
+          local raw = math.floor(x * 127 + 0.5)
+          local s   = raw - 64
+          lbl_text  = (s >= 0 and "+" or "") .. tostring(s)
+        elseif entry.bits == 16 then
+          -- 16-bit nibble-packed: full range is 0–(max or 255).
+          lbl_text = tostring(math.floor(x * (entry.max or 255) + 0.5))
+        elseif entry.max and entry.max ~= 127 then
+          -- Custom 7-bit max (e.g. DRIVE=120, BOTTOM=100, BENDER=17).
+          lbl_text = tostring(math.floor(x * entry.max + 0.5))
+        end
+        if lbl_text then
+          local secGrp = root:findByName(sec, true)
+          local encGrp = secGrp and secGrp.children[enc]
+          if encGrp then
+            local lbl = encGrp.children["value_label"]
+            if lbl then lbl.values.text = lbl_text end
+          end
+        end
+
         -- Mirror to BCR2000 #1 so its LED ring tracks the on-screen fader.
         if entry.addr then
           local addrKey = string.format("%02X%02X%02X%02X",

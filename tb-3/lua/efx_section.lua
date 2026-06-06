@@ -84,6 +84,19 @@ local function sendBCRcc(cc, ccVal)
 end
 
 -- ---------------------------------------------------------------------------
+-- BPM sync beat-division display strings (index 1 = value 0 = "OFF")
+-- Source: Unofficial TB-3 FX Parameter Guide v1.07 (Dope Robot)
+-- ---------------------------------------------------------------------------
+
+local BPM_DIVS = {
+  "OFF",   "2",    "3/2",  "4/3",  "1",
+  "3/4",   "2/3",  "1/2",  "3/8",  "1/3",
+  "1/4",   "3/16", "1/6",  "1/8",  "3/32",
+  "1/12",  "1/16", "3/64", "1/24", "1/32",
+  "3/128"
+}
+
+-- ---------------------------------------------------------------------------
 -- Module-level state
 -- ---------------------------------------------------------------------------
 
@@ -162,7 +175,7 @@ local TYPE_DEFS = {
   [4] = { name="TREMOLO",
     swOff = 0x18,
     slots = {
-      {off=0x1B, name="RATE",  max=100},
+      {off=0x1B, name="RATE",  max=100, bpmSync={off=0x1C}},
       {off=0x1E, name="DEPTH", max=100},
       {off=0x19, name="TYPE",  max=5},
       {off=0x20, name="LEVEL", max=100},
@@ -181,7 +194,7 @@ local TYPE_DEFS = {
   [5] = { name="CHORUS",
     swOff = 0x21,
     slots = {
-      {off=0x23, name="RATE",    max=100},
+      {off=0x23, name="RATE",    max=100, bpmSync={off=0x24}},
       {off=0x25, name="DEPTH",   max=100},
       {off=0x26, name="PRE DLY", max=80},
       {off=0x29, name="LEVEL",   max=100},
@@ -201,7 +214,7 @@ local TYPE_DEFS = {
   [6] = { name="FLANGER",
     swOff = 0x2A,
     slots = {
-      {off=0x2B, name="RATE",       max=100},
+      {off=0x2B, name="RATE",       max=100, bpmSync={off=0x2C}},
       {off=0x2D, name="DEPTH",      max=100},
       {off=0x2E, name="MANUAL",     max=100},
       {off=0x2F, name="RESONANCE",  max=100},
@@ -219,7 +232,7 @@ local TYPE_DEFS = {
   [7] = { name="PHASER",
     swOff = 0x34,
     slots = {
-      {off=0x36, name="RATE",       max=100},
+      {off=0x36, name="RATE",       max=100, bpmSync={off=0x37}},
       {off=0x38, name="DEPTH",      max=100},
       {off=0x39, name="MANUAL",     max=100},
       {off=0x3A, name="RESONANCE",  max=127},
@@ -241,7 +254,7 @@ local TYPE_DEFS = {
   [8] = { name="DELAY",
     swOff = 0x3E,
     slots = {
-      {off=0x40, name="TIME",       max=100},
+      {off=0x40, name="TIME",       max=100, bpmSync={off=0x42}},
       {off=0x41, name="TAP TIME",   max=100},
       {off=0x43, name="FEEDBACK",   max=100},
       {off=0x44, name="LPF",        max=14},
@@ -398,6 +411,9 @@ local function applyType(typeIdx)
   self.tag = ""
 
   -- ── Slot faders (S01–S12) — hide unused ─────────────────────────────────
+  -- BPM dual-mode: if a slot has a bpmSync field and BPM SYNC is currently
+  -- active (rawData[bpmSync.off+1] > 0), show the division value and name
+  -- instead of the primary rate parameter.
   for i = 1, 12 do
     local slotGrp = self.children[slotGroupName(i)]
     if slotGrp then
@@ -409,10 +425,19 @@ local function applyType(typeIdx)
         local valLbl  = slotGrp.children["value_label"]
         if nameLbl then nameLbl.values.text = slotDef.name end
         if #rawData > 0 then
-          local raw = rawData[slotDef.off + 1] or 0
-          local x   = math.max(0, math.min(1, raw / slotDef.max))
-          if fader  then fader.values.x    = x end
-          if valLbl then valLbl.values.text = tostring(raw) end
+          local bpmActive = slotDef.bpmSync and (rawData[slotDef.bpmSync.off + 1] or 0) > 0
+          local x, txt
+          if bpmActive then
+            local div = rawData[slotDef.bpmSync.off + 1] or 1
+            x   = div / 20
+            txt = BPM_DIVS[div + 1] or tostring(div)
+          else
+            local raw = rawData[slotDef.off + 1] or 0
+            x   = math.max(0, math.min(1, raw / slotDef.max))
+            txt = tostring(raw)
+          end
+          if fader  then fader.values.x    = math.max(0, math.min(1, x)) end
+          if valLbl then valLbl.values.text = txt end
           sendBCRcc(SLOT_CC[i], math.floor(x * 127 + 0.5))
         else
           if fader  then fader.values.x    = 0 end
@@ -499,12 +524,39 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Slot SysEx send helpers
+-- BPM dual-mode: when a slot has a bpmSync field and BPM SYNC is currently
+-- active, the encoder controls the beat-division value (1–20) instead of the
+-- primary rate parameter.  Both sendSlotFromFloat and sendSlotFromCC share the
+-- same BPM branch so BCR and on-screen encoders behave identically.
 -- ---------------------------------------------------------------------------
+
+local function applyBpmSlot(slotDef, slotIdx, divVal)
+  -- divVal: desired division integer (1–20).  Clamp and record.
+  divVal = math.max(1, math.min(20, divVal))
+  sendParam(slotDef.bpmSync.off, divVal)
+  rawData[slotDef.bpmSync.off + 1] = divVal
+  bpmDiv[slotDef.bpmSync.off]      = divVal
+  local slotGrp = self.children[slotGroupName(slotIdx)]
+  if slotGrp then
+    local fader  = slotGrp.children["control_fader"]
+    local valLbl = slotGrp.children["value_label"]
+    if fader  then fader.values.x     = divVal / 20 end
+    if valLbl then valLbl.values.text = BPM_DIVS[divVal + 1] or tostring(divVal) end
+  end
+end
 
 local function sendSlotFromFloat(slotIdx, x)
   local def     = TYPE_DEFS[curType]
   local slotDef = def and def.slots and def.slots[slotIdx]
   if not slotDef then return end
+
+  -- BPM dual-mode: redirect to division parameter when sync is active.
+  if slotDef.bpmSync and (rawData[slotDef.bpmSync.off + 1] or 0) > 0 then
+    local divVal = math.floor(x * 20 + 0.5)
+    applyBpmSlot(slotDef, slotIdx, divVal)
+    return
+  end
+
   local raw = math.floor(x * slotDef.max + 0.5)
   sendParam(slotDef.off, raw)
   rawData[slotDef.off + 1] = raw
@@ -519,6 +571,14 @@ local function sendSlotFromCC(slotIdx, ccVal)
   local def     = TYPE_DEFS[curType]
   local slotDef = def and def.slots and def.slots[slotIdx]
   if not slotDef then return end
+
+  -- BPM dual-mode: redirect to division parameter when sync is active.
+  if slotDef.bpmSync and (rawData[slotDef.bpmSync.off + 1] or 0) > 0 then
+    local divVal = math.floor(ccVal / 127 * 20 + 0.5)
+    applyBpmSlot(slotDef, slotIdx, divVal)
+    return
+  end
+
   local raw = math.floor(ccVal / 127 * slotDef.max + 0.5)
   sendParam(slotDef.off, raw)
   rawData[slotDef.off + 1] = raw
@@ -669,6 +729,33 @@ function onReceiveNotify(key, value)
       if lbl then lbl.textColor  = Color.fromHexString(uiV >= 0.5 and ON_TXT or OFF_TXT) end
       self.tag = ""
       sendBCRcc(BTN_CC[btnIdx], uiV * 127)
+
+      -- Refresh S01 when BPM SYNC is linked to it (TREMOLO/CHORUS/FLANGER/PHASER/DELAY).
+      -- When SYNC turns on:  S01 shows the beat division name.
+      -- When SYNC turns off: S01 reverts to the primary rate value.
+      local s1def = def and def.slots and def.slots[1]
+      if s1def and s1def.bpmSync and s1def.bpmSync.off == btnDef.off then
+        local s1grp  = self.children[slotGroupName(1)]
+        if s1grp then
+          local s1fader  = s1grp.children["control_fader"]
+          local s1valLbl = s1grp.children["value_label"]
+          local newX, newTxt
+          if nxt > 0 then
+            newX   = nxt / 20
+            newTxt = BPM_DIVS[nxt + 1] or tostring(nxt)
+          else
+            local raw = rawData[s1def.off + 1] or 0
+            newX   = raw / s1def.max
+            newTxt = tostring(raw)
+          end
+          newX = math.max(0, math.min(1, newX))
+          self.tag = "prog"
+          if s1fader  then s1fader.values.x     = newX end
+          if s1valLbl then s1valLbl.values.text  = newTxt end
+          self.tag = ""
+          sendBCRcc(SLOT_CC[1], math.floor(newX * 127 + 0.5))
+        end
+      end
     end
 
     return
