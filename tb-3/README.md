@@ -32,7 +32,9 @@ The TB-3 and BCR2000 units use separate connections so SysEx to the TB-3 never r
 
 ### BCR2000 Presets
 
-Load the BC Manager presets from the `bcr2000/` folder. Both units use the same template — set BCR2000 #1 to channel 1 and BCR2000 #2 to channel 2. See [`bcr2000/bcr2000-1-tone-dist.md`](bcr2000/bcr2000-1-tone-dist.md) and [`bcr2000/bcr2000-2-efx.md`](bcr2000/bcr2000-2-efx.md) for the full CC maps.
+Send **[`bcr2000/TB-3-TouchOSC-BCR2000.syx`](bcr2000/TB-3-TouchOSC-BCR2000.syx)** to your BCR2000 units using a SysEx librarian (e.g. MIDI-OX, SysEx Librarian, or similar). The file contains presets for both units — load preset 1 into BCR2000 #1 (channel 1) and preset 2 into BCR2000 #2 (channel 2).
+
+See [`bcr2000/bcr2000-1-tone-dist.md`](bcr2000/bcr2000-1-tone-dist.md) and [`bcr2000/bcr2000-2-efx.md`](bcr2000/bcr2000-2-efx.md) for the full CC maps.
 
 ---
 
