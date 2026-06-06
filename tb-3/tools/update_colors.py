@@ -1,21 +1,33 @@
 #!/usr/bin/env python3
 """
-Colour audit for TB3.tosc.
+Colour update for TB3.tosc.
 
-Changes applied:
-  ring_mod_group   bright yellow→gold (1,0.925,0.053)   → cool purple      (0.55,0.10,0.85)
-  portamento_group violet         (0.6,0.302,0.902)     → blue-indigo      (0.30,0.15,0.90)
-  pitch_bend_group coral-red      (1,0.29,0.255)        → dark indigo      (0.20,0.05,0.65)
-  efx2_section     teal           (0.2,0.7,0.75)        → coral/rust       (0.85,0.38,0.12)
-  efx_1_chooser    teal           (same)                → bright cyan      (0.10,0.85,0.95)
-  efx_2_chooser    teal→coral     (after efx2 update)   → lighter coral    (0.95,0.55,0.25)
+Run this script whenever colours need re-tuning. It always operates on the
+current .tosc state, so re-running it is safe (it replaces whatever accent
+colour is there with the declared target).
 
-Ring Mod is changing from a disconnected mustard to a purple that
-complements Cross Mod's hot magenta while staying distinctly cooler.
-Portamento and Pitch Bend unify as a blue-indigo "pitch control" pair,
-separate from Distortion's red.  EFX1 stays teal; EFX2 goes coral/rust
-for a clear warm/cool split.  Type-chooser buttons get a lighter/brighter
-shade than the section's utility buttons.
+Palette decisions
+─────────────────
+ring_mod_group   vivid purple      (0.75, 0.15, 1.00)
+  Sits next to Cross Mod's hot magenta; cool purple family = coherent,
+  vivid enough to be legible.
+
+portamento_group blue-violet       (0.50, 0.30, 1.00)
+pitch_bend_group medium indigo     (0.35, 0.10, 0.80)
+  Pitch controls unified in blue-indigo family; Pitch Bend slightly
+  darker than Portamento.  Both clearly separate from Distortion red.
+
+EFX1 section hierarchy (base = teal 0.2/0.7/0.75):
+  efx_1_chooser + efx1_b5-b8  →  warm gold    (0.95, 0.82, 0.20)
+  "gold = select, teal = control" — complementary-hue contrast.
+
+EFX2 section hierarchy (base = coral 0.85/0.38/0.12):
+  efx_2_chooser + efx2_b5-b8  →  jade green   (0.30, 0.90, 0.60)
+  "jade = select, coral = control" — cool/warm contrast.
+
+The shared "selector" colour between the effect-type chooser grid and the
+type-option radio buttons (B5–B8) visually groups "things that pick what
+something IS" vs "things that change how it behaves".
 """
 
 import re, sys
@@ -27,7 +39,7 @@ from tosc_layout_utils import tosc_read, tosc_write, find_node_block
 TOSC = Path(__file__).parent.parent / "TB3.tosc"
 
 # ---------------------------------------------------------------------------
-# Color helpers
+# Helpers
 # ---------------------------------------------------------------------------
 
 COLOR_PROP_RE = re.compile(
@@ -38,64 +50,56 @@ COLOR_PROP_RE = re.compile(
 )
 
 
-def recolor_section(block: str, new_r: float, new_g: float, new_b: float) -> tuple[str, int]:
+def recolor_block(block: str, r: float, g: float, b: float) -> tuple[str, int]:
     """Replace every non-black, non-transparent 'color' property in block."""
     count = 0
 
     def replace(m: re.Match) -> str:
         nonlocal count
-        r, g, b = float(m.group(2)), float(m.group(3)), float(m.group(4))
-        # Skip black (backgrounds) and near-transparent
-        if r < 0.1 and g < 0.1 and b < 0.1:
+        cr, cg, cb = float(m.group(2)), float(m.group(3)), float(m.group(4))
+        if cr < 0.1 and cg < 0.1 and cb < 0.1:   # skip black / transparent
             return m.group(0)
         count += 1
-        return (
-            f"{m.group(1)}"
-            f"<r>{new_r}</r><g>{new_g}</g><b>{new_b}</b>"
-            f"{m.group(5)}{m.group(6)}"
-        )
+        return f"{m.group(1)}<r>{r}</r><g>{g}</g><b>{b}</b>{m.group(5)}{m.group(6)}"
 
     return COLOR_PROP_RE.sub(replace, block), count
 
 
-def update_section(xml: str, name: str,
-                   new_r: float, new_g: float, new_b: float) -> str:
+def update(xml: str, name: str, r: float, g: float, b: float) -> str:
     bounds = find_node_block(xml, name)
     if not bounds:
-        print(f"  WARNING: '{name}' not found")
-        return xml
+        print(f"  WARNING: '{name}' not found"); return xml
     start, end = bounds
-    new_block, n = recolor_section(xml[start:end], new_r, new_g, new_b)
-    print(f"  {name}: {n} colour props updated → ({new_r}, {new_g}, {new_b})")
+    new_block, n = recolor_block(xml[start:end], r, g, b)
+    print(f"  {name:<22}  {n:>3} props  →  ({r}, {g}, {b})")
     return xml[:start] + new_block + xml[end:]
 
 
 # ---------------------------------------------------------------------------
-# Apply changes
+# Apply
 # ---------------------------------------------------------------------------
 
 xml = tosc_read(TOSC)
-
 print("Applying colour changes…\n")
 
-# Ring Modulation: bright gold → cool purple
-xml = update_section(xml, "ring_mod_group",   0.55, 0.10, 0.85)
+# ── Pitch / modulation sections ──────────────────────────────────────────────
+xml = update(xml, "ring_mod_group",   0.75, 0.15, 1.00)   # vivid purple
+xml = update(xml, "portamento_group", 0.50, 0.30, 1.00)   # blue-violet
+xml = update(xml, "pitch_bend_group", 0.35, 0.10, 0.80)   # medium indigo
 
-# Portamento: violet → blue-indigo (pitch-control family)
-xml = update_section(xml, "portamento_group", 0.30, 0.15, 0.90)
+# ── EFX1: teal section ───────────────────────────────────────────────────────
+# Chooser grid (effect-type selector)
+xml = update(xml, "efx_1_chooser",    0.95, 0.82, 0.20)   # warm gold
+# Type-option radio buttons (B5–B8) — match the chooser so both read as "selector"
+for btn in ["efx1_b5", "efx1_b6", "efx1_b7", "efx1_b8"]:
+    xml = update(xml, btn,             0.95, 0.82, 0.20)
 
-# Pitch Bend: coral-red → darker indigo (pitch-control family, darker than portamento)
-xml = update_section(xml, "pitch_bend_group", 0.20, 0.05, 0.65)
-
-# EFX2: teal → coral/rust  (warm/cool split with EFX1)
-xml = update_section(xml, "efx2_section",     0.85, 0.38, 0.12)
-
-# EFX1 type-chooser: teal → brighter cyan  (type-selector highlight)
-xml = update_section(xml, "efx_1_chooser",    0.10, 0.85, 0.95)
-
-# EFX2 type-chooser: (now coral) → lighter coral  (type-selector highlight)
-# Must run AFTER efx2_section update so the chooser already has the coral value.
-xml = update_section(xml, "efx_2_chooser",    0.95, 0.55, 0.25)
+# ── EFX2: coral section ──────────────────────────────────────────────────────
+# Chooser grid
+xml = update(xml, "efx_2_chooser",    0.30, 0.90, 0.60)   # jade green
+# Type-option radio buttons (B5–B8)
+for btn in ["efx2_b5", "efx2_b6", "efx2_b7", "efx2_b8"]:
+    xml = update(xml, btn,             0.30, 0.90, 0.60)
 
 tosc_write(TOSC, xml)
 print(f"\nWritten: {TOSC} ({TOSC.stat().st_size:,} bytes compressed)")
