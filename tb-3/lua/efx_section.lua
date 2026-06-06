@@ -367,7 +367,7 @@ local TYPE_DEFS = {
       {off=0x2D, name="DEPTH",      max=100},
       {off=0x2E, name="MANUAL",     max=100, display=dispBipolar50},
       {off=0x2F, name="RESONANCE",  max=100},
-      {off=0x30, name="SEPARATN",   max=100},
+      {off=0x30, name="SEPARATION",  max=100},
       {off=0x31, name="HPF",        max=10,  display=dispFLHPF},
       {off=0x32, name="EFX LVL",    max=100},
       {off=0x33, name="DIRECT LVL", max=100},
