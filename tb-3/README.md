@@ -11,7 +11,7 @@ The BCR2000 integration is designed for **two units** (one for tone/distortion, 
 ## Requirements
 
 - **[TouchOSC](https://hexler.net/touchosc)** (Windows, macOS, Linux, iOS, Android) — `TB3.tosc`
-- **Roland TB-3** connected via USB MIDI
+- **Roland TB-3** connected via USB or DIN MIDI
 - **BCR2000** *(optional)* — one unit (switch presets) or two units (simultaneous access)
 
 ---
@@ -23,7 +23,7 @@ The BCR2000 integration is designed for **two units** (one for tone/distortion, 
 | Connection | Device | Notes |
 |------------|--------|-------|
 | **Connection 2** | BCR2000 (both units) | Both units share one port; differentiated by MIDI channel |
-| **Connection 6** | TB-3 (USB MIDI) | Bidirectional — SysEx out and patch dump receive |
+| **Connection 6** | TB-3 (USB or DIN MIDI) | Bidirectional — SysEx out and patch dump receive |
 
 The TB-3 and BCR2000 units use separate connections so SysEx to the TB-3 never reaches the BCR2000.
 
