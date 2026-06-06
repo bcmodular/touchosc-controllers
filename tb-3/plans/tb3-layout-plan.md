@@ -1,14 +1,14 @@
 # TB-3 TouchOSC Layout — Phased Delivery Plan
 
-> **Status as of 2026-06-05.** Phase 0 and Phase 1 foundation complete. Major layout redesign done in TouchOSC app. LFO group revision complete. BCR2 EFX mapping updated (SW on B1/B5, TR TYPE to encoder, PH TYPE to dedicated buttons). Phase 2 (LFO+Modulation scripts) is next.
+> **Status as of 2026-06-06.** Phases 0–4 complete. Phase 4 testing/polish ongoing (EFX parameter display, BPM SYNC, disabled slot visualisation, time row layout — all done). Phase 5 (patch management app + parameter assign UI) not yet started.
 
 ---
 
 ## Context
 
-Building a TouchOSC controller layout for the Roland TB-3 synthesizer, inspired by the Dope Robot Ctrlr panel but redesigned around two BCR2000s and TouchOSC's strengths. The TB-3 uses Roland SysEx for nearly all parameters — TouchOSC will receive CCs from the BCR2000s, translate them to SysEx, and send to the TB-3. The layout will also support patch dump/restore (request SysEx dump from hardware; send current state to hardware).
+Building a TouchOSC controller layout for the Roland TB-3 synthesizer, inspired by the Dope Robot Ctrlr panel but redesigned around two BCR2000s and TouchOSC's strengths. The TB-3 uses Roland SysEx for nearly all parameters — TouchOSC receives CCs from the BCR2000s, translates them to SysEx, and sends to the TB-3. The layout supports full patch dump/restore (SysEx dump from hardware; BCR2000 ring sync after receive).
 
-**Not included:** pattern sequencer (user externally sequences), standard CC params (CC 74 etc. — only used for BCR2000 input).
+**Not included:** pattern sequencer (externally sequenced), standard CC params for general MIDI use — CC 74/71 are tracked for display only.
 
 Resources: `tb-3/resources/` — Ctrlr `.panel` file, SysEx spec v1.4.1, FX parameter guide HTML.
 
@@ -18,57 +18,80 @@ Resources: `tb-3/resources/` — Ctrlr `.panel` file, SysEx spec v1.4.1, FX para
 
 **Both units arrive on connection 2. Channel is the differentiator.**
 
-| Channel | Unit | Group | Controls |
-|---------|------|-------|----------|
-| **CH 1** | BCR2000 #1 | All groups | VCO (Grp1), LFO (Grp2), fixed rows VCA/VCF/Tuning, buttons |
-| **CH 2** | BCR2000 #2 | — | EFX1 + EFX2 |
+| Channel | Unit | Controls |
+|---------|------|----------|
+| **CH 1** | BCR2000 #1 | VCO (Grp1), LFO (Grp2), fixed rows VCA/VCF/Tuning, distortion buttons |
+| **CH 2** | BCR2000 #2 | EFX1 + EFX2 parameter slots, type select, action buttons |
 
-Both units use the same BC Manager preset template, differing only in channel. Routing is by CC number alone within each channel — no mode state needed. Encoder group switching on BCR2000 #1 changes which CC range the top-row encoders emit (Grp1: CC1–8/CC33–40 for VCO; Grp2: CC9–16/CC41–48 for LFO), all on CH1. CH1/2 avoids clash with SP-404 MK2 (CH6–10) and the TB-3 itself (CH2 for standard MIDI).
+Both units use the same BC Manager preset template, differing only in channel. Routing is by CC number alone within each channel — no mode state. Encoder group switching on BCR2000 #1 changes which CC range the top-row encoders emit (Grp1: CC1–8/CC33–40 for VCO; Grp2: CC9–16/CC41–48 for LFO), all on CH1.
 
 ---
 
-## Current Layout Sections (in TB3.tosc)
+## Current Layout Sections
 
 | Section | Status | Notes |
 |---------|--------|-------|
-| vco_group | Complete | 8 encoders, CCs 1–8 (CH6), SW push CCs 9–14 |
-| lfo_group | Complete | 8 encoders (Dope Robot order), CCs 1–8 (CH3), BPM SYNC push CC9, RETRIGGER push CC10 |
-| vcf_group | Layout done | Scripts TBD (Phase 2) |
-| vca_group | Layout done | Scripts TBD (Phase 2) |
-| tuning_group | Layout done | CCs 41–44 (16-bit); CC44 global tuning addr TBD |
-| dist_group | Layout done | Scripts TBD (Phase 3) |
-| extras_section | Layout done | 3 buttons toggle popups (portamento, ring mod, cross mod) |
-| portamento_group | Popup done | TouchOSC-only; scripts TBD (Phase 2) |
-| ring_mod_group | Popup done | TouchOSC-only; scripts TBD (Phase 2) |
-| cross_mod_group | Popup done | TouchOSC-only; scripts TBD (Phase 2) |
-| efx1_section | Layout done | 10-button chooser grid; scripts TBD (Phase 4) |
-| efx2_section | Layout done | 9-button chooser grid; scripts TBD (Phase 4) |
-
-**Naming issues still outstanding in TB3.tosc XML:**
-- Second `vca_group` (the tuning section) → should be renamed `tuning_group`
-- `level_enc` in vco_group → rename to `patch_volume_enc`
-- `tuning_enc` tag has `cc:43` (duplicate of `ring_sin_tuning_enc`) → fix to `cc:44,ch:bcr1`
-- `porta_time_enc` still has old BCR CC tag → clear it (portamento is TouchOSC-only)
-- `porta_mode_button` still has old BCR CC tag → clear it
+| `vco_group` | ✅ Complete | 8 encoders (SAW/SQR/SIN/WHITE/PINK/RING LVL + VCO LFO + patch vol); SW push per source |
+| `lfo_group` | ✅ Complete | 8 encoders (Dope Robot order); BPM SYNC push, RETRIGGER push; **gold** colour |
+| `vcf_group` | ✅ Complete | CUTOFF + RESONANCE first (visual + BCR order); full ADSR + ENV/KEY/LFO/ACCENT |
+| `vca_group` | ✅ Complete | ADSR + VCA LFO DEPTH |
+| `tuning_group` | ✅ Complete | SAW/SQR/RING+SIN tuning (16-bit bipolar ±128); global tuning via CC104 |
+| `dist_group` | ✅ Complete | 25 types by name; ON/OFF, COLOR, TYPE ↑/↓; DRIVE/BOTTOM/TONE/EFX/DRY encoders |
+| `portamento_group` | ✅ Complete | TIME encoder + SW; LEGATO/ALWAYS radio buttons (default LEGATO) |
+| `pitch_bend_group` | ✅ Complete | RANGE encoder (0–17 semitones; raw scaling TBD — see Open Items) |
+| `ring_mod_group` | ✅ Complete | 6 encoders; popup via EXTRAS button |
+| `cross_mod_group` | ✅ Complete | 8 encoders (signed ±64); popup via EXTRAS button |
+| `efx1_section` | ✅ Complete | 10 effect types; 12 parameter slots; 8 action buttons; full display labels |
+| `efx2_section` | ✅ Complete | 9 effect types (incl. Reverb); same slot/button structure |
 
 ---
 
 ## Architecture
 
-### TouchOSC Lua Constraints (Lua 5.1)
+### Build Pipeline
 
-**No bitwise operators** — use arithmetic equivalents:
-- `status & 0xF0` → `status - (status % 16)`
-- `status & 0x0F` → `status % 16`
-- `0xB0 | ch` → `0xB0 + ch` (safe when lower nibble of 0xB0 is 0)
+`tools/toscbuild.py build tb-3` — injects Lua scripts into `TB3.tosc` per `toscbuild.json` mappings.
 
-**`findByName` is an instance method** — never a global:
-- Always: `root:findByName("node_name", true)` (second arg = recursive)
-- Child lookup: `group.children["child_name"]`
+- **`scaffold`** subcommand rebuilds layout XML from `toscbuild.json` `layout` section. Used only when adding new UI nodes; preserve the existing `.tosc` otherwise (scaffold cannot recreate nodes not in the layout def — use the Python XML patch approach for targeted additions).
+- **`build`** subcommand injects scripts only. Run after any Lua change.
 
-**`self.values`** — node's own values are `self.values.x`, not bare `values`.
+214 scripts injected total across all nodes.
 
-Full details and rationale in `tb-3/lua/README.md`.
+### Key File Locations
+
+```
+tb-3/
+  TB3.tosc                    — built layout (binary zlib-compressed XML)
+  toscbuild.json              — build manifest + scaffold definition
+  lua/
+    root.lua                  — MIDI/OSC entry points, SysEx helpers, BCR routing,
+                                enc_moved/sw_toggled/porta_mode_set notify handlers
+    bcr_map.lua               — CC→SysEx tables (BCR1_MAP, BCR2 helpers, ADDR_TO_BCR1_CC)
+    patch_manager.lua         — REGISTRY + parseBlock(); applyValue(); parseSpecial()
+    enc_map.lua               — ENC_SEND_MAP + SW_SEND_MAP (used by root enc_moved/sw_toggled)
+    control_fader.lua         — build-injected into all RADIAL 'control_fader' nodes;
+                                sends enc_moved notify to root
+    sw_button.lua             — build-injected into all 'sw_button' BUTTON nodes;
+                                sends sw_toggled notify to root
+    pointer.lua               — build-injected into all 'pointer' BOX nodes;
+                                drag/double-tap-reset; blocks input on disabled slots
+    receive_button.lua        — SYNC FROM TB-3 button
+    dist_toggle_button.lua    — DIST ON/OFF and DIST COLOR buttons
+    dist_type_button.lua      — DIST TYPE ↑/↓ momentary buttons
+    porta_radio_btn.lua       — LEGATO/ALWAYS portamento mode radio buttons
+    efx_section.lua           — efx1_section + efx2_section: full EFX engine
+    efx_button.lua            — B1–B8 action buttons per EFX section
+    efx_chooser_button.lua    — type selector grid buttons (1–10 / 1–9)
+  bcr2000/
+    bcr2000-1-tone-dist.md    — BCR2000 #1 CC assignment reference (updated)
+    bcr2000-2-efx.md          — BCR2000 #2 CC assignment reference
+  plans/
+    tb3-layout-plan.md        — this file
+  resources/
+    sysex-examples/           — 4 patch dump files (422 bytes each, 11 SysEx messages)
+  screenshots/
+    C06.png                   — current layout screenshot (patch C06)
+```
 
 ### SysEx Protocol
 
@@ -77,33 +100,33 @@ F0 41 10 00 00 7B 12  [a1 a2 a3 a4]  [data...]  [checksum]  F7
 ```
 - **Checksum:** `(0x100 - (sum_of_all_addr_and_data_bytes % 256)) % 128`
 - **7-bit params:** single data byte `0x00`–`0x7F`
-- **16-bit params** (VCF cutoff, resonance, env depth, tuning): MSB = `value // 16`, LSB = `value % 16`
-- **Signed params** (LFO depths, VCO/VCF LFO depth): offset-encoded — raw 64 = zero, 0 = −64, 127 = +63
+- **16-bit params** (VCF cutoff/resonance/env depth, tuning, accent): MSB = `value // 16`, LSB = `value % 16`
+- **Signed params** (LFO depths, cross-mod): offset-encoded — raw 64 = zero, 0 = −64, 127 = +63
+- **Bipolar 16-bit** (tuning): raw 0–255, centre 128 = 0; display shows −128…+127
 
-### Build Pipeline
+### TouchOSC Lua Constraints (Lua 5.1)
 
-`tools/toscbuild.py build tb-3` — injects Lua scripts into TB3.tosc per `toscbuild.json` mappings.
+**No bitwise operators** — use arithmetic equivalents:
+- `status & 0xF0` → `status - (status % 16)`
+- `status & 0x0F` → `status % 16`
 
-Current injections: `root.lua` (includes `bcr_map.lua`) into root node; `pointer.lua` into all 79+ BOX nodes named `pointer`.
+**`findByName` is an instance method:**
+- Always: `root:findByName("node_name", true)` (second arg = recursive)
+- Child lookup: `group.children["child_name"]`
 
-### Key File Locations
+**`self.values`** — node's own values are `self.values.x`, not bare `values`.
 
-```
-tb-3/
-  TB3.tosc                  — main layout (user edits in TouchOSC app)
-  toscbuild.json            — build manifest + scaffold definition
-  lua/
-    root.lua                — SysEx helpers, BCR routing, popup/EFX notify handling
-    bcr_map.lua             — CC→SysEx address tables for both BCR2000 units
-    pointer.lua             — build-injected into all 'pointer' BOX nodes
-  bcr2000/
-    bcr2000-1-tone-dist.md  — BCR2000 #1 CC assignment reference
-    bcr2000-2-efx.md        — BCR2000 #2 CC assignment reference
-  plans/
-    tb3-layout-plan.md      — this file
-  resources/
-    sysex-examples/         — 4 patch dump files (422 bytes each, 11 SysEx messages)
-```
+**No `\x` hex escapes** — use decimal UTF-8 bytes: `"\194\176"` = degree symbol °.
+
+Full details in `tb-3/lua/README.md`.
+
+### Core Lua Architecture (as built)
+
+**Notify-to-root pattern:** `control_fader.lua` (shared across all 80 RADIAL nodes) sends `enc_moved` to root with `"section,enc,x"`. Root looks up `ENC_SEND_MAP[section..","..enc]` (in `enc_map.lua`) to get the SysEx address, sends SysEx, updates the BCR LED ring via `ADDR_TO_BCR1_CC` reverse lookup, and corrects the value_label for signed/bipolar/custom-max parameters.
+
+**Patch receive:** `onReceiveMIDI` decodes Roland DT1 SysEx → `parseBlock(addr, data)` in `patch_manager.lua`. The `REGISTRY` table maps each block address to a list of `{off, enc, kind, ...}` field descriptors. `applyValue()` sets fader position and value_label for each. EFX blocks are forwarded to `efx1_section`/`efx2_section` via notify as hex CSV strings.
+
+**EFX engine (`efx_section.lua`):** Self-contained per section. Maintains `TYPE_DEFS` (10/9 effect definitions), `patch_data` (raw SysEx bytes), and slot state. On type change or patch receive: remaps 12 slot encoders with correct offsets, names, display functions, and `disabledBy` relationships. BCR2 CC feedback handled internally.
 
 ---
 
@@ -111,221 +134,131 @@ tb-3/
 
 ### ✅ Phase 0 — BCR2000 Mapping Tables
 
-BCR2000 CC assignment tables created:
-- `bcr2000-1-tone-dist.md` — VCO/LFO dual-mode Row 0, Rows 1–3, distortion buttons
-- `bcr2000-2-efx.md` — EFX1/EFX2 parameter slots, type select, SW buttons, per-effect button maps
+BCR2000 CC assignment tables created and maintained:
+- `bcr2000-1-tone-dist.md` — VCO/LFO dual-mode groups, fixed rows (VCA/VCF/Tuning), distortion buttons
+- `bcr2000-2-efx.md` — EFX1/EFX2 parameter slots, type select, SW and action buttons
 
 ### ✅ Phase 1 — Foundation + Core Synthesis
 
-Completed:
-- `toscbuild.json` with scaffold layout + build mappings
-- `root.lua`: SysEx helpers, BCR routing (CH3/CH6/CH7), distortion state, popup toggle, EFX chooser notify
-- `bcr_map.lua`: full CC→SysEx tables for BCR1 (VCO + LFO + Dist + VCF + VCA + Tuning) and BCR2 (EFX)
-- `pointer.lua`: build-injected drag/double-tap-reset overlay for all encoder groups
-- TB3.tosc scaffolded, then extensively reworked in TouchOSC app by user
-- lfo_group added with Dope Robot ordering and BPM SYNC/RETRIGGER push functions
-- BCR1 LFO group uses CH3 for stateless channel-based routing
+- `toscbuild.json` scaffold + build manifest
+- `root.lua`: SysEx helpers (`tb3Send7bit`, `tb3Send16bit`), BCR1/BCR2 routing, distortion type state machine, popup toggle, EFX chooser notify, OSC receiver
+- `bcr_map.lua`: full CC→SysEx tables; `ADDR_TO_BCR1_CC` reverse lookup built at load
+- `pointer.lua`: drag/double-tap-reset overlay, injected into all `pointer` BOX nodes
+- TB3.tosc scaffolded, then reworked in TouchOSC app, then migrated to toscbuild.json scaffold
 
-### Phase 1.5 — Patch Receive + Map Validation (NEW — do this first)
+### ✅ Phase 1.5 — Patch Receive + Map Validation
 
-**Rationale:** A single patch dump exercises *every* SysEx address at once. By
-decoding a dump and comparing against the Dope Robot Ctrlr panel (load the same
-`.syx` in both), we validate the entire address map — offsets, 16-bit packing,
-signed centers — *before* writing any send-side scripts. The address registry
-this produces is the single source of truth that later drives both send and the
-Phase 5 parameter-assign feature, so the work is foundational, not throwaway.
+- `decode_patch.py`: offline SysEx decoder — validated against Dope Robot Ctrlr panel for 4 sample patches
+- `patch_manager.lua`: `REGISTRY` + `parseBlock()` covering all 11 synthesis blocks; `applyValue()` handles u7/u16/s7/sw/bipolar/special cases
+- `receive_button.lua`: SYNC FROM TB-3 button triggering `requestPatchDump()`
+- `enc_map.lua`: `ENC_SEND_MAP` and `SW_SEND_MAP`; `ADDR_TO_ENC` / `ADDR_TO_SW` reverse lookups
+- `syncBCR1()`: after patch receive, pushes all fader positions to BCR2000 #1 LED rings; `syncTimer` fallback for split SysEx blocks
+- OSC receiver (`/tb3/patch`): same `parseBlock` path as MIDI receive — test harness without live TB-3
 
-**Done:**
-- `tools/decode_patch.py` — offline decoder for the 422-byte dump (11 blocks).
-  Decodes LFO/Tuning/XMod/RingMod/VCO/VCF/VCA/Dist/ParamAssign by name; EFX1/EFX2
-  dumped as raw indexed bytes (type-dependent). All 4 sample dumps checksum-OK.
+**Map validation results (Starter Bass Reso 2 patch):**
+- LFO depths: centre 64 confirmed (s7 = raw−64)
+- Tuning (CV offset): centre 128 confirmed (bipolar 16-bit = raw−128), NOT centre 64
+- DIST BOTTOM/TONE: raw 0–100 display (not ±50 — matching TB-3 panel)
+- ACCENT (`14 0E`): confirmed
+- VCO RING LEVEL (`08 07`) = Ring Mod "LEVEL" on panel — same byte, confirmed
 
-**Validated against Dope Robot panel (Starter Bass Reso 2, 2026-06-05):**
-Near-total match across all three panel pages — VCO/VCF/VCA/LFO/Dist/RingMod
-values all identical. Resolutions:
-- **LFO depths (VCO/VCF/VCA): center 64 CONFIRMED.** Panel VCF LFO MOD = 63 ↔
-  raw 127; VCA/VCO LFO MOD = 0 ↔ raw 64. Decoder `s7` (raw−64) is correct.
-- **CV OFFSET tuning: center 128 CONFIRMED, NOT 64** (my earlier guess was
-  wrong). Panel SQR −64 ↔ raw 64 (exact); SAW/RING within ±2 (panel rounding).
-  Decoder now uses `s16` (raw−128). Panel's 4th "TUNING" knob (=62) is the
-  separate **global tune (CC104)**, not in this block.
-- **DIST BOTTOM/TONE: display RAW 0–100** (panel shows 59 / 25 raw, not signed
-  ±50). Decoder reverted to `u7`. Layout encoders should show raw 0–100 to match.
-- **ACCENT (`14 0E`): CONFIRMED** = 5 ↔ panel VCF ACCENT = 5.
-- **VCO RING LEVEL (`08 07`) = RING MOD "LEVEL"** on panel (=79). Same byte,
-  different section label — value matches.
+### ✅ Phase 2 — LFO + Modulation Scripts
 
-**Still open:**
-- **BENDER RANGE (`14 03`):** decoder reads raw **23** (0x17), panel shows
-  **17**. Mapping unresolved (note the hex/decimal coincidence). Offsets around
-  it all validate (PORTA SW/TIME/MODE match panel exactly), so it IS at `14 03`.
-  Need a second patch with a different bender value, or a hardware test, to
-  derive the scaling. Store/recall raw for now.
-- **Global TUNING (CC104):** panel shows 62; not located in the dump. Likely a
-  device-global setting (not restorable from patch). Confirm it's absent.
-- **PARAM ID assignments (`14 04`–`14 0B`):** decode to 16-bit IDs (74/69/56/58);
-  not shown on the panel pages provided. Build the spec's `(*1)` ID→name table
-  for the Phase 5 assign UI.
+- `control_fader.lua`: shared RADIAL script — sends `enc_moved` notify; root routes via `ENC_SEND_MAP`
+- `sw_button.lua`: shared sw_button script — sends `sw_toggled` notify; root routes via `SW_SEND_MAP`
+- All encoder groups sending correct SysEx: VCF, VCA, LFO, Tuning, Portamento, Ring Mod, Cross Mod
+- Value label display: signed (±64), bipolar (±50, ±128), 16-bit (0–255), custom max (0–17, 0–120 etc.)
+- Portamento: TIME + SW + LEGATO/ALWAYS radio buttons (`porta_radio_btn.lua`); default LEGATO on load
+- `pitch_bend_range_enc`: wired up (raw value; hardware scaling TBD — see Open Items)
 
-#### OSC patch-restore as test harness (folded into Phase 1.5)
+### ✅ Phase 3 — Distortion
 
-Embed an OSC receiver in the layout that accepts patch data and feeds the **same
-parse path** as MIDI receive. This doubles as the Phase 5 restore-from-backup
-feature *and* a fast test loop (push a `.syx` from the Python app over OSC, watch
-faders populate — no TB-3 or MIDI round-trip needed).
+- `dist_toggle_button.lua`: ON/OFF and COLOR latch buttons
+- `dist_type_button.lua`: TYPE ↑/↓ momentary buttons (25 types, named array)
+- `patch_manager.lua` `parseSpecial("dist_type")`: updates section header label on patch receive
+- All distortion encoders (DRIVE/BOTTOM/TONE/EFX LEVEL/DRY LEVEL) via shared `control_fader.lua` + `ENC_SEND_MAP`
+- DIST BOTTOM and TONE: bipolar ±50 display (raw 0–100, centre 50 = 0)
 
-**Single-parser architecture (critical):**
-- One `parseBlock(addrBytes, dataBytes)` routine drives fader/label updates.
-- `onReceiveMIDI` accumulates each complete `F0…F7` SysEx message → `parseBlock`.
-- `onReceiveOSC` reconstructs the **identical raw bytes** from the OSC payload →
-  same `parseBlock`. Because both entry points hand over raw SysEx bytes, the
-  formats are equal by construction.
-- Python app: read `.syx`, split into the 11 block messages, send each over OSC
-  (e.g. `/tb3/patch` with the raw bytes). TODO: confirm TouchOSC OSC arg
-  encoding (blob vs int-array vs hex string) and that MIDI-received SysEx is
-  delivered whole (per message) by `onReceiveMIDI`.
+### ✅ Phase 4 — Effects (EFX1 + EFX2)
 
-**Remaining:**
-- Master parameter **registry** (addr → {param name, decode rule, target encoder
-  node name}) — keyed so it serves parse-in, send-out, and assign lookup.
-- `patch_manager.lua`: parse incoming dump → `setValue` on each encoder/fader via
-  the registry; request-dump button (Roland data-request SysEx).
-- EFX1/EFX2 per-type slot decoding (deferred until Phase 4 effect maps are firm).
+Full context-sensitive EFX engine complete. Both sections share `efx_section.lua`.
 
-### Phase 2 — LFO + Modulation Scripts
+**Core:**
+- 10 effect types for EFX1 (COMP, RING MOD, BIT CRUSH, TREMOLO, CHORUS, FLANGER, PHASER, DELAY, PITCH SHIFT, EQ)
+- 9 effect types for EFX2 (same minus PITCH SHIFT + EQ; adds REVERB)
+- 12 parameter slots per section, dynamically remapped on type change
+- Type chooser grid (efx_1_chooser / efx_2_chooser): tap to select, tap active to return to BYPASS
+- Action buttons B1–B8: B1 = EFX SW; B2–B4 = BPM SYNC / utility controls; B5–B8 = type-option presets
+- Reverb (EFX2): B2–B8 as reverb-type presets (AMBIENT/ROOM/HALL1/HALL2/PLATE/SPRING/MOD)
+- BCR2 wired: slot CCs, button CCs, type rotate CC — all forwarded to `efx_section` via notify
 
-**Goal:** Encoder groups in the layout sending correct SysEx. Popup panels working.
+**Parameter display:**
+- `display(raw)` function field on all slot definitions — converts raw SysEx bytes to human-readable strings (dB, Hz, ms, semitones, beat divisions)
+- Display functions: `dispBpmDiv`, `dispThreshold`, `dispDb20/15/40`, `dispBipolar50`, `dispRatio`, `dispKnee`, `dispCsAttack/Release`, `dispHPF`, `dispFLHPF`, `dispLPF`, `dispEQFreq`, `dispEQQ`, `dispTrType`, `dispPhase`, `dispRate`, `dispMs`, `dispPct`, `dispRevTime`, `dispPitchSt`
+- Beat division table (`BPM_DIVS`): 21 entries — OFF, 2, 3/2 … 3/128
 
-**Deliverables:**
-- Per-encoder build-injected scripts for: vcf_group, vca_group, lfo_group, tuning_group
-- Popup panel scripts: portamento (SW/TIME/MODE), ring_mod_group, cross_mod_group
-- Each script reads its `tag` (CC + channel) and calls `tb3Send7bit` / `tb3Send16bit` from root
-- Display label updates (value_label) for signed params, scaled params, and 16-bit params
+**BPM SYNC / time row layout:**
+- Slots S01–S04 reserved exclusively for time/BPM parameters; S05+ for all other params
+- `disabledBy` field: RATE/TIME slots greyed and input-blocked when BPM SYNC is non-zero
+- `refreshDisabledLabels(def)`: iterates ALL 12 slots on each type/value change; clears stale grey from previous effect
+- `pointer.lua`: rejects drag input when `self.parent.tag == "disabled"`
 
-**SysEx addresses:**
-- VCF: `10 00 0A 00`–`10 00 0A 0A`
-- VCA: `10 00 0C 00`–`10 00 0C 04`
-- LFO: `10 00 00 00`–`10 00 00 0C`
-- Tuning (CV offset): `10 00 02 00`–`10 00 02 05`; CC44 global tuning addr TBD
-- Portamento: `10 00 14 00`–`10 00 14 02`
-- Ring Mod: `10 00 06 xx`
-- Cross Mod: `10 00 04 xx`
+**Effect-specific:**
+- Ring Mod POLARITY: two radio buttons (UP/DOWN) in action button row
+- Phaser STEP RATE at S03; RATE disabled when either BPM SYNC or STEP RATE is non-zero
+- Delay: TIME disabled when BPM SYNC on; BPM SYNC range 0–13 (14 divisions)
+- Flanger HPF: condensed 11-step table `FL_HPF_FREQS` (Flat→800 Hz; exact values need hardware verification)
 
-### Phase 3 — Distortion
+**BCR sync:** `sendBCRcc()` called for all slots in `applyType()` so BCR2 LED rings update on patch receive.
 
-**Goal:** Full distortion section sending correct SysEx. BCR TYPE ↑/↓ buttons working.
+### 🔲 Phase 5 — Patch Management, Parameter Assign + Python Qt App
 
-Distortion type state machine already in `root.lua` (types 0–24, named array). Remaining work:
-- Fader scripts for dist_group encoders (DRIVE/BOTTOM/TONE/EFFECT LEVEL/DRY LEVEL)
-- DIST ON/OFF and DIST COLOR button scripts
-- Connect dist_group faders to root.lua via notify or build-injected scripts
+Not yet started.
 
-### Phase 4 — Effects (EFX1 + EFX2)
-
-**Goal:** Context-sensitive 12-slot parameter display for each effect chain. BCR2 wired up.
-
-**Deliverables:**
-- `efx_section.lua`: handles type_cc (rotate), btn_press (B1=SW, B2+=effect-specific), type_set; remaps slot labels/addresses on type change; hides unused slots
-- `efx_control.lua`: build-injected into each of the 12 slot encoder nodes — reads current address/range from parent tag, sends SysEx
-- Per-effect button handling (BPM SYNC, type selects, mode toggles) per `bcr2000-2-efx.md`
-- SW toggling on `btn_press = 1` (B1/CC31 for EFX1, B1/CC61 for EFX2)
-
-**BCR2 EFX design (current):**
-- SW on B1 (CC31) EFX1 and B1 (CC61) EFX2 — physical buttons 1 and 5 across the 8-button row
-- Encoder push (CC2/CC6) spare
-- TR TYPE: encoder slot S03 (range 0–5)
-- PH TYPE: 4 dedicated buttons B4–B7 (4Stage/8Stage/12Stage/Bi-Phase)
-
-### Phase 5 — Patch Management, Parameter Assign + Python Qt App
-
-**Goal:** Full preset workflow — dump/restore patches to/from hardware; parameter assign UI; desktop app for backup.
-
-**TouchOSC side (`patch_manager.lua`):**
-- Send Roland SysEx all-data request to TB-3
-- Parse incoming 422-byte dump → populate faders via setValue
-- Store current state as JSON in element tag; export/import via OSC
+**TouchOSC side:**
+- OSC export/import of current patch state (JSON via element tag)
+- `/tb3/request_dump` OSC trigger for remote dump request already implemented
 
 **Python Qt app (`tb-3/preset-manager/`):**
 - Modelled on `sp404-mk2/preset-manager/python/`
 - Receives OSC from TouchOSC, stores as JSON patch files
 - Sends OSC back to layout for recall
 
----
+**Parameter Assign UI:**
 
-#### Parameter Assign UI (Phase 5)
+Assigns synthesis parameters to the TB-3's four hardware controls (EFFECT knob, PAD X/Y/Z). SysEx: `10 00 14 04`–`10 00 14 0B` (four 16-bit parameter IDs).
 
-Assigns synthesis parameters to the TB-3's four hardware controls: EFFECT knob, PAD X, PAD Y, PAD Z. SysEx: `10 00 14 04–0B` (four 16-bit parameter IDs).
+UX flow:
+1. User taps one of four assign buttons [EFFECT] / [PAD X] / [PAD Y] / [PAD Z]
+2. Layout enters assign mode; status label reads e.g. "Tap encoder to assign to EFFECT knob"
+3. User taps any encoder → that parameter assigned, mode exits
 
-**UX flow (reverse of Ctrlr panel):**
-1. User clicks one of four assign buttons ([EFFECT] / [PAD X] / [PAD Y] / [PAD Z]) in a dedicated assign section of the layout
-2. Layout enters assign mode for that slot; button highlights; a status label reads e.g. "Tap encoder to assign to EFFECT knob"
-3. User can drag any encoder to audition what they're about to assign (normal fader behaviour still works)
-4. User taps any encoder → that parameter gets assigned to the selected slot; mode exits; button un-highlights
-
-**Architecture — root-centric (no param IDs in encoder tags):**
-
-`root.lua` owns all param ID knowledge. `pointer.lua` stays simple.
-
-```lua
--- pointer.lua: single extra branch at PointerState.END
-local as = findByName("assign_state")
-if as and as.tag ~= "" then
-    findByName("root"):notify("encoder_tapped", self.parent.name)
-    return   -- skip double-tap logic
-end
--- else: normal double-tap behaviour
-
--- root.lua: central lookup table (16-bit param IDs from spec §*1 table)
-local PARAM_ID = {
-    lfo_rate_enc        = {0x00, 0x00},
-    lfo_cv_offset_enc   = {0x00, 0x06},
-    lfo_delay_enc       = {0x00, 0x01},
-    lfo_wave_tri_enc    = {0x00, 0x04},
-    lfo_wave_saw_enc    = {0x00, 0x02},
-    lfo_wave_sqr_enc    = {0x00, 0x03},
-    lfo_wave_sin_enc    = {0x00, 0x05},
-    lfo_wave_sh_enc     = {0x00, 0x07},
-    -- VCO depths, VCF, VCA, etc. — all encoders that are XY-assignable
-}
--- onReceiveNotify "encoder_tapped":
---   look up PARAM_ID[value], send assignment SysEx, clear assign_state.tag
-```
-
-**Shared state:** a hidden LABEL element named `assign_state` whose `tag` stores `""` | `"effect"` | `"pad_x"` | `"pad_y"` | `"pad_z"`. Root writes it; pointer.lua reads it. No cross-script function calls or injected tags needed.
-
-**Why root-centric is simpler than encoder-centric:**
-- `pointer.lua` needs zero knowledge of param IDs — nothing extra injected at build time
-- The full assignment map is auditable and editable in one place (`root.lua`)
-- Encoders with no assignable parameter are handled by simply omitting them from `PARAM_ID` — the tap is silently ignored
-- The same table can drive a "currently assigned to:" display label
-
-**Layout additions needed:**
-- 4 assign mode buttons (EFFECT / PAD X / PAD Y / PAD Z) with highlight state
-- `assign_state` hidden LABEL element
-- Status label showing current assign mode and currently-assigned parameter name
-- BENDER RANGE encoder (`10 00 14 03`, 0–17 semitones) placed next to portamento section
+Root-centric architecture: `root.lua` owns the full `PARAM_ID` table (encoder name → 16-bit ID); `pointer.lua` sends `encoder_tapped` notify and stays parameter-agnostic.
 
 ---
 
 ## Verification Checklist (per phase)
 
-1. `python3 tools/toscbuild.py build tb-3` exits clean
+1. `python3 tools/toscbuild.py build tb-3` exits clean (214/214 scripts)
 2. Load `TB3.tosc` in TouchOSC
 3. Move a fader → MIDI monitor shows correct SysEx frame, address, checksum
 4. BCR2000 encoder turn → fader moves in TouchOSC AND correct SysEx sent
-5. Phase 5: DUMP REQUEST button → TB-3 responds, faders populate
+5. Press SYNC FROM TB-3 → faders and BCR LED rings populate from hardware
 
-**Checksum sanity:** LFO RATE `10 00 00 00`, value `0x40` → checksum = `(0x100 − (0x10+0x00+0x00+0x00+0x40) % 256) % 128 = (0x100 − 0x50) % 128 = 48`.
+**Checksum sanity:** LFO RATE `10 00 00 00`, value `0x40` → checksum = `(0x100 − (0x10+0x00+0x00+0x00+0x40) % 256) % 128 = 48`.
 
 ---
 
 ## Open Items
 
-- **GLOBAL TUNING (CC44)**: Resolved. BCR1 CC44 sends plain MIDI CC 104 to TB-3 (CH2, connection 6) via special handler in `root.lua` — not SysEx. Device-global setting, not in patch dumps. `bcr_map.lua` updated with note; `tuning_enc` script (Phase 2) should do the same.
-- **PORTAMENTO SW**: Missing from layout. The `porta_time_enc` group has a `sw_button` which is the on/off switch (`10 00 14 00`). Label convention: static label ("PORTA"), color encodes state (bright = on, dim = off) — consistent with VCO source switches. No text switching.
-- **BENDER RANGE**: Now in layout as `pitch_bend_group` / `pitch_bend_range_enc` (SysEx `10 00 14 03`, range 0–17 semitones). Script needed in Phase 2. Not on BCR2000 — TouchOSC-only.
-- **BCR2000 #1 physical programming**: All groups on CH1 (same BC Manager template as BCR2).
-- **BCR2000 #2 physical programming**: CH2 (same template, different channel).
-- **TB3.tosc naming fixes**: see "Naming issues still outstanding" above
-- **Popup scripts**: Phase 2 work
-- **EFX type numbering in `efx_section.lua`**: EFX2 type 9 = RV; EFX1 type 9 = PS; EFX1 type 10 = EQ (EFX2 has no PS, no type 10)
+| Item | Status | Notes |
+|------|--------|-------|
+| **BENDER RANGE scaling** | ⚠️ Unresolved | Raw `0x17`=23 at hardware, panel shows 17. Offset? Scale? Needs second patch with different value or hardware test. Stored/sent as raw for now. |
+| **Flanger HPF table** | ⚠️ Needs verify | `FL_HPF_FREQS` (11 steps, Flat→800 Hz) is a best-guess approximation. Hardware test needed for exact frequencies. |
+| **RATE display curve** | ⚠️ Needs verify | `dispRate` uses a linear approximation of the 8000ms→20ms log curve. |
+| **EQ frequency mapping** | ⚠️ Needs verify | `dispEQFreq` / `dispEQQ` are estimates; hardware measurement needed. |
+| **Compressor attack/release** | ⚠️ Needs verify | Linear approximation of actual curves. |
+| **Phase 5** | 🔲 Not started | Python preset manager + parameter assign UI |
+| **CC16/CC17 (Accent, Effect)** | 🔲 Deferred | TB-3 hardware knobs send these; depend on parameter assign (Phase 5) |
+| **Global TUNING (CC104)** | ✅ Resolved | BCR1 CC100 sends plain MIDI CC 104 to TB-3 CH2 (not SysEx). Device-global, not in patch dumps. |
+| **TB3.tosc naming fixes** | ✅ Resolved | All naming issues from early planning resolved in final layout. |
