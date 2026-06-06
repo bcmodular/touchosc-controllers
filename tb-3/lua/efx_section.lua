@@ -179,8 +179,10 @@ local TYPE_DEFS = {
     },
     btns = {
       {off=0x1C, name="BPM SYNC", action="bpm_sync", max=20},  -- B2
-      {off=0x1F, name="PAN/TRE",  action="toggle",   max=1},   -- B3
-      -- B4–B8 spare
+      nil, nil,                                                  -- B3, B4
+      {off=0x1F, name="TREMOLO",  action="set", val=0},         -- B5
+      {off=0x1F, name="PAN",      action="set", val=1},         -- B6
+      -- B7, B8 spare
     },
   },
 
