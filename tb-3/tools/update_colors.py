@@ -92,9 +92,9 @@ xml = update(xml, "pitch_bend_group", 0.60, 0.38, 0.95)   # medium violet (darke
 # ── EFX1: teal section ───────────────────────────────────────────────────────
 # Chooser grid + type-option buttons (B5–B8) — bright version of the same
 # teal/cyan family: clearly lighter than the section base but same hue range.
-xml = update(xml, "efx_1_chooser",    0.30, 0.90, 0.95)   # bright cyan
+xml = update(xml, "efx_1_chooser",    0.70, 0.95, 1.00)   # pale icy cyan — near-white
 for btn in ["efx1_b5", "efx1_b6", "efx1_b7", "efx1_b8"]:
-    xml = update(xml, btn,             0.30, 0.90, 0.95)
+    xml = update(xml, btn,             0.70, 0.95, 1.00)
 
 # ── EFX2: coral section ──────────────────────────────────────────────────────
 # Bright version of the coral/orange family.
