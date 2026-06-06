@@ -5,12 +5,16 @@
 -- Responsibilities:
 --   • Stores current type index and raw EFX block bytes in module-level locals.
 --   • type_cc  : BCR type encoder rotated (CC value 0–127) → remap slots/buttons.
---   • type_set : on-screen chooser direct select (0-based type index).
+--   • type_set : on-screen chooser direct select (1-based type index).
 --   • type_step: on-screen PREV/NEXT chooser button (±1).
 --   • slot_cc  : BCR slot encoder (slot 1–12, CC value) → scale → SysEx.
 --   • slot_moved: on-screen slot fader moved (slot name, x float) → SysEx + BCR ring.
 --   • btn_press : BCR or on-screen button (index 1–8) → type-specific action.
 --   • patch_data: hex CSV string of EFX block bytes from patch dump → full refresh.
+--
+-- Toggle Release guard: self.tag is set to "prog" during all programmatic
+-- button value updates so that efx_button.lua and efx_chooser_button.lua can
+-- distinguish user presses from re-entrant programmatic changes.
 --
 -- Note: each script context is isolated from root.lua. TB-3 SysEx helpers and
 -- connection constants are duplicated here rather than shared as globals.
@@ -60,7 +64,6 @@ local function tb3Checksum(addrAndData)
 end
 
 -- Send a single-byte parameter at address BASE + off.
--- All EFX offsets are < 0x60, so the 4th address byte never wraps.
 local function sendParam(off, value)
   local a1, a2, a3, a4 = BASE[1], BASE[2], BASE[3], BASE[4] + off
   local cs = tb3Checksum({a1, a2, a3, a4, value})
@@ -81,25 +84,28 @@ local rawData    = {}     -- raw EFX block bytes (0-based offset → rawData[off
 local bpmDiv     = {}     -- [off] = last non-zero BPM/step division (for toggle restore)
 
 -- ---------------------------------------------------------------------------
--- EFX type definitions — shared types (0–8 same for EFX1 and EFX2)
+-- EFX type definitions
 -- ---------------------------------------------------------------------------
 -- slot entry: { off, name, max }
 --   off  : byte offset from EFX block start (0-based hex)
 --   name : slot display label
 --   max  : full-scale SysEx value
--- btn entry (B2–B8): { off, name, action, val, max }
---   action: "set"       → write val to offset (fixed-value setter); auto-reset BCR latch
---           "toggle"    → toggle 0 ↔ 1 at offset
---           "bpm_sync"  → toggle 0 ↔ last-non-zero at offset (BPM div or step rate)
---   val   : value for "set" actions
---   max   : max for "bpm_sync" (informational)
+--
+-- btn entry (B2–B8 via btns[1]–btns[7]): { off, name, action, val, max }
+--   action: "set"      → radio-style preset; write val to offset; light this, unlight siblings
+--           "toggle"   → toggle 0 ↔ 1 at offset
+--           "bpm_sync" → toggle 0 ↔ last-non-zero at offset (BPM div or step rate)
+--
+-- Type-selector "set" buttons are grouped at the BOTTOM ROW (B5–B8 = btns[4]–btns[7])
+-- where possible, leaving B2–B4 for toggle/bpm_sync utility buttons.
+-- Reverb has 7 type options and uses all of B2–B8.
 
 local TYPE_DEFS = {
 
   -- 0: BYPASS — no slots, no buttons (just show label)
   [0] = { name="BYPASS" },
 
-  -- 1: CS — Compressor/Sustainer
+  -- 1: COMP — Compressor/Sustainer
   -- SW at 0x01, params at 0x02–0x08
   [1] = { name="COMP",
     swOff = 0x01,
@@ -114,17 +120,15 @@ local TYPE_DEFS = {
       -- S08–S12 spare
     },
     btns = {
-      -- B2: RATIO preset 1:2
-      {off=0x05, name="1:2",   action="set", val=6},
-      -- B3: RATIO preset 1:4
-      {off=0x05, name="1:4",   action="set", val=8},
-      -- B4: RATIO preset 1:INF
-      {off=0x05, name="1:INF", action="set", val=13},
-      -- B5–B7 spare
+      nil, nil, nil,                                       -- B2–B4 spare
+      {off=0x05, name="1:2",   action="set", val=6},      -- B5
+      {off=0x05, name="1:4",   action="set", val=8},      -- B6
+      {off=0x05, name="1:INF", action="set", val=13},     -- B7
+      -- B8 spare
     },
   },
 
-  -- 2: RM — Ring Modulator
+  -- 2: RING MOD — Ring Modulator
   -- SW at 0x09, params at 0x0A–0x10
   [2] = { name="RING MOD",
     swOff = 0x09,
@@ -138,20 +142,19 @@ local TYPE_DEFS = {
       -- S07–S12 spare
     },
     btns = {
-      -- B2: POLARITY toggle (0=UP, 1=DOWN)
-      {off=0x0C, name="POLARITY", action="toggle", max=1},
-      -- B3–B7 spare
+      {off=0x0C, name="POLARITY", action="toggle", max=1},  -- B2
+      -- B3–B8 spare
     },
   },
 
-  -- 3: BC — Bit Crusher
+  -- 3: BIT CRUSH — Bit Crusher
   -- SW at 0x11, params at 0x12–0x17
   [3] = { name="BIT CRUSH",
     swOff = 0x11,
     slots = {
-      {off=0x12, name="FILTER",   max=127},
-      {off=0x13, name="SAMP RATE",max=127},
-      {off=0x17, name="LEVEL",    max=127},
+      {off=0x12, name="FILTER",    max=127},
+      {off=0x13, name="SAMP RATE", max=127},
+      {off=0x17, name="LEVEL",     max=127},
       -- S04 spare
       nil,
       {off=0x15, name="EQ LOW",   max=30},
@@ -161,7 +164,7 @@ local TYPE_DEFS = {
     btns = {},
   },
 
-  -- 4: TR — Tremolo
+  -- 4: TREMOLO
   -- SW at 0x18, params at 0x19–0x20
   [4] = { name="TREMOLO",
     swOff = 0x18,
@@ -175,15 +178,13 @@ local TYPE_DEFS = {
       -- S07–S12 spare
     },
     btns = {
-      -- B2: BPM SYNC toggle (0=off, non-zero=division)
-      {off=0x1C, name="BPM SYNC", action="bpm_sync", max=20},
-      -- B3: PAN/TRE select toggle (0=TREMOLO, 1=PAN)
-      {off=0x1F, name="PAN/TRE",  action="toggle",   max=1},
-      -- B4–B7 spare
+      {off=0x1C, name="BPM SYNC", action="bpm_sync", max=20},  -- B2
+      {off=0x1F, name="PAN/TRE",  action="toggle",   max=1},   -- B3
+      -- B4–B8 spare
     },
   },
 
-  -- 5: CH — Chorus
+  -- 5: CHORUS
   -- SW at 0x21, params at 0x22–0x29
   [5] = { name="CHORUS",
     swOff = 0x21,
@@ -197,19 +198,16 @@ local TYPE_DEFS = {
       -- S07–S12 spare
     },
     btns = {
-      -- B2: BPM SYNC toggle
-      {off=0x24, name="BPM SYNC", action="bpm_sync", max=20},
-      -- B3: MODE MONO
-      {off=0x22, name="MONO",     action="set", val=0},
-      -- B4: MODE STEREO1
-      {off=0x22, name="STEREO1",  action="set", val=1},
-      -- B5: MODE STEREO2
-      {off=0x22, name="STEREO2",  action="set", val=2},
-      -- B6–B7 spare
+      {off=0x24, name="BPM SYNC", action="bpm_sync", max=20},  -- B2
+      nil, nil,                                                  -- B3, B4
+      {off=0x22, name="MONO",    action="set", val=0},          -- B5
+      {off=0x22, name="STEREO1", action="set", val=1},          -- B6
+      {off=0x22, name="STEREO2", action="set", val=2},          -- B7
+      -- B8 spare
     },
   },
 
-  -- 6: FL — Flanger
+  -- 6: FLANGER
   -- SW at 0x2A, params at 0x2B–0x33
   [6] = { name="FLANGER",
     swOff = 0x2A,
@@ -225,13 +223,12 @@ local TYPE_DEFS = {
       -- S09–S12 spare
     },
     btns = {
-      -- B2: BPM SYNC toggle
-      {off=0x2C, name="BPM SYNC", action="bpm_sync", max=20},
-      -- B3–B7 spare
+      {off=0x2C, name="BPM SYNC", action="bpm_sync", max=20},  -- B2
+      -- B3–B8 spare
     },
   },
 
-  -- 7: PH — Phaser
+  -- 7: PHASER
   -- SW at 0x34, params at 0x35–0x3D
   [7] = { name="PHASER",
     swOff = 0x34,
@@ -245,44 +242,36 @@ local TYPE_DEFS = {
       -- S07–S12 spare
     },
     btns = {
-      -- B2: BPM SYNC toggle
-      {off=0x37, name="BPM SYNC",  action="bpm_sync", max=20},
-      -- B3: STEP RATE toggle (same bpm_sync pattern)
-      {off=0x3B, name="STEP RATE", action="bpm_sync", max=20},
-      -- B4: TYPE 4STAGE
-      {off=0x35, name="4STAGE",    action="set", val=0},
-      -- B5: TYPE 8STAGE
-      {off=0x35, name="8STAGE",    action="set", val=1},
-      -- B6: TYPE 12STAGE
-      {off=0x35, name="12STAGE",   action="set", val=2},
-      -- B7: TYPE BI-PHASE
-      {off=0x35, name="BI-PH",     action="set", val=3},
+      {off=0x37, name="BPM SYNC",  action="bpm_sync", max=20},  -- B2
+      {off=0x3B, name="STEP RATE", action="bpm_sync", max=20},  -- B3
+      nil,                                                        -- B4
+      {off=0x35, name="4STAGE",  action="set", val=0},           -- B5
+      {off=0x35, name="8STAGE",  action="set", val=1},           -- B6
+      {off=0x35, name="12STAGE", action="set", val=2},           -- B7
+      {off=0x35, name="BI-PH",   action="set", val=3},           -- B8
     },
   },
 
-  -- 8: DD — Digital Delay
+  -- 8: DELAY — Digital Delay
   -- SW at 0x3E, params at 0x3F–0x46
   [8] = { name="DELAY",
     swOff = 0x3E,
     slots = {
-      {off=0x40, name="TIME",      max=100},
-      {off=0x41, name="TAP TIME",  max=100},
-      {off=0x43, name="FEEDBACK",  max=100},
-      {off=0x44, name="LPF",       max=14},
-      {off=0x45, name="EFX LVL",   max=100},
-      {off=0x46, name="DIRECT LVL",max=100},
+      {off=0x40, name="TIME",       max=100},
+      {off=0x41, name="TAP TIME",   max=100},
+      {off=0x43, name="FEEDBACK",   max=100},
+      {off=0x44, name="LPF",        max=14},
+      {off=0x45, name="EFX LVL",    max=100},
+      {off=0x46, name="DIRECT LVL", max=100},
       -- S07–S12 spare
     },
     btns = {
-      -- B2: BPM SYNC toggle
-      {off=0x42, name="BPM SYNC", action="bpm_sync", max=20},
-      -- B3: TYPE SINGLE
-      {off=0x3F, name="SINGLE",   action="set", val=0},
-      -- B4: TYPE PAN
-      {off=0x3F, name="PAN",      action="set", val=1},
-      -- B5: TYPE STEREO
-      {off=0x3F, name="STEREO",   action="set", val=2},
-      -- B6–B7 spare
+      {off=0x42, name="BPM SYNC", action="bpm_sync", max=20},  -- B2
+      nil, nil,                                                  -- B3, B4
+      {off=0x3F, name="SINGLE", action="set", val=0},           -- B5
+      {off=0x3F, name="PAN",    action="set", val=1},           -- B6
+      {off=0x3F, name="STEREO", action="set", val=2},           -- B7
+      -- B8 spare
     },
   },
 }
@@ -293,28 +282,26 @@ local TYPE_DEFS = {
 
 if efxNum == 1 then
 
-  -- 9: PS — Pitch Shifter (EFX1 only)
+  -- 9: PITCH SHIFT (EFX1 only)
   TYPE_DEFS[9] = { name="PITCH SHIFT",
     swOff = 0x47,
     slots = {
-      {off=0x49, name="PITCH 1",   max=48},
-      {off=0x4A, name="PRE DLY 1", max=100},
-      {off=0x4C, name="EFX LVL 1", max=100},
-      {off=0x4B, name="FEEDBACK",  max=100},
-      {off=0x4D, name="PITCH 2",   max=48},
-      {off=0x4E, name="PRE DLY 2", max=100},
-      {off=0x50, name="EFX LVL 2", max=100},
-      {off=0x51, name="DIRECT LVL",max=100},
+      {off=0x49, name="PITCH 1",    max=48},
+      {off=0x4A, name="PRE DLY 1",  max=100},
+      {off=0x4C, name="EFX LVL 1",  max=100},
+      {off=0x4B, name="FEEDBACK",   max=100},
+      {off=0x4D, name="PITCH 2",    max=48},
+      {off=0x4E, name="PRE DLY 2",  max=100},
+      {off=0x50, name="EFX LVL 2",  max=100},
+      {off=0x51, name="DIRECT LVL", max=100},
       -- S09–S12 spare
     },
     btns = {
-      -- B2: VOICE 1MONO
-      {off=0x48, name="1MONO",   action="set", val=0},
-      -- B3: VOICE 2MONO
-      {off=0x48, name="2MONO",   action="set", val=1},
-      -- B4: VOICE 2STEREO
-      {off=0x48, name="2STEREO", action="set", val=2},
-      -- B5–B7 spare
+      nil, nil, nil,                                           -- B2–B4 spare
+      {off=0x48, name="1MONO",   action="set", val=0},        -- B5
+      {off=0x48, name="2MONO",   action="set", val=1},        -- B6
+      {off=0x48, name="2STEREO", action="set", val=2},        -- B7
+      -- B8 spare
     },
   }
 
@@ -345,29 +332,28 @@ if efxNum == 1 then
 
 else  -- efxNum == 2
 
-  -- 9: RV — Reverb (EFX2 only)
+  -- 9: REVERB (EFX2 only) — 7 type presets fill all B2–B8
   TYPE_DEFS[9] = { name="REVERB",
     swOff = 0x47,
     slots = {
-      {off=0x49, name="TIME",      max=99},
-      {off=0x4A, name="PRE DLY",   max=100},
-      {off=0x4D, name="DENSITY",   max=10},
-      {off=0x50, name="SPRING SNS",max=100},
-      {off=0x4B, name="HPF",       max=17},
-      {off=0x4C, name="LPF",       max=14},
-      {off=0x4E, name="EFX LVL",   max=100},
-      {off=0x4F, name="DIRECT LVL",max=100},
+      {off=0x49, name="TIME",       max=99},
+      {off=0x4A, name="PRE DLY",    max=100},
+      {off=0x4D, name="DENSITY",    max=10},
+      {off=0x50, name="SPRING SNS", max=100},
+      {off=0x4B, name="HPF",        max=17},
+      {off=0x4C, name="LPF",        max=14},
+      {off=0x4E, name="EFX LVL",    max=100},
+      {off=0x4F, name="DIRECT LVL", max=100},
       -- S09–S12 spare
     },
     btns = {
-      -- B2–B8: reverb type presets (write to RV TYPE offset 0x48)
-      {off=0x48, name="AMBIENT", action="set", val=0},
-      {off=0x48, name="ROOM",    action="set", val=1},
-      {off=0x48, name="HALL 1",  action="set", val=2},
-      {off=0x48, name="HALL 2",  action="set", val=3},
-      {off=0x48, name="PLATE",   action="set", val=4},
-      {off=0x48, name="SPRING",  action="set", val=5},
-      {off=0x48, name="MOD",     action="set", val=6},
+      {off=0x48, name="AMBIENT", action="set", val=0},  -- B2
+      {off=0x48, name="ROOM",    action="set", val=1},  -- B3
+      {off=0x48, name="HALL 1",  action="set", val=2},  -- B4
+      {off=0x48, name="HALL 2",  action="set", val=3},  -- B5
+      {off=0x48, name="PLATE",   action="set", val=4},  -- B6
+      {off=0x48, name="SPRING",  action="set", val=5},  -- B7
+      {off=0x48, name="MOD",     action="set", val=6},  -- B8
     },
   }
 
@@ -390,12 +376,10 @@ local function updateLabel(text)
   if lbl then lbl.values.text = text end
 end
 
--- Helper: get the chooser button group for this section
 local function chooserGroup()
   return self.children["efx_" .. efxNum .. "_chooser"]
 end
 
--- Helper: get the B-button labels group for this section
 local function btnLabelsGroup()
   return self.children["efx" .. efxNum .. "_b_labels"]
 end
@@ -403,6 +387,8 @@ end
 -- ---------------------------------------------------------------------------
 -- applyType — remaps all slots, buttons, BCR rings, and labels for typeIdx.
 -- Reads parameter values from rawData if available, otherwise shows zeroed state.
+-- All programmatic button value writes are wrapped in self.tag="prog" so that
+-- efx_button.lua and efx_chooser_button.lua can ignore re-entrant callbacks.
 -- ---------------------------------------------------------------------------
 
 local function applyType(typeIdx)
@@ -416,16 +402,18 @@ local function applyType(typeIdx)
   local typeCCval = (MAX_TYPE > 0) and math.floor(typeIdx / MAX_TYPE * 127 + 0.5) or 0
   sendBCRcc(TYPE_CC, typeCCval)
 
-  -- Radio-button state on chooser (one lit, rest off; none for BYPASS)
+  -- ── Radio-button state on chooser (one lit, rest off; none for BYPASS) ──
   local cgrp = chooserGroup()
+  self.tag = "prog"
   if cgrp then
     for i = 1, MAX_TYPE do
       local cb = cgrp.children[tostring(i)]
       if cb then cb.values.x = (i == curType) and 1 or 0 end
     end
   end
+  self.tag = ""
 
-  -- Slot faders (S01–S12) — hide unused slots
+  -- ── Slot faders (S01–S12) — hide unused ─────────────────────────────────
   for i = 1, 12 do
     local slotGrp = self.children[slotGroupName(i)]
     if slotGrp then
@@ -439,14 +427,14 @@ local function applyType(typeIdx)
 
         if nameLbl then nameLbl.values.text = slotDef.name end
 
-        if slotDef and #rawData > 0 then
+        if #rawData > 0 then
           local raw = rawData[slotDef.off + 1] or 0
           local x   = math.max(0, math.min(1, raw / slotDef.max))
-          if fader  then fader.values.x     = x end
+          if fader  then fader.values.x    = x end
           if valLbl then valLbl.values.text = tostring(raw) end
           sendBCRcc(SLOT_CC[i], math.floor(x * 127 + 0.5))
         else
-          if fader  then fader.values.x     = 0 end
+          if fader  then fader.values.x    = 0 end
           if valLbl then valLbl.values.text = "--" end
           sendBCRcc(SLOT_CC[i], 0)
         end
@@ -456,13 +444,15 @@ local function applyType(typeIdx)
     end
   end
 
-  -- B buttons + their labels — hide unused; B1 = SW, B2-B8 = per-type
+  -- ── B buttons + labels — hide unused; B1=SW, B2–B8=per-type ─────────────
   local lblGrp = btnLabelsGroup()
 
-  -- B1: EFX SW — visible only when a real effect is active
-  local hasSW  = (def ~= nil and def.swOff ~= nil)
-  local b1     = self.children[btnNodeName(1)]
-  local lbl1   = lblGrp and lblGrp.children["1"]
+  self.tag = "prog"
+
+  -- B1: EFX SW
+  local hasSW = (def ~= nil and def.swOff ~= nil)
+  local b1    = self.children[btnNodeName(1)]
+  local lbl1  = lblGrp and lblGrp.children["1"]
   if b1 then
     b1.visible = hasSW
     if hasSW then
@@ -470,11 +460,12 @@ local function applyType(typeIdx)
       b1.values.x = swVal
       sendBCRcc(BTN_CC[1], swVal * 127)
     else
+      b1.values.x = 0
       sendBCRcc(BTN_CC[1], 0)
     end
   end
   if lbl1 then
-    lbl1.visible    = hasSW
+    lbl1.visible     = hasSW
     lbl1.values.text = "ON/OFF"
   end
 
@@ -496,8 +487,12 @@ local function applyType(typeIdx)
         uiVal  = (cur > 0) and 1 or 0
         bcrVal = uiVal * 127
         if cur > 0 then bpmDiv[btnDef.off] = cur end
+      elseif btnDef.action == "set" then
+        -- Radio: lit if rawData currently holds this option's value
+        local cur = (#rawData > 0) and rawData[btnDef.off + 1] or nil
+        uiVal  = (cur ~= nil and cur == btnDef.val) and 1 or 0
+        bcrVal = uiVal * 127
       end
-      -- "set" buttons: momentary, always shown off
     end
 
     if btn then
@@ -510,6 +505,8 @@ local function applyType(typeIdx)
     end
     sendBCRcc(BTN_CC[i], bcrVal)
   end
+
+  self.tag = ""
 end
 
 -- ---------------------------------------------------------------------------
@@ -523,7 +520,6 @@ local function sendSlotFromFloat(slotIdx, x)
   local raw = math.floor(x * slotDef.max + 0.5)
   sendParam(slotDef.off, raw)
   rawData[slotDef.off + 1] = raw
-  -- Update value label
   local slotGrp = self.children[slotGroupName(slotIdx)]
   if slotGrp then
     local valLbl = slotGrp.children["value_label"]
@@ -538,13 +534,12 @@ local function sendSlotFromCC(slotIdx, ccVal)
   local raw = math.floor(ccVal / 127 * slotDef.max + 0.5)
   sendParam(slotDef.off, raw)
   rawData[slotDef.off + 1] = raw
-  -- Update slot fader + label
   local slotGrp = self.children[slotGroupName(slotIdx)]
   if slotGrp then
     local fader  = slotGrp.children["control_fader"]
     local valLbl = slotGrp.children["value_label"]
-    if fader  then fader.values.x       = raw / slotDef.max end
-    if valLbl then valLbl.values.text   = tostring(raw) end
+    if fader  then fader.values.x     = raw / slotDef.max end
+    if valLbl then valLbl.values.text = tostring(raw) end
   end
 end
 
@@ -558,6 +553,8 @@ function onReceiveNotify(key, value)
   if key == "type_cc" then
     local ccVal   = tonumber(value) or 0
     local typeIdx = math.floor(ccVal / 127 * MAX_TYPE + 0.5)
+    sendParam(0x00, typeIdx)
+    rawData[1] = typeIdx
     applyType(typeIdx)
     return
   end
@@ -566,7 +563,9 @@ function onReceiveNotify(key, value)
   -- Re-pressing the active type toggles to BYPASS (0).
   if key == "type_set" then
     local typeIdx = math.min(math.max(tonumber(value) or 0, 0), MAX_TYPE)
-    if typeIdx ~= 0 and typeIdx == curType then typeIdx = 0 end  -- toggle off → BYPASS
+    if typeIdx ~= 0 and typeIdx == curType then typeIdx = 0 end
+    sendParam(0x00, typeIdx)
+    rawData[1] = typeIdx
     applyType(typeIdx)
     return
   end
@@ -575,6 +574,8 @@ function onReceiveNotify(key, value)
   if key == "type_step" then
     local dir     = tonumber(value) or 0
     local typeIdx = ((curType + dir) % (MAX_TYPE + 1) + (MAX_TYPE + 1)) % (MAX_TYPE + 1)
+    sendParam(0x00, typeIdx)
+    rawData[1] = typeIdx
     applyType(typeIdx)
     return
   end
@@ -609,12 +610,13 @@ function onReceiveNotify(key, value)
     if not slotIdx then return end
     local x = tonumber(xs) or 0
     sendSlotFromFloat(slotIdx, x)
-    -- Mirror to BCR ring
     sendBCRcc(SLOT_CC[slotIdx], math.floor(x * 127 + 0.5))
     return
   end
 
-  -- BCR or on-screen button press: button index 1–8
+  -- BCR or on-screen button press: button index 1–8.
+  -- All programmatic button value writes below are wrapped with self.tag="prog"
+  -- to prevent re-entrant onValueChanged callbacks in efx_button.lua.
   if key == "btn_press" then
     local btnIdx = tonumber(value) or 0
     if btnIdx < 1 or btnIdx > 8 then return end
@@ -627,8 +629,10 @@ function onReceiveNotify(key, value)
       local nxt = 1 - cur
       sendParam(def.swOff, nxt)
       rawData[def.swOff + 1] = nxt
+      self.tag = "prog"
       local b1 = self.children[btnNodeName(1)]
       if b1 then b1.values.x = nxt end
+      self.tag = ""
       sendBCRcc(BTN_CC[1], nxt * 127)
       return
     end
@@ -638,37 +642,47 @@ function onReceiveNotify(key, value)
     if not btnDef then return end
 
     if btnDef.action == "set" then
-      -- Fixed-value setter (e.g. CS RATIO preset, CH MODE, PH TYPE, RV TYPE, PS VOICE)
+      -- Radio preset: write value, light this button, clear siblings on same offset
       sendParam(btnDef.off, btnDef.val)
       rawData[btnDef.off + 1] = btnDef.val
-      -- Auto-reset BCR latch so every press triggers
-      sendBCRcc(BTN_CC[btnIdx], 0)
+      self.tag = "prog"
+      for bi = 2, 8 do
+        local bd = def.btns and def.btns[bi - 1]
+        local bb = self.children[btnNodeName(bi)]
+        if bd and bd.action == "set" and bd.off == btnDef.off then
+          if bb then bb.values.x = (bi == btnIdx) and 1 or 0 end
+          sendBCRcc(BTN_CC[bi], (bi == btnIdx) and 127 or 0)
+        end
+      end
+      self.tag = ""
 
     elseif btnDef.action == "toggle" then
-      -- Simple binary toggle (e.g. RM POLARITY, TR PAN/TRE)
       local cur = rawData[btnDef.off + 1] or 0
       local nxt = 1 - cur
       sendParam(btnDef.off, nxt)
       rawData[btnDef.off + 1] = nxt
+      self.tag = "prog"
       local btn = self.children[btnNodeName(btnIdx)]
       if btn then btn.values.x = nxt end
+      self.tag = ""
       sendBCRcc(BTN_CC[btnIdx], nxt * 127)
 
     elseif btnDef.action == "bpm_sync" then
-      -- Toggle between 0 (off) and last-non-zero division
       local cur = rawData[btnDef.off + 1] or 0
       local nxt
       if cur > 0 then
-        bpmDiv[btnDef.off] = cur  -- cache before zeroing
+        bpmDiv[btnDef.off] = cur
         nxt = 0
       else
         nxt = bpmDiv[btnDef.off] or 8  -- 8 = 1/4 note as default
       end
       sendParam(btnDef.off, nxt)
       rawData[btnDef.off + 1] = nxt
+      self.tag = "prog"
       local btn = self.children[btnNodeName(btnIdx)]
       local uiV = (nxt > 0) and 1 or 0
       if btn then btn.values.x = uiV end
+      self.tag = ""
       sendBCRcc(BTN_CC[btnIdx], uiV * 127)
     end
 
@@ -681,7 +695,5 @@ end
 -- ---------------------------------------------------------------------------
 
 function init()
-  -- rawData is empty on load; applyType(0) shows BYPASS state with zeroed slots.
-  -- Once the user presses RECEIVE, patch_data will populate rawData and re-apply.
   applyType(0)
 end

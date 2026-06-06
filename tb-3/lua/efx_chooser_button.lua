@@ -1,12 +1,16 @@
 -- efx_chooser_button.lua
 -- Injected into all type-select buttons in efx_1_chooser and efx_2_chooser.
--- Button name = type index (1=CS/COMP, 2=RM, ..., 10=EQ for EFX1, 9=RV for EFX2).
--- Pressing an already-active type notifies the section, which interprets it as BYPASS.
--- The section (grandparent) owns all radio-state management.
+-- Button name = type index (1=COMP, 2=RING MOD, ..., 10=EQ for EFX1, 9=REVERB for EFX2).
+--
+-- Toggle Release mode: fires on both x=1 (select) and x=0 (deselect).
+-- Re-pressing the currently active type tells the section to go to BYPASS.
+-- Guards against re-entrant programmatic radio-state updates from efx_section.lua
+-- via the "prog" flag stored in the grandparent section's tag property.
 
 function onValueChanged(key)
-  if key ~= "x" or self.values.x < 0.5 then return end
+  if key ~= "x" then return end
+  -- self.parent = efx_N_chooser GROUP; self.parent.parent = efxN_section GROUP
+  if self.parent.parent.tag == "prog" then return end
   local typeIdx = tonumber(self.name) or 1
-  -- Walk up: button → efx_N_chooser GROUP → efxN_section GROUP
   self.parent.parent:notify("type_set", typeIdx)
 end
