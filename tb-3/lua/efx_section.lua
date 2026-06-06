@@ -556,19 +556,26 @@ local function refreshDisabledLabels(def)
   if not def or not def.slots then return end
   for i = 1, 12 do
     local slotDef = def.slots[i]
-    if slotDef and slotDef.disabledBy then
-      local slotGrp = self.children[slotGroupName(i)]
-      if slotGrp then
+    local slotGrp = self.children[slotGroupName(i)]
+    if slotGrp then
+      if slotDef and slotDef.disabledBy then
+        local disabled = false
+        for _, dOff in ipairs(slotDef.disabledBy) do
+          if (rawData[dOff + 1] or 0) > 0 then
+            disabled = true; break
+          end
+        end
         local nameLbl = slotGrp.children["name_label"]
         if nameLbl then
-          local disabled = false
-          for _, dOff in ipairs(slotDef.disabledBy) do
-            if (rawData[dOff + 1] or 0) > 0 then
-              disabled = true; break
-            end
-          end
           nameLbl.textColor = Color.fromHexString(disabled and DIM_COLOR or LIT_COLOR)
         end
+        -- Signal to pointer.lua: "disabled" blocks drag input on this slot.
+        slotGrp.tag = disabled and "disabled" or ""
+      else
+        -- No disabledBy condition — always interactive.  Clear any stale tag
+        -- that might persist if we just switched away from an effect where this
+        -- same slot index was disabled.
+        slotGrp.tag = ""
       end
     end
   end

@@ -22,6 +22,10 @@ function init()
 end
 
 function onPointer(pointers)
+  -- Reject all input when the containing slot is disabled (e.g. RATE encoder
+  -- while BPM SYNC is active).  efx_section.lua sets parent.tag = "disabled".
+  if self.parent.tag == "disabled" then return end
+
   for i = 1, #pointers do
     local p = pointers[i]
 
