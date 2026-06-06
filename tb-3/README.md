@@ -190,7 +190,7 @@ are based entirely on research and documentation by **Dope Robot**:
 
 All three files are included in the `resources/` folder for reference.
 
-🌐 [doperobot.com](https://doperobot.com) &nbsp;·&nbsp; ✉️ doperobot@yahoo.com
+🌐 [doperobot.com](https://doperobot.com)
 
 > The contents of the SysEx implementation have no relation with Roland Corporation.
 > Please do not send any inquiries to Roland Corp regarding this controller.
