@@ -4,7 +4,7 @@ A full-featured TouchOSC layout for the Roland TB-3 synthesizer, providing compl
 
 The BCR2000 integration is designed for **two units** (one for tone/distortion, one for effects), but works equally well with a **single BCR2000** — load both presets onto it and switch between them to access each half of the feature set.
 
-![TB-3 controller showing patch C03](screenshots/C03.png)
+![TB-3 controller showing patch C06](screenshots/C06.png)
 
 ---
 
@@ -64,7 +64,7 @@ The layout is divided into functional colour-coded sections:
 | Colour | Section |
 |--------|---------|
 | Blue | Oscillators (VCO source levels + switches) |
-| Teal | LFO |
+| Gold | LFO (also colours the VCO/VCF/VCA LFO depth encoders) |
 | Green | VCA (Voltage Controlled Amplifier) |
 | Amber | VCF (Voltage Controlled Filter) |
 | Red | Distortion |
@@ -96,11 +96,9 @@ Eight encoders for cross-modulation routing between oscillators (SQR→SAW, SAW�
 
 ## Portamento & Pitch Bend
 
-**Portamento:** TIME encoder with SW toggle. MODE button toggles LEGATO / ALWAYS.
+**Portamento:** TIME encoder with SW toggle (activates portamento). MODE is selected via two radio buttons — **LEGATO** or **ALWAYS**.
 
-**Pitch Bend:** RANGE encoder (0–17 semitones). TIME encoder sets the bend ramp time.
-
-**LEGATO** button toggles LEGATO mode on/off.
+**Pitch Bend:** RANGE encoder (0–17 semitones).
 
 ---
 
@@ -110,7 +108,7 @@ The distortion section shows the current distortion **type name** in the header 
 
 - **ON/OFF** — bypass toggle
 - **COLOR** — tone character toggle  
-- **TYPE ↑ / TYPE ↓** — step through distortion types (24 types)
+- **TYPE ↑ / TYPE ↓** — step through distortion types (25 types)
 - **Encoders:** DRIVE, BOTTOM, TONE, EFFECT LEVEL, DRY LEVEL
 
 ---
@@ -118,8 +116,8 @@ The distortion section shows the current distortion **type name** in the header 
 ## VCA, VCF, Tuning
 
 - **VCA:** ATTACK, DECAY, SUSTAIN, RELEASE, LFO DEPTH
-- **VCF:** ATTACK, DECAY, SUSTAIN, RELEASE, CUTOFF, RESONANCE, ACCENT, DIST LEVEL. CUTOFF and RESONANCE are 16-bit parameters (0–255 range).
-- **Tuning:** SAW, SQUARE, RING+SINE individual tuning offsets, global TUNING, ENV DEPTH, KEY FOLLOW, LFO MOD, DRY LEVEL
+- **VCF:** CUTOFF, RESONANCE (16-bit, 0–255), ATTACK, DECAY, SUSTAIN, RELEASE, ENV DEPTH, KEY FOLLOW, VCF LFO DEPTH, ACCENT. CUTOFF and RESONANCE appear first on both screen and BCR2000.
+- **Tuning:** SAW, SQUARE, RING+SINE individual tuning offsets (bipolar, ±128 display), global TUNING (MIDI CC), ENV DEPTH, KEY FOLLOW, VCF LFO DEPTH
 
 ---
 

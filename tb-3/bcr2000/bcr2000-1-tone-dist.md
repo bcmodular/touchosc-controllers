@@ -84,16 +84,16 @@ the physical top-row encoders between these two CC ranges. The fixed rows
 | **CC 87** | DIST BOTTOM | `10 00 0E 03` | 7-bit (0=−50, 100=+50) |
 | **CC 88** | DIST TONE | `10 00 0E 04` | 7-bit (0=−50, 100=+50) |
 
-### Fixed Encoder Row 2 — VCF + mix levels (CC 89–96)
+### Fixed Encoder Row 2 — VCF (screen order: CUTOFF first) (CC 89–96)
 
 | CC | Function | SysEx addr | Type |
 |----|----------|------------|------|
-| **CC 89** | VCF ATTACK | `10 00 0A 06` | 7-bit |
-| **CC 90** | VCF DECAY | `10 00 0A 07` | 7-bit |
-| **CC 91** | VCF SUSTAIN | `10 00 0A 08` | 7-bit |
-| **CC 92** | VCF RELEASE | `10 00 0A 09` | 7-bit |
-| **CC 93** | VCF CUTOFF | `10 00 0A 00/01` | **16-bit** (0–255) |
-| **CC 94** | VCF RESONANCE | `10 00 0A 02/03` | **16-bit** (0–255) |
+| **CC 89** | VCF CUTOFF | `10 00 0A 00/01` | **16-bit** (0–255) |
+| **CC 90** | VCF RESONANCE | `10 00 0A 02/03` | **16-bit** (0–255) |
+| **CC 91** | VCF ATTACK | `10 00 0A 06` | 7-bit |
+| **CC 92** | VCF DECAY | `10 00 0A 07` | 7-bit |
+| **CC 93** | VCF SUSTAIN | `10 00 0A 08` | 7-bit |
+| **CC 94** | VCF RELEASE | `10 00 0A 09` | 7-bit |
 | **CC 95** | ACCENT LEVEL | `10 00 14 0E/0F` | **16-bit** (0–255) |
 | **CC 96** | DIST EFFECT LEVEL | `10 00 0E 05` | 7-bit (0–100) |
 
@@ -101,9 +101,9 @@ the physical top-row encoders between these two CC ranges. The fixed rows
 
 | CC | Function | SysEx addr | Type | Notes |
 |----|----------|------------|------|-------|
-| **CC 97** | SAW TUNING | `10 00 02 02/03` | **16-bit** | CV offset SAW pitch |
-| **CC 98** | SQR TUNING | `10 00 02 00/01` | **16-bit** | CV offset SQR pitch |
-| **CC 99** | RING+SIN TUNING | `10 00 02 04/05` | **16-bit** | CV offset RING pitch |
+| **CC 97** | SAW TUNING | `10 00 02 02/03` | **16-bit** (bipolar²) | CV offset SAW pitch |
+| **CC 98** | SQR TUNING | `10 00 02 00/01` | **16-bit** (bipolar²) | CV offset SQR pitch |
+| **CC 99** | RING+SIN TUNING | `10 00 02 04/05` | **16-bit** (bipolar²) | CV offset RING pitch |
 | **CC 100** | GLOBAL TUNING | — | MIDI CC 104 | No SysEx; plain CC 104 to TB-3 CH2 |
 | **CC 101** | VCF ENV DEPTH | `10 00 0A 04/05` | **16-bit** (0–255) | |
 | **CC 102** | VCF KEY FOLLOW | `10 00 0A 0A` | 7-bit | |
@@ -114,12 +114,14 @@ the physical top-row encoders between these two CC ranges. The fixed rows
 
 ## Portamento (TouchOSC-only)
 
-Not mapped to any BCR2000 encoder. Controlled via the `pitch_bend_group` section:
+Not mapped to any BCR2000 encoder. Controlled via the `portamento_group` section:
 - PORTAMENTO SW: `10 00 14 00` — sw_button in porta_time_enc group
 - PORTAMENTO TIME: `10 00 14 01` — encoder
-- PORTAMENTO MODE: `10 00 14 02` — LEGATO button (0=LEGATO, 1=ALWAYS)
+- PORTAMENTO MODE: `10 00 14 02` — two radio buttons: **LEGATO** (0) / **ALWAYS** (1)
 - BENDER RANGE: `10 00 14 03` — pitch_bend_range_enc (0–17 semitones)
 
 ---
 
 ¹ Signed offset-encode: raw 64 = 0, 0 = −64, 127 = +63.
+
+² Bipolar 16-bit: raw 0–255, centre 128 = 0. Display shows −128…+127.
