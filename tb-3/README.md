@@ -174,3 +174,23 @@ See the `bcr2000/` folder for the full CC assignment tables.
 | `bcr2000/` | BCR2000 BC Manager preset documentation |
 | `resources/` | TB-3 SysEx reference and Dope Robot panel files |
 | `tools/` | Layout maintenance scripts |
+
+---
+
+## Credits & Attribution
+
+The SysEx implementation and effects parameter data underpinning this controller
+are based entirely on research and documentation by **Dope Robot**:
+
+| Resource | Description |
+|----------|-------------|
+| [Unofficial TB-3 MIDI SysEx Implementation v1.4.1](https://doperobot.com/tb3) | The primary SysEx address reference used to map every parameter |
+| Unofficial TB-3 FX Parameter Guide v1.07 | Detailed effects parameter reference (included in `resources/`) |
+| TB-3 Editor & Patch Librarian v2.21 | BC Manager panel whose encoder layout informed the BCR2000 preset design |
+
+All three files are included in the `resources/` folder for reference.
+
+🌐 [doperobot.com](https://doperobot.com) &nbsp;·&nbsp; ✉️ doperobot@yahoo.com
+
+> The contents of the SysEx implementation have no relation with Roland Corporation.
+> Please do not send any inquiries to Roland Corp regarding this controller.
