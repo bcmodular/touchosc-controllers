@@ -10,7 +10,7 @@ The BCR2000 integration is designed for **two units** (one for tone/distortion, 
 
 ## Requirements
 
-- **TouchOSC** (desktop or iPad) — `TB3.tosc`
+- **[TouchOSC](https://hexler.net/touchosc)** (Windows, macOS, Linux, iOS, Android) — `TB3.tosc`
 - **Roland TB-3** connected via USB MIDI
 - **BCR2000** *(optional)* — one unit (switch presets) or two units (simultaneous access)
 
