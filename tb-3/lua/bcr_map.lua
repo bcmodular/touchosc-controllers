@@ -89,13 +89,14 @@ local BCR1_MAP = {
   [87] = { addr = {0x10,0x00,0x0E,0x03}, bits = 7, max = 100 },   -- DIST BOTTOM (0=−50…100=+50)
   [88] = { addr = {0x10,0x00,0x0E,0x04}, bits = 7, max = 100 },   -- DIST TONE
 
-  -- ---- Fixed encoder row 2: VCF envelope + critical 16-bit params ----
-  [89] = { addr = {0x10,0x00,0x0A,0x06}, bits = 7 },              -- VCF ATTACK
-  [90] = { addr = {0x10,0x00,0x0A,0x07}, bits = 7 },              -- VCF DECAY
-  [91] = { addr = {0x10,0x00,0x0A,0x08}, bits = 7 },              -- VCF SUSTAIN
-  [92] = { addr = {0x10,0x00,0x0A,0x09}, bits = 7 },              -- VCF RELEASE
-  [93] = { addr = {0x10,0x00,0x0A,0x00}, bits = 16, max = 255 },  -- VCF CUTOFF (MSB/LSB)
-  [94] = { addr = {0x10,0x00,0x0A,0x02}, bits = 16, max = 255 },  -- VCF RESONANCE
+  -- ---- Fixed encoder row 2: VCF (mirroring on-screen order) ----
+  -- CUTOFF and RESONANCE are first in the UI (x=0,110) so they get the first BCR positions.
+  [89] = { addr = {0x10,0x00,0x0A,0x00}, bits = 16, max = 255 },  -- VCF CUTOFF (MSB/LSB)
+  [90] = { addr = {0x10,0x00,0x0A,0x02}, bits = 16, max = 255 },  -- VCF RESONANCE
+  [91] = { addr = {0x10,0x00,0x0A,0x06}, bits = 7 },              -- VCF ATTACK
+  [92] = { addr = {0x10,0x00,0x0A,0x07}, bits = 7 },              -- VCF DECAY
+  [93] = { addr = {0x10,0x00,0x0A,0x08}, bits = 7 },              -- VCF SUSTAIN
+  [94] = { addr = {0x10,0x00,0x0A,0x09}, bits = 7 },              -- VCF RELEASE
   [95] = { addr = {0x10,0x00,0x14,0x0E}, bits = 16, max = 255 },  -- ACCENT LEVEL
   [96] = { addr = {0x10,0x00,0x0E,0x05}, bits = 7,  max = 100 },  -- DIST EFFECT LEVEL
 

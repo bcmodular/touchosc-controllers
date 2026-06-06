@@ -10,6 +10,21 @@
 
 local updating = false
 
+function init()
+  -- Default: LEGATO (val=0) is active on layout load unless a patch dump
+  -- overrides it later via "porta_mode_updated".
+  local my_val = tonumber(self.tag:match("val:(%d+)")) or -1
+  if my_val == 0 then
+    -- This is the LEGATO button. Activate it if neither button is lit yet.
+    local always_btn = root:findByName("porta_always_btn", true)
+    if self.values.x < 0.5 and (not always_btn or always_btn.values.x < 0.5) then
+      updating = true
+      self.values.x = 1
+      updating = false
+    end
+  end
+end
+
 function onValueChanged(key)
   if key ~= "x" then return end
   if updating then return end
