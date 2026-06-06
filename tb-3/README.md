@@ -32,7 +32,16 @@ The TB-3 and BCR2000 units use separate connections so SysEx to the TB-3 never r
 
 ### BCR2000 Presets
 
-Send **[`bcr2000/TB-3-TouchOSC-BCR2000.syx`](bcr2000/TB-3-TouchOSC-BCR2000.syx)** to your BCR2000 units using a SysEx librarian (e.g. MIDI-OX, SysEx Librarian, or similar). The file contains presets for both units — load preset 1 into BCR2000 #1 (channel 1) and preset 2 into BCR2000 #2 (channel 2).
+Send **[`bcr2000/TB-3-TouchOSC-BCR2000.syx`](bcr2000/TB-3-TouchOSC-BCR2000.syx)** to your BCR2000 unit(s) using a SysEx librarian (e.g. MIDI-OX, SysEx Librarian, or similar). The file contains two presets:
+
+| Preset | Channel | Covers |
+|--------|---------|--------|
+| 1 | Ch 1 | Tone + Distortion (Oscillators, LFO, VCA, VCF, Tuning) |
+| 2 | Ch 2 | EFX1 + EFX2 |
+
+**Two BCR2000 units:** load preset 1 into unit #1 and preset 2 into unit #2 for simultaneous access to everything.
+
+**One BCR2000:** load both presets onto the same unit and switch between them as needed — you get full control of each half of the feature set, just not at the same time.
 
 See [`bcr2000/bcr2000-1-tone-dist.md`](bcr2000/bcr2000-1-tone-dist.md) and [`bcr2000/bcr2000-2-efx.md`](bcr2000/bcr2000-2-efx.md) for the full CC maps.
 
