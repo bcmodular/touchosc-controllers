@@ -308,14 +308,15 @@ local TYPE_DEFS = {
   },
 
   -- 4: TREMOLO
-  --    S01-S02: time row — BPM SYNC then RATE (greyed when SYNC ≠ OFF)
-  --    TYPE 0-5 = TRI/UP SAW/DN SAW/SIN/SQR/RND
-  --    PHASE 0-100 = 0°-360°
+  --    S01-S04: dedicated time row — BPM SYNC, RATE (greyed when SYNC ≠ OFF), nil×2
+  --    S05+: sound parameters
+  --    TYPE 0-5 = TRI/UP SAW/DN SAW/SIN/SQR/RND  |  PHASE 0-100 = 0°-360°
   [4] = { name="TREMOLO",
     swOff = 0x18,
     slots = {
       {off=0x1C, name="BPM SYNC", max=20,  display=dispBpmDiv},
       {off=0x1B, name="RATE",     max=100, display=dispRate, disabledBy={0x1C}},
+      nil, nil,
       {off=0x1E, name="DEPTH",    max=100},
       {off=0x19, name="TYPE",     max=5,   display=dispTrType},
       {off=0x20, name="LEVEL",    max=100},
@@ -330,14 +331,15 @@ local TYPE_DEFS = {
   },
 
   -- 5: CHORUS
-  --    S01-S02: time row — BPM SYNC then RATE (greyed when SYNC ≠ OFF)
-  --    PRE DLY 0-80 = 0-80 ms
-  --    HPF 0-17 = Flat-800 Hz  |  LPF 0-14 = 630 Hz-Flat
+  --    S01-S04: dedicated time row — BPM SYNC, RATE (greyed when SYNC ≠ OFF), nil×2
+  --    S05+: sound parameters
+  --    PRE DLY 0-80 = 0-80 ms  |  HPF 0-17 = Flat-800 Hz  |  LPF 0-14 = 630 Hz-Flat
   [5] = { name="CHORUS",
     swOff = 0x21,
     slots = {
       {off=0x24, name="BPM SYNC", max=20,  display=dispBpmDiv},
       {off=0x23, name="RATE",     max=100, display=dispRate, disabledBy={0x24}},
+      nil, nil,
       {off=0x25, name="DEPTH",    max=100},
       {off=0x26, name="PRE DLY",  max=80,  display=dispMs},
       {off=0x29, name="LEVEL",    max=100},
@@ -353,14 +355,15 @@ local TYPE_DEFS = {
   },
 
   -- 6: FLANGER
-  --    S01-S02: time row — BPM SYNC then RATE (greyed when SYNC ≠ OFF)
-  --    MANUAL 0-100 = −50…+50
-  --    HPF 0-10 = Flat-800 Hz (11-step condensed table, verify against hardware)
+  --    S01-S04: dedicated time row — BPM SYNC, RATE (greyed when SYNC ≠ OFF), nil×2
+  --    S05+: sound parameters
+  --    MANUAL 0-100 = −50…+50  |  HPF 0-10 = Flat-800 Hz (verify against hardware)
   [6] = { name="FLANGER",
     swOff = 0x2A,
     slots = {
       {off=0x2C, name="BPM SYNC",   max=20,  display=dispBpmDiv},
       {off=0x2B, name="RATE",       max=100, display=dispRate, disabledBy={0x2C}},
+      nil, nil,
       {off=0x2D, name="DEPTH",      max=100},
       {off=0x2E, name="MANUAL",     max=100, display=dispBipolar50},
       {off=0x2F, name="RESONANCE",  max=100},
@@ -373,14 +376,16 @@ local TYPE_DEFS = {
   },
 
   -- 7: PHASER
-  --    S01-S03: time row — BPM SYNC, RATE (greyed when S01 or S03 ≠ OFF), STEP RATE
-  --    MANUAL 0-100 = −50…+50
+  --    S01-S04: dedicated time row — BPM SYNC, RATE (greyed when S01 or S03 ≠ OFF),
+  --             STEP RATE, nil (Phaser fills 3 of 4 time slots)
+  --    S05+: sound parameters  |  MANUAL 0-100 = −50…+50
   [7] = { name="PHASER",
     swOff = 0x34,
     slots = {
       {off=0x37, name="BPM SYNC",   max=20,  display=dispBpmDiv},
       {off=0x36, name="RATE",       max=100, display=dispRate, disabledBy={0x37, 0x3B}},
       {off=0x3B, name="STEP RATE",  max=20,  display=dispBpmDiv},
+      nil,
       {off=0x38, name="DEPTH",      max=100},
       {off=0x39, name="MANUAL",     max=100, display=dispBipolar50},
       {off=0x3A, name="RESONANCE",  max=127},
@@ -397,7 +402,8 @@ local TYPE_DEFS = {
   },
 
   -- 8: DELAY
-  --    S01-S03: time row — BPM SYNC, TIME (greyed when SYNC ≠ OFF), TAP TIME
+  --    S01-S04: dedicated time row — BPM SYNC, TIME (greyed when SYNC ≠ OFF), nil×2
+  --    S05+: sound parameters (TAP TIME first since it's time-adjacent)
   --    BPM SYNC 0-13 = 14 beat divisions (Delay has a shorter sync range than others)
   --    LPF 0-14 = 630 Hz-Flat
   [8] = { name="DELAY",
@@ -405,6 +411,7 @@ local TYPE_DEFS = {
     slots = {
       {off=0x42, name="BPM SYNC",   max=13,  display=dispBpmDiv},
       {off=0x40, name="TIME",       max=100, display=dispMs, disabledBy={0x42}},
+      nil, nil,
       {off=0x41, name="TAP TIME",   max=100, display=dispPct},
       {off=0x43, name="FEEDBACK",   max=100},
       {off=0x44, name="LPF",        max=14,  display=dispLPF},
