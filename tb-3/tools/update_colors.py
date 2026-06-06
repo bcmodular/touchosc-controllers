@@ -83,23 +83,24 @@ xml = tosc_read(TOSC)
 print("Applying colour changes…\n")
 
 # ── Pitch / modulation sections ──────────────────────────────────────────────
-xml = update(xml, "ring_mod_group",   0.75, 0.15, 1.00)   # vivid purple
-xml = update(xml, "portamento_group", 0.50, 0.30, 1.00)   # blue-violet
-xml = update(xml, "pitch_bend_group", 0.35, 0.10, 0.80)   # medium indigo
+xml = update(xml, "ring_mod_group",   0.75, 0.15, 1.00)   # vivid purple (keep)
+# Blue-heavy hues look dark: raise r+g to add perceived brightness while
+# keeping the violet/indigo character.
+xml = update(xml, "portamento_group", 0.78, 0.60, 1.00)   # light lavender
+xml = update(xml, "pitch_bend_group", 0.60, 0.38, 0.95)   # medium violet (darker than portamento)
 
 # ── EFX1: teal section ───────────────────────────────────────────────────────
-# Chooser grid (effect-type selector)
-xml = update(xml, "efx_1_chooser",    0.95, 0.82, 0.20)   # warm gold
-# Type-option radio buttons (B5–B8) — match the chooser so both read as "selector"
+# Chooser grid + type-option buttons (B5–B8) — bright version of the same
+# teal/cyan family: clearly lighter than the section base but same hue range.
+xml = update(xml, "efx_1_chooser",    0.30, 0.90, 0.95)   # bright cyan
 for btn in ["efx1_b5", "efx1_b6", "efx1_b7", "efx1_b8"]:
-    xml = update(xml, btn,             0.95, 0.82, 0.20)
+    xml = update(xml, btn,             0.30, 0.90, 0.95)
 
 # ── EFX2: coral section ──────────────────────────────────────────────────────
-# Chooser grid
-xml = update(xml, "efx_2_chooser",    0.30, 0.90, 0.60)   # jade green
-# Type-option radio buttons (B5–B8)
+# Bright version of the coral/orange family.
+xml = update(xml, "efx_2_chooser",    1.00, 0.65, 0.35)   # bright coral-orange
 for btn in ["efx2_b5", "efx2_b6", "efx2_b7", "efx2_b8"]:
-    xml = update(xml, btn,             0.30, 0.90, 0.60)
+    xml = update(xml, btn,             1.00, 0.65, 0.35)
 
 tosc_write(TOSC, xml)
 print(f"\nWritten: {TOSC} ({TOSC.stat().st_size:,} bytes compressed)")
