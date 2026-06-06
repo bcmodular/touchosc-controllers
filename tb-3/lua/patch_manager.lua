@@ -63,10 +63,11 @@ local REGISTRY = {
   },
 
   -- ---- CV OFFSET / TUNING  10 00 02 00 ----
+  -- Bipolar: raw 0–255, centre 128 = 0, display raw−128 (−128…+127).
   ["10000200"] = {
-    {off=0, enc="sqr_tuning_enc",      kind="u16", max=255},
-    {off=2, enc="saw_tuning_enc",      kind="u16", max=255},
-    {off=4, enc="ring_sin_tuning_enc", kind="u16", max=255},
+    {off=0, enc="sqr_tuning_enc",      kind="u16", max=255, bipolar=true},
+    {off=2, enc="saw_tuning_enc",      kind="u16", max=255, bipolar=true},
+    {off=4, enc="ring_sin_tuning_enc", kind="u16", max=255, bipolar=true},
   },
 
   -- ---- CROSS MODULATION  10 00 04 00 ----
@@ -147,7 +148,7 @@ local REGISTRY = {
   ["10001400"] = {
     {off= 0, enc="porta_time_enc",      kind="sw",  sw=true},  -- PORTA SW
     {off= 1, enc="porta_time_enc",      kind="u7"},             -- PORTA TIME
-    {off= 2, enc="porta_mode_button",   kind="sw",  btn=true},  -- PORTA MODE
+    {off= 2, kind="sp",                 sp="porta_mode"},       -- PORTA MODE (radio buttons)
     {off= 3, enc="pitch_bend_range_enc",kind="u7",  max=23},    -- BENDER RANGE (raw)
     -- offsets 4–13: PARAM ID entries (no UI elements yet — Phase 5)
     {off=14, enc="accent_level_enc",    kind="u16", max=255},   -- ACCENT
@@ -210,7 +211,14 @@ local function applyValue(field, raw)
   elseif kind == "u16" then
     local m = maxV or 255
     faderVal  = raw / m
-    labelText = tostring(raw)
+    if field.bipolar then
+      -- Bipolar: centre = max/2, display as ±value (tuning: raw 128 = 0).
+      local half = math.floor(m / 2)
+      local s    = raw - half
+      labelText  = (s >= 0 and "+" or "") .. s
+    else
+      labelText = tostring(raw)
+    end
 
   elseif kind == "s7" then
     -- centre 64 → display as signed
@@ -230,7 +238,7 @@ local function applyValue(field, raw)
   end
 end
 
--- Special-case handler (DIST TYPE etc.)
+-- Special-case handler (DIST TYPE, PORTA MODE etc.)
 local function parseSpecial(sp, raw)
   if sp == "dist_type" then
     distType = raw
@@ -238,6 +246,15 @@ local function parseSpecial(sp, raw)
     local lbl = root:findByName("distortion_section_label", true)
     if lbl then lbl.values.text = "DISTORTION: " .. name end
     -- Note: does NOT send SysEx (we are receiving, not sending).
+    return
+  end
+
+  if sp == "porta_mode" then
+    -- Notify both portamento mode radio buttons so they update silently.
+    local legato = root:findByName("porta_legato_btn", true)
+    local always  = root:findByName("porta_always_btn", true)
+    if legato then legato:notify("porta_mode_updated", tostring(raw)) end
+    if always  then always:notify("porta_mode_updated", tostring(raw)) end
     return
   end
 end

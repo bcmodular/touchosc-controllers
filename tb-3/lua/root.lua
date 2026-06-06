@@ -549,7 +549,14 @@ function onReceiveNotify(key, value)
           lbl_text   = (s >= 0 and "+" or "") .. tostring(s)
         elseif entry.bits == 16 then
           -- 16-bit nibble-packed: full range is 0–(max or 255).
-          lbl_text = tostring(math.floor(x * (entry.max or 255) + 0.5))
+          local raw16 = math.floor(x * (entry.max or 255) + 0.5)
+          if entry.bipolar then
+            local half = math.floor((entry.max or 255) / 2)
+            local s    = raw16 - half
+            lbl_text   = (s >= 0 and "+" or "") .. tostring(s)
+          else
+            lbl_text = tostring(raw16)
+          end
         elseif entry.max and entry.max ~= 127 then
           -- Custom 7-bit max (e.g. DRIVE=120, BENDER=17).
           lbl_text = tostring(math.floor(x * entry.max + 0.5))
@@ -600,6 +607,19 @@ function onReceiveNotify(key, value)
         end
       end
     end
+    return
+  end
+
+  -- Sent by porta_radio_btn.lua when a portamento mode radio button is pressed.
+  -- value = "0" (LEGATO) or "1" (ALWAYS)
+  if key == "porta_mode_set" then
+    local v = tonumber(value) or 0
+    tb3Send7bit(0x10, 0x00, 0x14, 0x02, v)
+    -- Notify both radio buttons so they update their visual state in sync.
+    local legato = root:findByName("porta_legato_btn", true)
+    local always  = root:findByName("porta_always_btn", true)
+    if legato then legato:notify("porta_mode_updated", value) end
+    if always  then always:notify("porta_mode_updated", value) end
     return
   end
 

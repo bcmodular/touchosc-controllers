@@ -34,9 +34,10 @@ local ENC_SEND_MAP = {
   ["vca_group,vca_lfo_depth_enc"] = { addr={0x10,0x00,0x00,0x0A}, bits=7, signed=true },
 
   -- ---- CV OFFSET / TUNING  10 00 02 00 ----
-  ["tuning_group,sqr_tuning_enc"]      = { addr={0x10,0x00,0x02,0x00}, bits=16 },
-  ["tuning_group,saw_tuning_enc"]      = { addr={0x10,0x00,0x02,0x02}, bits=16 },
-  ["tuning_group,ring_sin_tuning_enc"] = { addr={0x10,0x00,0x02,0x04}, bits=16 },
+  -- Tuning is bipolar: raw 0–255, centre 128 = 0, display raw−128 (−128…+127).
+  ["tuning_group,sqr_tuning_enc"]      = { addr={0x10,0x00,0x02,0x00}, bits=16, bipolar=true },
+  ["tuning_group,saw_tuning_enc"]      = { addr={0x10,0x00,0x02,0x02}, bits=16, bipolar=true },
+  ["tuning_group,ring_sin_tuning_enc"] = { addr={0x10,0x00,0x02,0x04}, bits=16, bipolar=true },
   ["tuning_group,tuning_enc"]          = { sp="global_tuning" },
 
   -- ---- CROSS MODULATION  10 00 04 00 ----

@@ -31,8 +31,8 @@
       "node_names": ["sw_button"]
     },
     {
-      "lua": "porta_mode_button.lua",
-      "node_name": "porta_mode_button"
+      "lua": "porta_radio_btn.lua",
+      "node_names": ["porta_legato_btn", "porta_always_btn"]
     },
     {
       "lua": "dist_toggle_button.lua",
@@ -862,9 +862,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.5,
-                  0.9,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:7,ch:bcr1",
@@ -945,9 +945,9 @@
           200
         ],
         "color": [
-          0.05,
-          0.1,
-          0.18,
+          0.04,
+          0.16,
+          0.16,
           1
         ],
         "properties": {
@@ -1000,9 +1000,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:1,ch:bcr1_lfo",
@@ -1059,9 +1059,9 @@
                   26
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:9,ch:bcr1_lfo",
@@ -1121,9 +1121,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:2,ch:bcr1_lfo",
@@ -1180,9 +1180,9 @@
                   26
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:10,ch:bcr1_lfo",
@@ -1242,9 +1242,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:3,ch:bcr1_lfo",
@@ -1343,9 +1343,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:4,ch:bcr1_lfo",
@@ -1444,9 +1444,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:5,ch:bcr1_lfo",
@@ -1545,9 +1545,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:6,ch:bcr1_lfo",
@@ -1646,9 +1646,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:7,ch:bcr1_lfo",
@@ -1747,9 +1747,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.45,
-                  0.85,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:8,ch:bcr1_lfo",
@@ -2290,9 +2290,9 @@
                   90
                 ],
                 "color": [
-                  0.2,
-                  0.75,
-                  0.3,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:29,ch:bcr1",
@@ -2521,26 +2521,57 @@
             ]
           },
           {
-            "name": "porta_mode_button",
+            "name": "porta_legato_btn",
             "type": "BUTTON",
             "frame": [
               120,
               50,
-              110,
+              53,
               32
             ],
-            "tag": "cc:22,ch:bcr1"
+            "tag": "val:0",
+            "properties": {
+              "buttonType": 1
+            }
           },
           {
-            "name": "porta_mode_label",
+            "name": "porta_legato_label",
             "type": "LABEL",
             "frame": [
               120,
               82,
-              110,
+              53,
               14
             ],
-            "text": "PORTA MODE",
+            "text": "LEGATO",
+            "properties": {
+              "textSize": 11
+            }
+          },
+          {
+            "name": "porta_always_btn",
+            "type": "BUTTON",
+            "frame": [
+              177,
+              50,
+              53,
+              32
+            ],
+            "tag": "val:1",
+            "properties": {
+              "buttonType": 1
+            }
+          },
+          {
+            "name": "porta_always_label",
+            "type": "LABEL",
+            "frame": [
+              177,
+              82,
+              53,
+              14
+            ],
+            "text": "ALWAYS",
             "properties": {
               "textSize": 11
             }
@@ -3245,7 +3276,7 @@
             "name": "vcf_attack_enc",
             "type": "GROUP",
             "frame": [
-              0,
+              220,
               26,
               100,
               122
@@ -3346,7 +3377,7 @@
             "name": "vcf_decay_enc",
             "type": "GROUP",
             "frame": [
-              110,
+              330,
               26,
               100,
               122
@@ -3447,7 +3478,7 @@
             "name": "vcf_sustain_enc",
             "type": "GROUP",
             "frame": [
-              220,
+              440,
               26,
               100,
               122
@@ -3548,7 +3579,7 @@
             "name": "vcf_release_enc",
             "type": "GROUP",
             "frame": [
-              330,
+              550,
               26,
               100,
               122
@@ -3649,7 +3680,7 @@
             "name": "vcf_cutoff_enc",
             "type": "GROUP",
             "frame": [
-              470,
+              0,
               26,
               100,
               122
@@ -3750,7 +3781,7 @@
             "name": "vcf_resonance_enc",
             "type": "GROUP",
             "frame": [
-              580,
+              110,
               26,
               100,
               122
@@ -3851,7 +3882,7 @@
             "name": "vcf_env_depth_enc",
             "type": "GROUP",
             "frame": [
-              690,
+              660,
               26,
               100,
               122
@@ -3952,7 +3983,7 @@
             "name": "vcf_key_follow_enc",
             "type": "GROUP",
             "frame": [
-              800,
+              770,
               26,
               100,
               122
@@ -4053,7 +4084,7 @@
             "name": "vcf_lfo_depth_enc",
             "type": "GROUP",
             "frame": [
-              910,
+              880,
               26,
               100,
               122
@@ -4079,9 +4110,9 @@
                   90
                 ],
                 "color": [
-                  0.9,
-                  0.55,
-                  0.15,
+                  0.1,
+                  0.65,
+                  0.65,
                   1
                 ],
                 "tag": "cc:47,ch:bcr1",
@@ -4154,7 +4185,7 @@
             "name": "accent_level_enc",
             "type": "GROUP",
             "frame": [
-              1020,
+              990,
               26,
               100,
               122
