@@ -7,8 +7,19 @@
 --
 -- External update via "porta_mode_updated" notify (from parseSpecial or root)
 -- → silently sets self.values.x without triggering SysEx.
+--
+-- Text colour: switches button + sibling label to black when lit (readable
+-- against the light purple button background) and white when unlit.
 
 local updating = false
+
+-- Apply text colour to this button and its companion label based on x.
+local function applyTextColor()
+  local color = Color.fromHexString(self.values.x >= 0.5 and "000000FF" or "FFFFFFFF")
+  self.textColor = color
+  local lbl = self.parent.children[self.name:gsub("_btn$", "_label")]
+  if lbl then lbl.textColor = color end
+end
 
 function init()
   -- Default: LEGATO (val=0) is active on layout load unless a patch dump
@@ -23,6 +34,7 @@ function init()
       updating = false
     end
   end
+  applyTextColor()
 end
 
 function onValueChanged(key)
@@ -48,6 +60,8 @@ function onValueChanged(key)
       updating = false
     end
   end
+
+  applyTextColor()
 end
 
 function onReceiveNotify(key, value)
@@ -58,4 +72,5 @@ function onReceiveNotify(key, value)
   updating = true
   self.values.x = (v == my_val) and 1 or 0
   updating = false
+  applyTextColor()
 end
