@@ -1,6 +1,8 @@
 # TB-3 TouchOSC Controller
 
-A full-featured TouchOSC layout for the Roland TB-3 synthesizer, providing complete parameter control via SysEx with optional BCR2000 hardware encoder support.
+A full-featured TouchOSC layout for the Roland TB-3 synthesizer, providing complete parameter control via SysEx. Works standalone from a touchscreen, with optional Behringer BCR2000 hardware encoder support for hands-on knob control.
+
+The BCR2000 integration is designed for **two units** (one for tone/distortion, one for effects), but works equally well with a **single BCR2000** — load both presets onto it and switch between them to access each half of the feature set.
 
 ![TB-3 controller showing patch C03](screenshots/C03.png)
 
@@ -10,7 +12,7 @@ A full-featured TouchOSC layout for the Roland TB-3 synthesizer, providing compl
 
 - **TouchOSC** (desktop or iPad) — `TB3.tosc`
 - **Roland TB-3** connected via USB MIDI
-- **BCR2000 ×2** *(optional)* — hardware encoder control for tone and effects
+- **BCR2000** *(optional)* — one unit (switch presets) or two units (simultaneous access)
 
 ---
 
