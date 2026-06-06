@@ -163,6 +163,15 @@ local function dispHPF(raw)
   return HPF_FREQS[raw + 1] or tostring(raw)
 end
 
+-- Flanger HPF (0-10): Flat → 800 Hz in 11 steps (condensed from standard table).
+-- Exact frequencies are approximate — verify against hardware.
+local FL_HPF_FREQS = {
+  "Flat","20 Hz","40 Hz","80 Hz","125 Hz","200 Hz","315 Hz","500 Hz","630 Hz","710 Hz","800 Hz"
+}
+local function dispFLHPF(raw)
+  return FL_HPF_FREQS[raw + 1] or tostring(raw)
+end
+
 -- LPF table (0-14): 630 Hz → Flat  (shared by multiple effects)
 local LPF_FREQS = {
   "630 Hz","800 Hz","1 kHz","1.25 kHz","1.6 kHz","2 kHz","2.5 kHz",
@@ -266,6 +275,7 @@ local TYPE_DEFS = {
 
   -- 2: RING MOD
   --    EQ LOW/HIGH 0-30 = ±15 dB  |  BALANCE 0-100 = −50…+50
+  --    POLARITY 0=UP, 1=DOWN — two radio buttons (B2/B3)
   [2] = { name="RING MOD",
     swOff = 0x09,
     slots = {
@@ -277,7 +287,8 @@ local TYPE_DEFS = {
       {off=0x0E, name="EQ HIGH", max=30,  display=dispDb15},
     },
     btns = {
-      {off=0x0C, name="POLARITY", action="toggle", max=1},
+      {off=0x0C, name="UP",   action="set", val=0},
+      {off=0x0C, name="DOWN", action="set", val=1},
     },
   },
 
@@ -304,7 +315,7 @@ local TYPE_DEFS = {
   [4] = { name="TREMOLO",
     swOff = 0x18,
     slots = {
-      {off=0x1B, name="RATE",     max=100, display=dispRate},
+      {off=0x1B, name="RATE",     max=100, display=dispRate, disabledBy={0x1C}},
       {off=0x1E, name="DEPTH",    max=100},
       {off=0x19, name="TYPE",     max=5,   display=dispTrType},
       {off=0x20, name="LEVEL",    max=100},
@@ -327,7 +338,7 @@ local TYPE_DEFS = {
   [5] = { name="CHORUS",
     swOff = 0x21,
     slots = {
-      {off=0x23, name="RATE",     max=100, display=dispRate},
+      {off=0x23, name="RATE",     max=100, display=dispRate, disabledBy={0x24}},
       {off=0x25, name="DEPTH",    max=100},
       {off=0x26, name="PRE DLY",  max=80,  display=dispMs},
       {off=0x29, name="LEVEL",    max=100},
@@ -347,16 +358,16 @@ local TYPE_DEFS = {
   --    RATE 0-100 = ~8000-20 ms (disabled when BPM SYNC ≠ 0)
   --    BPM SYNC 0-20 = beat divisions           ← now a slot
   --    MANUAL 0-100 = −50…+50
-  --    HPF 0-10 = Flat-800 Hz
+  --    HPF 0-10 = Flat-800 Hz (11-step condensed table, verify against hardware)
   [6] = { name="FLANGER",
     swOff = 0x2A,
     slots = {
-      {off=0x2B, name="RATE",       max=100, display=dispRate},
+      {off=0x2B, name="RATE",       max=100, display=dispRate, disabledBy={0x2C}},
       {off=0x2D, name="DEPTH",      max=100},
       {off=0x2E, name="MANUAL",     max=100, display=dispBipolar50},
       {off=0x2F, name="RESONANCE",  max=100},
       {off=0x30, name="SEPARATN",   max=100},
-      {off=0x31, name="HPF",        max=10,  display=dispHPF},
+      {off=0x31, name="HPF",        max=10,  display=dispFLHPF},
       {off=0x32, name="EFX LVL",    max=100},
       {off=0x33, name="DIRECT LVL", max=100},
       {off=0x2C, name="BPM SYNC",   max=20,  display=dispBpmDiv},
@@ -372,7 +383,7 @@ local TYPE_DEFS = {
   [7] = { name="PHASER",
     swOff = 0x34,
     slots = {
-      {off=0x36, name="RATE",       max=100, display=dispRate},
+      {off=0x36, name="RATE",       max=100, display=dispRate, disabledBy={0x37, 0x3B}},
       {off=0x38, name="DEPTH",      max=100},
       {off=0x39, name="MANUAL",     max=100, display=dispBipolar50},
       {off=0x3A, name="RESONANCE",  max=127},
@@ -398,7 +409,7 @@ local TYPE_DEFS = {
   [8] = { name="DELAY",
     swOff = 0x3E,
     slots = {
-      {off=0x40, name="TIME",       max=100, display=dispMs},
+      {off=0x40, name="TIME",       max=100, display=dispMs, disabledBy={0x42}},
       {off=0x41, name="TAP TIME",   max=100, display=dispPct},
       {off=0x43, name="FEEDBACK",   max=100},
       {off=0x44, name="LPF",        max=14,  display=dispLPF},
@@ -532,6 +543,38 @@ local function btnLabelsGroup()
 end
 
 -- ---------------------------------------------------------------------------
+-- refreshDisabledLabels
+-- Dims the name_label of any slot whose disabledBy condition is currently met.
+-- Called from applyType (inline) and after every slot send so the rate label
+-- updates immediately when the user changes BPM SYNC via an encoder.
+-- ---------------------------------------------------------------------------
+
+local DIM_COLOR = "777777FF"   -- greyed name text → parameter currently bypassed
+local LIT_COLOR = "FFFFFFFF"   -- normal name text
+
+local function refreshDisabledLabels(def)
+  if not def or not def.slots then return end
+  for i = 1, 12 do
+    local slotDef = def.slots[i]
+    if slotDef and slotDef.disabledBy then
+      local slotGrp = self.children[slotGroupName(i)]
+      if slotGrp then
+        local nameLbl = slotGrp.children["name_label"]
+        if nameLbl then
+          local disabled = false
+          for _, dOff in ipairs(slotDef.disabledBy) do
+            if (rawData[dOff + 1] or 0) > 0 then
+              disabled = true; break
+            end
+          end
+          nameLbl.textColor = Color.fromHexString(disabled and DIM_COLOR or LIT_COLOR)
+        end
+      end
+    end
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- applyType — remaps slots, buttons, colours, labels, BCR rings.
 --
 -- Slot display: if slotDef.display is set, calls display(raw) for the label.
@@ -590,6 +633,9 @@ local function applyType(typeIdx)
       end
     end
   end
+
+  -- Dim name labels for any slot that is currently bypassed by BPM SYNC etc.
+  refreshDisabledLabels(def)
 
   -- ── B buttons + labels ───────────────────────────────────────────────────
   local lblGrp = btnLabelsGroup()
@@ -673,6 +719,8 @@ local function sendSlotFromFloat(slotIdx, x)
     local txt    = slotDef.display and slotDef.display(raw) or tostring(raw)
     if valLbl then valLbl.values.text = txt end
   end
+  -- Re-check disabled labels in case this change affected a RATE slot.
+  refreshDisabledLabels(def)
 end
 
 local function sendSlotFromCC(slotIdx, ccVal)
@@ -690,6 +738,8 @@ local function sendSlotFromCC(slotIdx, ccVal)
     if fader  then fader.values.x     = raw / slotDef.max end
     if valLbl then valLbl.values.text = txt end
   end
+  -- Re-check disabled labels in case this change affected a RATE slot.
+  refreshDisabledLabels(def)
 end
 
 -- ---------------------------------------------------------------------------

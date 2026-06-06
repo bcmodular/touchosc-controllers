@@ -541,11 +541,17 @@ function onReceiveNotify(key, value)
           local raw = math.floor(x * 127 + 0.5)
           local s   = raw - 64
           lbl_text  = (s >= 0 and "+" or "") .. tostring(s)
+        elseif entry.bipolar then
+          -- Bipolar linear: centre = max/2; display as ±value.
+          local m    = entry.max or 100
+          local raw  = math.floor(x * m + 0.5)
+          local s    = raw - math.floor(m / 2)
+          lbl_text   = (s >= 0 and "+" or "") .. tostring(s)
         elseif entry.bits == 16 then
           -- 16-bit nibble-packed: full range is 0–(max or 255).
           lbl_text = tostring(math.floor(x * (entry.max or 255) + 0.5))
         elseif entry.max and entry.max ~= 127 then
-          -- Custom 7-bit max (e.g. DRIVE=120, BOTTOM=100, BENDER=17).
+          -- Custom 7-bit max (e.g. DRIVE=120, BENDER=17).
           lbl_text = tostring(math.floor(x * entry.max + 0.5))
         end
         if lbl_text then

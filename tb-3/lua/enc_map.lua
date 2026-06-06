@@ -87,8 +87,8 @@ local ENC_SEND_MAP = {
 
   -- ---- DISTORTION  10 00 0E 00 ----
   ["dist_group,dist_drive_enc"]     = { addr={0x10,0x00,0x0E,0x02}, bits=7, max=120 },
-  ["dist_group,dist_bottom_enc"]    = { addr={0x10,0x00,0x0E,0x03}, bits=7, max=100 },
-  ["dist_group,dist_tone_enc"]      = { addr={0x10,0x00,0x0E,0x04}, bits=7, max=100 },
+  ["dist_group,dist_bottom_enc"]    = { addr={0x10,0x00,0x0E,0x03}, bits=7, max=100, bipolar=true },
+  ["dist_group,dist_tone_enc"]      = { addr={0x10,0x00,0x0E,0x04}, bits=7, max=100, bipolar=true },
   ["dist_group,dist_efx_level_enc"] = { addr={0x10,0x00,0x0E,0x05}, bits=7, max=100 },
   ["dist_group,dist_dry_level_enc"] = { addr={0x10,0x00,0x0E,0x06}, bits=7, max=100 },
 

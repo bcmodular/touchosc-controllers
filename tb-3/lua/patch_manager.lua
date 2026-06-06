@@ -136,8 +136,8 @@ local REGISTRY = {
     {off=0, enc="dist_on_off",        kind="sw",  btn=true},
     {off=1, kind="sp",                sp="dist_type"},
     {off=2, enc="dist_drive_enc",     kind="u7",  max=120},
-    {off=3, enc="dist_bottom_enc",    kind="u7",  max=100},
-    {off=4, enc="dist_tone_enc",      kind="u7",  max=100},
+    {off=3, enc="dist_bottom_enc",    kind="u7",  max=100, bipolar=true},
+    {off=4, enc="dist_tone_enc",      kind="u7",  max=100, bipolar=true},
     {off=5, enc="dist_efx_level_enc", kind="u7",  max=100},
     {off=6, enc="dist_dry_level_enc", kind="u7",  max=100},
     {off=7, enc="dist_color",         kind="sw",  btn=true},
@@ -198,7 +198,14 @@ local function applyValue(field, raw)
   if kind == "u7" then
     local m = maxV or 127
     faderVal  = raw / m
-    labelText = tostring(raw)
+    if field.bipolar then
+      -- Bipolar linear: centre = max/2, display as ±value
+      local half = math.floor(m / 2)
+      local s    = raw - half
+      labelText  = (s >= 0 and "+" or "") .. s
+    else
+      labelText = tostring(raw)
+    end
 
   elseif kind == "u16" then
     local m = maxV or 255
