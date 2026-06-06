@@ -101,7 +101,7 @@ local TYPE_DEFS = {
 
   -- 1: CS — Compressor/Sustainer
   -- SW at 0x01, params at 0x02–0x08
-  [1] = { name="CS",
+  [1] = { name="COMP",
     swOff = 0x01,
     slots = {
       {off=0x04, name="THRESHOLD", max=40},
@@ -126,7 +126,7 @@ local TYPE_DEFS = {
 
   -- 2: RM — Ring Modulator
   -- SW at 0x09, params at 0x0A–0x10
-  [2] = { name="RM",
+  [2] = { name="RING MOD",
     swOff = 0x09,
     slots = {
       {off=0x0A, name="FREQ",    max=127},
@@ -146,7 +146,7 @@ local TYPE_DEFS = {
 
   -- 3: BC — Bit Crusher
   -- SW at 0x11, params at 0x12–0x17
-  [3] = { name="BC",
+  [3] = { name="BIT CRUSH",
     swOff = 0x11,
     slots = {
       {off=0x12, name="FILTER",   max=127},
@@ -163,7 +163,7 @@ local TYPE_DEFS = {
 
   -- 4: TR — Tremolo
   -- SW at 0x18, params at 0x19–0x20
-  [4] = { name="TR",
+  [4] = { name="TREMOLO",
     swOff = 0x18,
     slots = {
       {off=0x1B, name="RATE",  max=100},
@@ -185,7 +185,7 @@ local TYPE_DEFS = {
 
   -- 5: CH — Chorus
   -- SW at 0x21, params at 0x22–0x29
-  [5] = { name="CH",
+  [5] = { name="CHORUS",
     swOff = 0x21,
     slots = {
       {off=0x23, name="RATE",    max=100},
@@ -211,7 +211,7 @@ local TYPE_DEFS = {
 
   -- 6: FL — Flanger
   -- SW at 0x2A, params at 0x2B–0x33
-  [6] = { name="FL",
+  [6] = { name="FLANGER",
     swOff = 0x2A,
     slots = {
       {off=0x2B, name="RATE",      max=100},
@@ -233,7 +233,7 @@ local TYPE_DEFS = {
 
   -- 7: PH — Phaser
   -- SW at 0x34, params at 0x35–0x3D
-  [7] = { name="PH",
+  [7] = { name="PHASER",
     swOff = 0x34,
     slots = {
       {off=0x36, name="RATE",      max=100},
@@ -262,7 +262,7 @@ local TYPE_DEFS = {
 
   -- 8: DD — Digital Delay
   -- SW at 0x3E, params at 0x3F–0x46
-  [8] = { name="DD",
+  [8] = { name="DELAY",
     swOff = 0x3E,
     slots = {
       {off=0x40, name="TIME",      max=100},
@@ -294,7 +294,7 @@ local TYPE_DEFS = {
 if efxNum == 1 then
 
   -- 9: PS — Pitch Shifter (EFX1 only)
-  TYPE_DEFS[9] = { name="PS",
+  TYPE_DEFS[9] = { name="PITCH SHIFT",
     swOff = 0x47,
     slots = {
       {off=0x49, name="PITCH 1",   max=48},
@@ -346,7 +346,7 @@ if efxNum == 1 then
 else  -- efxNum == 2
 
   -- 9: RV — Reverb (EFX2 only)
-  TYPE_DEFS[9] = { name="RV",
+  TYPE_DEFS[9] = { name="REVERB",
     swOff = 0x47,
     slots = {
       {off=0x49, name="TIME",      max=99},

@@ -137,7 +137,11 @@ def add_script_for_child(xml: bytes, parent_name: str, child_name: str) -> tuple
 
 def insert_group_before_closing_children(xml: bytes, parent_name: str,
                                           group_xml: bytes) -> tuple[bytes, int]:
-    """Append group_xml as the last child of the named parent node."""
+    """Append group_xml as the last child of the named parent node.
+
+    Uses depth tracking to find the correct </children> for the named parent,
+    avoiding false matches on nested children tags inside child nodes.
+    """
     target = f"<![CDATA[{parent_name}]]>".encode()
     pos = 0
     while True:
@@ -149,12 +153,27 @@ def insert_group_before_closing_children(xml: bytes, parent_name: str,
         if children_open == -1:
             pos = idx + 1
             continue
-        children_close = xml.find(b"</children>", children_open)
-        if children_close == -1:
+        # Walk forward with depth tracking to find the MATCHING </children>
+        search_pos = children_open + len(b"<children>")
+        depth = 0
+        children_close = None
+        i = search_pos
+        while i < len(xml):
+            if xml[i:i+10] == b"<children>":
+                depth += 1
+                i += 10
+            elif xml[i:i+11] == b"</children>":
+                if depth == 0:
+                    children_close = i
+                    break
+                depth -= 1
+                i += 11
+            else:
+                i += 1
+        if children_close is None:
             pos = idx + 1
             continue
-        # Check the group name doesn't already exist in children
-        children_range = xml[children_open:children_close]
+        # Check the group name doesn't already exist as a direct child
         if group_xml[:60] in xml[children_open:children_close + 100]:
             return xml, 0  # already present
         xml = xml[:children_close] + group_xml + xml[children_close:]
