@@ -34,10 +34,13 @@ local ENC_SEND_MAP = {
   ["vca_group,vca_lfo_depth_enc"] = { addr={0x10,0x00,0x00,0x0A}, bits=7, signed=true },
 
   -- ---- CV OFFSET / TUNING  10 00 02 00 ----
-  -- Tuning is bipolar: raw 0–255, centre 128 = 0, display raw−128 (−128…+127).
-  ["tuning_group,sqr_tuning_enc"]      = { addr={0x10,0x00,0x02,0x00}, bits=16, bipolar=true },
-  ["tuning_group,saw_tuning_enc"]      = { addr={0x10,0x00,0x02,0x02}, bits=16, bipolar=true },
-  ["tuning_group,ring_sin_tuning_enc"] = { addr={0x10,0x00,0x02,0x04}, bits=16, bipolar=true },
+  -- Range: raw 0 = −127, raw 127 = 0 (centre), raw 151 = +24 (hardware max).
+  -- Empirically: no audible effect above raw 151. Ctrlr also caps at +24.
+  -- NOTE: Dope Robot spec labels these as SQR=00, SAW=02 but SysEx capture from
+  -- Ctrlr confirms the actual hardware mapping is reversed: SAW=00, SQR=02.
+  ["tuning_group,saw_tuning_enc"]      = { addr={0x10,0x00,0x02,0x00}, bits=16, bipolar=true, max=151, center=127 },
+  ["tuning_group,sqr_tuning_enc"]      = { addr={0x10,0x00,0x02,0x02}, bits=16, bipolar=true, max=151, center=127 },
+  ["tuning_group,ring_sin_tuning_enc"] = { addr={0x10,0x00,0x02,0x04}, bits=16, bipolar=true, max=151, center=127 },
   ["tuning_group,tuning_enc"]          = { sp="global_tuning" },
 
   -- ---- CROSS MODULATION  10 00 04 00 ----
@@ -122,9 +125,6 @@ local SW_SEND_MAP = {
 
   -- ---- Portamento switch (sw_button inside porta_time_enc) ----
   ["portamento_group,porta_time_enc"] = { addr={0x10,0x00,0x14,0x00}, bits=7 },
-
-  -- ---- Portamento mode (standalone toggle: 0=LEGATO, 1=ALWAYS) ----
-  ["portamento_group,porta_mode_button"] = { addr={0x10,0x00,0x14,0x02}, bits=7, btn=true },
 
   -- ---- Distortion toggles — Phase 3 (included here for completeness) ----
   -- btn=true: these are standalone BUTTON nodes, not enc_groups with sw_button children.

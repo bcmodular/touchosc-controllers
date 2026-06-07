@@ -7,14 +7,19 @@
 --       enc     = self.parent.name       (e.g. "vcf_cutoff_enc")
 --       x       = self.values.x          (0.0–1.0 float)
 --
+-- Touch events are brokered by the sibling pointer BOX (pointer.lua), which
+-- sits on top of this control and intercepts all pointer input.  pointer.lua
+-- notifies root directly with "enc_touched" on finger-down, and notifies this
+-- node with "touch" true/false around a drag gesture.
+--
 -- Root looks up ENC_SEND_MAP[section .. "," .. enc] and sends SysEx.
--- Unknown encoders (e.g. EFX slots before Phase 4) are silently ignored.
+-- Unknown encoders (e.g. EFX slots) are silently ignored.
 
 function onValueChanged(key)
   if key ~= "x" then return end
 
   -- Update value_label with a 0–127 integer approximation.
-  -- Refined display (signed, scaled max) can be added per-section in later phases.
+  -- Refined display (signed, scaled max) is applied in root's enc_moved handler.
   local lbl = self.parent.children["value_label"]
   if lbl then
     lbl.values.text = tostring(math.floor(self.values.x * 127 + 0.5))

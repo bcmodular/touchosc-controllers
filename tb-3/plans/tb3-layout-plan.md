@@ -1,6 +1,6 @@
 # TB-3 TouchOSC Layout — Phased Delivery Plan
 
-> **Status as of 2026-06-06.** Phases 0–4 complete. Phase 4 testing/polish ongoing (EFX parameter display, BPM SYNC, disabled slot visualisation, time row layout — all done). Phase 5 (patch management app + parameter assign UI) not yet started.
+> **Status as of 2026-06-06.** Phases 0–5 complete. Phase 5 delivered: parameter assign UI (4 slot buttons + status display), PARAM_ID_MAP covering all on-screen encoders, SysEx block cache + Save to Library + JSON export, /tb3/restore OSC path, and Python Qt preset manager app.
 
 ---
 
@@ -211,35 +211,47 @@ Full context-sensitive EFX engine complete. Both sections share `efx_section.lua
 
 **BCR sync:** `sendBCRcc()` called for all slots in `applyType()` so BCR2 LED rings update on patch receive.
 
-### 🔲 Phase 5 — Patch Management, Parameter Assign + Python Qt App
+### ✅ Phase 5 — Patch Management, Parameter Assign + Python Qt App
 
-Not yet started.
+**Parameter Assign UI (TouchOSC):**
 
-**TouchOSC side:**
-- OSC export/import of current patch state (JSON via element tag)
-- `/tb3/request_dump` OSC trigger for remote dump request already implemented
+`assign_group` in the layout contains four latch-buttons (toggle `buttonType=1`):
+- `assign_xy_mod_btn` (tag: `slot:xy_mod`)
+- `assign_effect_knob_btn` (tag: `slot:effect_knob`)
+- `assign_pad_x_btn` (tag: `slot:pad_x`)
+- `assign_pad_y_btn` (tag: `slot:pad_y`)
 
-**Python Qt app (`tb-3/preset-manager/`):**
-- Modelled on `sp404-mk2/preset-manager/python/`
-- Receives OSC from TouchOSC, stores as JSON patch files
-- Sends OSC back to layout for recall
+Script: `assign_slot_btn.lua`. Press a button → root enters assign mode for that slot. Move any on-screen encoder → root looks up `PARAM_ID_MAP[section,enc]` → sends nibble-packed 16-bit ID to the slot's SysEx address → assign mode exits. Press the active button again → cancel.
 
-**Parameter Assign UI:**
+`assign_status_label` LABEL shows the current assignment for each slot (populated from dump via `parseSpecial` in `patch_manager.lua`, or updated immediately after a manual assign).
 
-Assigns synthesis parameters to the TB-3's four hardware controls (EFFECT knob, PAD X/Y/Z). SysEx: `10 00 14 04`–`10 00 14 0B` (four 16-bit parameter IDs).
+SysEx addresses (all 16-bit nibble-packed): `10 00 14 04` (XY PAD MOD) / `06` (EFFECT KNOB) / `08` (PAD X) / `0A` (PAD Y).
 
-UX flow:
-1. User taps one of four assign buttons [EFFECT] / [PAD X] / [PAD Y] / [PAD Z]
-2. Layout enters assign mode; status label reads e.g. "Tap encoder to assign to EFFECT knob"
-3. User taps any encoder → that parameter assigned, mode exits
+`PARAM_ID_MAP` in `patch_manager.lua`: ~50 on-screen encoders mapped to their spec PARAM_IDs. PARAM_ID_NAMES reverse-lookup (id → display name) built automatically.
 
-Root-centric architecture: `root.lua` owns the full `PARAM_ID` table (encoder name → 16-bit ID); `pointer.lua` sends `encoder_tapped` notify and stays parameter-agnostic.
+**Patch Export / Save to Library:**
+
+Root caches every received DT1 SysEx block in `rawSysexBlocks` (keyed by address). When "SAVE TO LIBRARY" button is pressed, root reconstructs full `F0…F7` SysEx messages for all 11 blocks and sends as a JSON blob (`{"blocks":["F041…F7","F041…F7",…]}`) via `sendOSC("/tb3/backup", json)`.
+
+**Restore OSC path:**
+
+`/tb3/restore` (new) — comma-separated hex string per block, same format as `/tb3/patch` but ALSO forwards the SysEx to the TB-3 hardware via `sendMIDI`. EFX blocks are forwarded to their section nodes.
+
+**Python Qt App (`tb-3/preset-manager/preset-manager.py`):**
+
+Modelled on `sp404-mk2/preset-manager/python/`. Requires `pip install python-osc PyQt5`.
+
+- **Receive** `/tb3/backup` JSON → user prompted for name → saved as raw binary `.syx`
+- **Restore** → reads `.syx`, splits F0…F7 messages, sends each as CSV hex to `/tb3/restore`
+- **Import** `.syx` from filesystem; **Export** to filesystem
+- Settings: listener IP/port, TouchOSC IP/port, patches directory
+- Default patches folder: `~/tb3_patches/`
 
 ---
 
 ## Verification Checklist (per phase)
 
-1. `python3 tools/toscbuild.py build tb-3` exits clean (214/214 scripts)
+1. `python3 tools/toscbuild.py build tb-3` exits clean (219/219 scripts)
 2. Load `TB3.tosc` in TouchOSC
 3. Move a fader → MIDI monitor shows correct SysEx frame, address, checksum
 4. BCR2000 encoder turn → fader moves in TouchOSC AND correct SysEx sent
@@ -258,7 +270,7 @@ Root-centric architecture: `root.lua` owns the full `PARAM_ID` table (encoder na
 | **RATE display curve** | ⚠️ Needs verify | `dispRate` uses a linear approximation of the 8000ms→20ms log curve. |
 | **EQ frequency mapping** | ⚠️ Needs verify | `dispEQFreq` / `dispEQQ` are estimates; hardware measurement needed. |
 | **Compressor attack/release** | ⚠️ Needs verify | Linear approximation of actual curves. |
-| **Phase 5** | 🔲 Not started | Python preset manager + parameter assign UI |
-| **CC16/CC17 (Accent, Effect)** | 🔲 Deferred | TB-3 hardware knobs send these; depend on parameter assign (Phase 5) |
+| **Phase 5** | ✅ Complete | Parameter assign UI, PARAM_ID_MAP, Save to Library, /tb3/restore, Python Qt app |
+| **CC16/CC17 (Accent, Effect)** | ⚠️ Deferred | TB-3 hardware knobs send these; depend on which parameters are currently assigned |
 | **Global TUNING (CC104)** | ✅ Resolved | BCR1 CC100 sends plain MIDI CC 104 to TB-3 CH2 (not SysEx). Device-global, not in patch dumps. |
 | **TB3.tosc naming fixes** | ✅ Resolved | All naming issues from early planning resolved in final layout. |

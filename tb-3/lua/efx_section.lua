@@ -596,6 +596,9 @@ local function applyType(typeIdx)
   curType = typeIdx
   local def = TYPE_DEFS[typeIdx]
 
+  -- Notify root so it can track the current type for parameter assignment.
+  root:notify("efx_type_changed", efxNum .. "," .. typeIdx)
+
   updateLabel("EFX" .. efxNum .. ": " .. (def and def.name or "???"))
 
   local typeCCval = (MAX_TYPE > 0) and math.floor(typeIdx / MAX_TYPE * 127 + 0.5) or 0
@@ -836,6 +839,8 @@ function onReceiveNotify(key, value)
       if lbl then lbl.textColor = Color.fromHexString(nxt >= 0.5 and ON_TXT or OFF_TXT) end
       self.tag = ""
       sendBCRcc(BTN_CC[1], nxt * 127)
+      -- Notify root for parameter assignment: EFX SW param (swOff encodes param ID).
+      root:notify("efx_sw_touched", efxNum .. "," .. def.swOff)
       return
     end
 

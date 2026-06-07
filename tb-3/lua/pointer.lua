@@ -33,6 +33,9 @@ function onPointer(pointers)
       startValue = controlFader.values.x
       startY     = p.y
       controlFader:notify("touch", true)
+      -- Notify root for parameter assignment mode: which encoder was touched.
+      root:notify("enc_touched",
+        self.parent.parent.name .. "," .. self.parent.name)
 
     elseif p.state == PointerState.MOVE then
       local distance = startY - p.y

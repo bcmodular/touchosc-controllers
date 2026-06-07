@@ -13,10 +13,10 @@
 
 local updating = false
 
--- Apply text colour to this button and its companion label based on x.
+-- Apply text colour to the companion label based on x.
+-- Note: BUTTON nodes do not expose textColor in TouchOSC Lua; only LABEL nodes do.
 local function applyTextColor()
   local color = Color.fromHexString(self.values.x >= 0.5 and "000000FF" or "FFFFFFFF")
-  self.textColor = color
   local lbl = self.parent.children[self.name:gsub("_btn$", "_label")]
   if lbl then lbl.textColor = color end
 end

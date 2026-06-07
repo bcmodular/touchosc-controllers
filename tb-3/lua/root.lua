@@ -20,6 +20,67 @@
 -- Connection / channel constants
 -- ---------------------------------------------------------------------------
 
+-- ---------------------------------------------------------------------------
+-- Parameter Assign state
+-- ---------------------------------------------------------------------------
+
+-- Active slot being assigned (nil = not in assign mode).
+-- Set to "xy_mod" | "effect_knob" | "pad_x" | "pad_y" while waiting for
+-- the user to move an encoder to select the parameter.
+local assignActiveSlot = nil
+
+-- Hardware slot → SysEx address + display label.
+local ASSIGN_SLOTS = {
+  xy_mod      = {addr={0x10,0x00,0x14,0x04}, label="XY PAD MOD"},
+  effect_knob = {addr={0x10,0x00,0x14,0x06}, label="EFX KNOB"},
+  pad_x       = {addr={0x10,0x00,0x14,0x08}, label="PAD X"},
+  pad_y       = {addr={0x10,0x00,0x14,0x0A}, label="PAD Y"},
+}
+
+-- Keys in a stable order for iteration (broadcastAssignMode, export).
+local ASSIGN_SLOT_KEYS = {"xy_mod", "effect_knob", "pad_x", "pad_y"}
+
+-- Notify all four assign slot buttons so they update their lit state.
+-- activeSlot = slot key string, or nil/"" to turn all off.
+local function broadcastAssignMode(activeSlot)
+  for _, k in ipairs(ASSIGN_SLOT_KEYS) do
+    local btn = root:findByName("assign_" .. k .. "_btn", true)
+    if btn then btn:notify("assign_mode_changed", activeSlot or "") end
+  end
+end
+
+-- Refresh all four per-slot assign status labels.
+-- When a slot is active (assign mode), its label shows a touch prompt.
+-- All other labels (and all labels when not in assign mode) show the
+-- currently assigned parameter name or "—".
+local function refreshAssignLabel()
+  -- Update all labels to their current param-name values first.
+  updateAssignDisplay()
+  -- Override the active slot's label with the assign-mode prompt.
+  if assignActiveSlot then
+    local lbl = root:findByName("assign_" .. assignActiveSlot .. "_status", true)
+    if lbl then lbl.values.text = "tap encoder" end
+  end
+end
+
+-- ---------------------------------------------------------------------------
+-- Raw SysEx block cache — stores the last received DT1 block per address key.
+-- Used by "save_to_library" to export a .syx-compatible JSON blob.
+-- Key: "%02X%02X%02X%02X" of the 4-byte address.
+-- ---------------------------------------------------------------------------
+
+local rawSysexBlocks = {}
+
+local EXPORT_BLOCK_ORDER = {
+  "10000000", "10000200", "10000400", "10000600",
+  "10000800", "10000A00", "10000C00", "10000E00",
+  "10001000", "10001200", "10001400",
+}
+
+-- ---------------------------------------------------------------------------
+-- Connection / channel constants
+-- ---------------------------------------------------------------------------
+
 -- Connection bitmasks: index = connection number, true = active.
 -- BCR2000 #1 and #2 both arrive on connection 2.
 local BCR_CONNECTION   = {false, true}
@@ -30,6 +91,29 @@ local TB3_MIDI_CHANNEL = 2
 
 local BCR1_CHANNEL     = 1   -- BCR2000 #1 (all encoder groups on one channel)
 local BCR2_CHANNEL     = 2   -- BCR2000 #2: EFX1 + EFX2
+
+-- ---------------------------------------------------------------------------
+-- Global tuning display table (CC 104, verified against hardware)
+-- CC 64 = 0.0, range −7.0 (CC 0) to +7.0 (CC 127), steps mostly 0.1 st.
+-- ---------------------------------------------------------------------------
+local GLOBAL_TUNING_DISPLAY = {
+  [0]="-7.0st", [1]="-6.9st", [2]="-6.8st", [3]="-6.7st", [4]="-6.6st", [5]="-6.4st", [6]="-6.3st", [7]="-6.2st",
+  [8]="-6.1st", [9]="-6.0st", [10]="-5.9st", [11]="-5.8st", [12]="-5.7st", [13]="-5.6st", [14]="-5.5st", [15]="-5.3st",
+  [16]="-5.2st", [17]="-5.1st", [18]="-5.0st", [19]="-4.9st", [20]="-4.8st", [21]="-4.7st", [22]="-4.6st", [23]="-4.5st",
+  [24]="-4.4st", [25]="-4.2st", [26]="-4.1st", [27]="-4.0st", [28]="-3.9st", [29]="-3.8st", [30]="-3.7st", [31]="-3.6st",
+  [32]="-3.5st", [33]="-3.4st", [34]="-3.3st", [35]="-3.1st", [36]="-3.0st", [37]="-2.9st", [38]="-2.8st", [39]="-2.7st",
+  [40]="-2.6st", [41]="-2.5st", [42]="-2.4st", [43]="-2.3st", [44]="-2.1st", [45]="-2.0st", [46]="-1.9st", [47]="-1.8st",
+  [48]="-1.7st", [49]="-1.6st", [50]="-1.5st", [51]="-1.4st", [52]="-1.3st", [53]="-1.2st", [54]="-1.0st", [55]="-0.9st",
+  [56]="-0.8st", [57]="-0.7st", [58]="-0.6st", [59]="-0.5st", [60]="-0.4st", [61]="-0.3st", [62]="-0.2st", [63]="-0.1st",
+  [64]="+0.0st", [65]="+0.2st", [66]="+0.3st", [67]="+0.4st", [68]="+0.5st", [69]="+0.6st", [70]="+0.7st", [71]="+0.8st",
+  [72]="+0.9st", [73]="+1.0st", [74]="+1.2st", [75]="+1.3st", [76]="+1.4st", [77]="+1.5st", [78]="+1.6st", [79]="+1.7st",
+  [80]="+1.8st", [81]="+1.9st", [82]="+2.0st", [83]="+2.1st", [84]="+2.3st", [85]="+2.4st", [86]="+2.5st", [87]="+2.6st",
+  [88]="+2.7st", [89]="+2.8st", [90]="+2.9st", [91]="+3.0st", [92]="+3.1st", [93]="+3.3st", [94]="+3.4st", [95]="+3.5st",
+  [96]="+3.6st", [97]="+3.7st", [98]="+3.8st", [99]="+3.9st", [100]="+4.0st", [101]="+4.1st", [102]="+4.2st", [103]="+4.4st",
+  [104]="+4.5st", [105]="+4.6st", [106]="+4.7st", [107]="+4.8st", [108]="+4.9st", [109]="+5.0st", [110]="+5.1st", [111]="+5.2st",
+  [112]="+5.3st", [113]="+5.5st", [114]="+5.6st", [115]="+5.7st", [116]="+5.8st", [117]="+5.9st", [118]="+6.0st", [119]="+6.1st",
+  [120]="+6.2st", [121]="+6.3st", [122]="+6.4st", [123]="+6.6st", [124]="+6.7st", [125]="+6.8st", [126]="+6.9st", [127]="+7.0st",
+}
 
 -- ---------------------------------------------------------------------------
 -- SysEx helpers
@@ -304,6 +388,18 @@ local function handleBCR1(cc, ccVal)
   -- Note: addition is equivalent to bitwise OR here because 0xB0 lower nibble = 0.
   if cc == 100 then
     sendMIDI({0xB0 + (TB3_MIDI_CHANNEL - 1), 104, ccVal}, TB3_CONNECTION)
+    -- Update on-screen global tuning encoder.
+    local x = ccVal / 127
+    local tuningGrp = root:findByName("tuning_group", true)
+    local encGrp    = tuningGrp and tuningGrp.children["tuning_enc"]
+    if encGrp then
+      local fader = encGrp.children["control_fader"]
+      if fader then fader.values.x = x end
+      local lbl = encGrp.children["value_label"]
+      if lbl then
+        lbl.values.text = GLOBAL_TUNING_DISPLAY[ccVal] or "---"
+      end
+    end
     return
   end
 
@@ -385,32 +481,104 @@ end
 
 -- ---------------------------------------------------------------------------
 -- TB-3 CC receive — hardware knob feedback updates the layout display.
--- CCs 74 (Cutoff) and 71 (Resonance) are standard MIDI; their faders are
--- updated directly. CCs 16/17 (Accent, Effect) pass through the parameter
--- assign system and will be mapped properly in Phase 5.
--- We update the display only — no SysEx is re-sent (TB-3 already changed).
+-- CCs 74 (Cutoff) and 71 (Resonance) are hardwired standard MIDI.
+-- CCs 1/12/13/17 are the four parameter-assign hardware controls; we update
+-- whichever on-screen encoder is currently assigned to each slot.
+--
+-- NOTE: setting fader.values.x triggers control_fader → enc_moved → SysEx
+-- back to the TB-3.  This is unnecessary but harmless (no loop forms).
 -- ---------------------------------------------------------------------------
 
+-- Fixed CC → encoder path (always mapped regardless of assign state).
 local TB3_CC_DISPLAY_MAP = {
   [71] = "vcf_group,vcf_resonance_enc",
   [74] = "vcf_group,vcf_cutoff_enc",
-  -- [16] = accent — parameter-assign dependent, Phase 5
-  -- [17] = effect — parameter-assign dependent, Phase 5
 }
 
-local function handleTB3CC(cc, ccVal)
-  local encPath = TB3_CC_DISPLAY_MAP[cc]
-  if not encPath then return end
-  local encName = encPath:match(",(.+)$")
-  local encGrp  = root:findByName(encName, true)
-  if not encGrp then return end
+-- TB-3 assign-control CCs → assign slot keys.
+local ASSIGN_CC_SLOTS = {
+  [1]  = "xy_mod",       -- XY PAD MODULATION (PAD Z)
+  [12] = "pad_x",        -- XY PAD X
+  [13] = "pad_y",        -- XY PAD Y
+  [17] = "effect_knob",  -- EFX KNOB
+}
+
+-- Update the on-screen fader for paramId when an assign CC arrives.
+-- ccVal is 0–127 (TB-3 normalises to full param range before sending CC).
+-- For EFX slots only updates when the correct type is currently selected.
+local function updateUIForParamId(paramId, ccVal)
   local x = ccVal / 127
-  local fader = encGrp.children["control_fader"]
-  if fader then fader.values.x = x end
-  local lbl = encGrp.children["value_label"]
-  if lbl then
-    -- Scale to the SysEx range for display (u16 params span 0–255).
-    lbl.values.text = tostring(math.floor(x * 255 + 0.5))
+
+  -- 1. Regular encoder (from PARAM_ID_MAP)
+  local path = PARAM_ID_TO_PATH[paramId]
+  if path then
+    local sec, enc = path:match("^([^,]+),([^,]+)$")
+    -- Section-scoped lookup avoids ring_mod/vco name collisions.
+    local secGrp = root:findByName(sec, true)
+    local encGrp = secGrp and secGrp.children[enc]
+    if not encGrp then encGrp = root:findByName(enc, true) end
+    if encGrp then
+      local fader = encGrp.children["control_fader"]
+      if fader then fader.values.x = x end
+    end
+    return
+  end
+
+  -- 2. EFX slot param: resolve via current type and EFX_SLOT_OFFSETS tables.
+  local efxNum, off
+  if paramId >= 77 and paramId <= 170 then
+    efxNum = 1; off = paramId - 76
+  elseif paramId >= 172 and paramId <= 253 then
+    efxNum = 2; off = paramId - 171
+  end
+  if efxNum and off then
+    local typeIdx = efxCurType[efxNum] or 0
+    local offs = EFX_SLOT_OFFSETS_SHARED[typeIdx]
+    if not offs then
+      local sp = EFX_SLOT_OFFSETS_SPECIAL[efxNum]
+      offs = sp and sp[typeIdx]
+    end
+    if offs then
+      -- Use a numeric loop (not ipairs) so nil gaps in the offset table
+      -- (hidden slots like EQ s08, Tremolo s03/s04) don't stop iteration early.
+      for slotIdx = 1, 12 do
+        local slotOff = offs[slotIdx]
+        if slotOff == off then
+          local slotGrp = root:findByName(
+            string.format("efx%d_s%02d", efxNum, slotIdx), true)
+          if slotGrp then
+            local fader = slotGrp.children["control_fader"]
+            if fader then fader.values.x = x end
+          end
+          break
+        end
+      end
+    end
+  end
+end
+
+local function handleTB3CC(cc, ccVal)
+  -- Fixed encoder display (cutoff, resonance)
+  local encPath = TB3_CC_DISPLAY_MAP[cc]
+  if encPath then
+    local encName = encPath:match(",(.+)$")
+    local encGrp  = root:findByName(encName, true)
+    if not encGrp then return end
+    local x = ccVal / 127
+    local fader = encGrp.children["control_fader"]
+    if fader then fader.values.x = x end
+    local lbl = encGrp.children["value_label"]
+    if lbl then
+      lbl.values.text = tostring(math.floor(x * 255 + 0.5))
+    end
+    return
+  end
+
+  -- Parameter assign controls: update whichever fader is currently assigned.
+  local slotKey = ASSIGN_CC_SLOTS[cc]
+  if slotKey then
+    local paramId = assignedParamIds[slotKey]
+    if paramId then updateUIForParamId(paramId, ccVal) end
   end
 end
 
@@ -429,6 +597,11 @@ local function handleTB3SysEx(message)
   for i = 12, #message - 2 do  -- strip checksum and F7
     data[#data + 1] = message[i]
   end
+
+  -- Cache raw block for later export (save_to_library).
+  local addrKey = string.format("%02X%02X%02X%02X",
+    addr[1], addr[2], addr[3], addr[4])
+  rawSysexBlocks[addrKey] = {addr=addr, data=data}
 
   -- Decrement BEFORE parseBlock so a Lua error inside parseBlock cannot
   -- prevent the countdown from completing and syncBCR1() from firing.
@@ -527,6 +700,7 @@ function onReceiveNotify(key, value)
     local sec, enc, xs = value:match("^([^,]+),([^,]+),(.+)$")
     if sec and enc and xs then
       local x = tonumber(xs) or 0
+
       local entry = ENC_SEND_MAP[sec .. "," .. enc]
       if entry then
         sendFromEntryFloat(entry, x)
@@ -536,30 +710,37 @@ function onReceiveNotify(key, value)
         -- Use section-scoped child lookup to handle name collisions (e.g.
         -- ring_mod_group and vco_group both have a child named "saw_enc").
         local lbl_text
-        if entry.signed then
-          -- Signed offset-encoded: raw 64 = 0; display range −64…+63.
-          local raw = math.floor(x * 127 + 0.5)
-          local s   = raw - 64
-          lbl_text  = (s >= 0 and "+" or "") .. tostring(s)
-        elseif entry.bipolar then
-          -- Bipolar linear: centre = max/2; display as ±value.
-          local m    = entry.max or 100
-          local raw  = math.floor(x * m + 0.5)
-          local s    = raw - math.floor(m / 2)
-          lbl_text   = (s >= 0 and "+" or "") .. tostring(s)
-        elseif entry.bits == 16 then
-          -- 16-bit nibble-packed: full range is 0–(max or 255).
-          local raw16 = math.floor(x * (entry.max or 255) + 0.5)
+        if entry.bits == 16 then
+          -- 16-bit nibble-packed: full range is 0–max (default 255).
+          local m     = entry.max or 255
+          local raw16 = math.floor(x * m + 0.5)
           if entry.bipolar then
-            local half = math.floor((entry.max or 255) / 2)
+            -- Use explicit center if set (asymmetric range), else floor(m/2).
+            -- e.g. tuning: max=151, center=127 → display −127…+24.
+            local half = entry.center or math.floor(m / 2)
             local s    = raw16 - half
             lbl_text   = (s >= 0 and "+" or "") .. tostring(s)
           else
             lbl_text = tostring(raw16)
           end
+        elseif entry.signed then
+          -- Signed offset-encoded (7-bit): raw 64 = 0; display −64…+63.
+          local raw = math.floor(x * 127 + 0.5)
+          local s   = raw - 64
+          lbl_text  = (s >= 0 and "+" or "") .. tostring(s)
+        elseif entry.bipolar then
+          -- Bipolar 7-bit (e.g. DIST BOTTOM/TONE, max=100): centre = floor(max/2).
+          local m    = entry.max or 100
+          local raw  = math.floor(x * m + 0.5)
+          local s    = raw - math.floor(m / 2)
+          lbl_text   = (s >= 0 and "+" or "") .. tostring(s)
         elseif entry.max and entry.max ~= 127 then
           -- Custom 7-bit max (e.g. DRIVE=120, BENDER=17).
           lbl_text = tostring(math.floor(x * entry.max + 0.5))
+        elseif entry.sp == "global_tuning" then
+          -- Global tuning: CC 104. Lookup table verified against hardware.
+          local cc = math.floor(x * 127 + 0.5)
+          lbl_text = GLOBAL_TUNING_DISPLAY[cc] or "---"
         end
         if lbl_text then
           local secGrp = root:findByName(sec, true)
@@ -571,7 +752,10 @@ function onReceiveNotify(key, value)
         end
 
         -- Mirror to BCR2000 #1 so its LED ring tracks the on-screen fader.
-        if entry.addr then
+        if entry.sp == "global_tuning" then
+          -- Global tuning has no SysEx addr; BCR uses CC 100 on channel 1.
+          sendMIDI({0xB0, 100, math.floor(x * 127 + 0.5)}, BCR_CONNECTION)
+        elseif entry.addr then
           local addrKey = string.format("%02X%02X%02X%02X",
             entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
           local bcr1cc = ADDR_TO_BCR1_CC[addrKey]
@@ -635,6 +819,177 @@ function onReceiveNotify(key, value)
     return
   end
 
+  -- Sent by assign_slot_btn.lua when the user presses (or re-presses) an
+  -- assign slot button.  value = slot key ("xy_mod"/"effect_knob"/…) or ""
+  -- to cancel.  Pressing the active slot again also cancels.
+  if key == "assign_slot_select" then
+    local slot = value
+    -- Pressing the active slot button again (or sending "" explicitly) cancels.
+    if slot == "" or slot == assignActiveSlot then
+      assignActiveSlot = nil
+      broadcastAssignMode(nil)
+    else
+      assignActiveSlot = slot
+      broadcastAssignMode(slot)
+    end
+    refreshAssignLabel()
+    return
+  end
+
+  -- Sent by pointer.lua on PointerState.BEGIN (finger-down on any encoder).
+  -- When assign mode is active, assigns that encoder's parameter to the pending slot.
+  -- Also handles EFX section slots (type-dependent resolution via EFX_SLOT_OFFSETS).
+  if key == "enc_touched" then
+    if not assignActiveSlot then return end
+    local sec, enc = value:match("^([^,]+),([^,]+)$")
+    if sec and enc then
+      -- 1. Check regular encoder map.
+      local paramInfo = PARAM_ID_MAP[sec .. "," .. enc]
+      if paramInfo then
+        local slotEntry = ASSIGN_SLOTS[assignActiveSlot]
+        if slotEntry then
+          local a = slotEntry.addr
+          tb3Send16bit(a[1], a[2], a[3], a[4], paramInfo.id)
+          assignedParamIds[assignActiveSlot] = paramInfo.id
+        end
+        assignActiveSlot = nil
+        broadcastAssignMode(nil)
+        refreshAssignLabel()
+      else
+        -- 2. Check EFX section slots (sec = "efx1_section" / "efx2_section").
+        local efxNum = tonumber(sec:match("^efx(%d+)_section$"))
+        if efxNum then
+          local slotIdx = tonumber(enc:match("_s(%d+)$"))
+          if slotIdx then
+            local typeIdx = efxCurType[efxNum] or 0
+            -- Try shared types first, then EFX-specific.
+            local offs = EFX_SLOT_OFFSETS_SHARED[typeIdx]
+            if not offs then
+              local sp = EFX_SLOT_OFFSETS_SPECIAL[efxNum]
+              offs = sp and sp[typeIdx]
+            end
+            local off = offs and offs[slotIdx]
+            if off then
+              local paramId = EFX_BASE_PARAM[efxNum] + off
+              local slotEntry = ASSIGN_SLOTS[assignActiveSlot]
+              if slotEntry then
+                local a = slotEntry.addr
+                tb3Send16bit(a[1], a[2], a[3], a[4], paramId)
+                assignedParamIds[assignActiveSlot] = paramId
+              end
+              assignActiveSlot = nil
+              broadcastAssignMode(nil)
+              refreshAssignLabel()
+            end
+          end
+        end
+      end
+    end
+    return
+  end
+
+  -- Sent by sw_button.lua and dist_toggle_button.lua on any value change.
+  -- When assign mode is active, assigns the switch parameter to the pending slot
+  -- and sends "assign_revert" back to the button so it doesn't actually toggle.
+  if key == "sw_touched" then
+    if not assignActiveSlot then return end
+    local sec, enc = value:match("^([^,]+),([^,]+)$")
+    if sec and enc then
+      local swInfo = SW_PARAM_ID_MAP[sec .. "," .. enc]
+      if swInfo then
+        local slotEntry = ASSIGN_SLOTS[assignActiveSlot]
+        if slotEntry then
+          local a = slotEntry.addr
+          tb3Send16bit(a[1], a[2], a[3], a[4], swInfo.id)
+          assignedParamIds[assignActiveSlot] = swInfo.id
+        end
+        -- Revert the button's visual state so the tap doesn't actually toggle it.
+        if swInfo.btn then
+          -- Standalone BUTTON node (dist_on_off, dist_color)
+          local btn = root:findByName(enc, true)
+          if btn then btn:notify("assign_revert", "") end
+        else
+          -- sw_button child inside an encoder group
+          local grp = root:findByName(enc, true)
+          if grp then
+            local swBtn = grp.children["sw_button"]
+            if swBtn then swBtn:notify("assign_revert", "") end
+          end
+        end
+        assignActiveSlot = nil
+        broadcastAssignMode(nil)
+        refreshAssignLabel()
+      end
+    end
+    return
+  end
+
+  -- Sent by efx_section.lua B1 handler when the EFX SW button is pressed.
+  -- value = "efxNum,swOff"; paramId = EFX_BASE_PARAM[efxNum] + swOff.
+  if key == "efx_sw_touched" then
+    if not assignActiveSlot then return end
+    local efxNum, offStr = value:match("^(%d+),(%d+)$")
+    efxNum = tonumber(efxNum)
+    local off = tonumber(offStr)
+    if efxNum and off then
+      local paramId = EFX_BASE_PARAM[efxNum] + off
+      local slotEntry = ASSIGN_SLOTS[assignActiveSlot]
+      if slotEntry then
+        local a = slotEntry.addr
+        tb3Send16bit(a[1], a[2], a[3], a[4], paramId)
+        assignedParamIds[assignActiveSlot] = paramId
+      end
+      assignActiveSlot = nil
+      broadcastAssignMode(nil)
+      refreshAssignLabel()
+    end
+    return
+  end
+
+  -- Sent by efx_section.lua's applyType() whenever the EFX type changes.
+  -- Keeps efxCurType in sync so enc_touched can resolve EFX slot param IDs.
+  if key == "efx_type_changed" then
+    local n, t = value:match("^(%d+),(%d+)$")
+    if n then efxCurType[tonumber(n)] = tonumber(t) or 0 end
+    return
+  end
+
+  -- Sent by save_to_library_btn.lua.  Builds a JSON blob from the cached
+  -- raw SysEx blocks and sends it to the Python preset manager via OSC.
+  -- Requires a prior SYNC FROM TB-3 to have populated rawSysexBlocks.
+  if key == "save_to_library" then
+    -- Verify all 11 blocks are cached.
+    local missing
+    for _, k in ipairs(EXPORT_BLOCK_ORDER) do
+      if not rawSysexBlocks[k] then missing = k; break end
+    end
+    if missing then
+      local lbl = root:findByName("assign_status_label", true)
+      if lbl then lbl.values.text = "Sync from TB-3 first!" end
+      return
+    end
+    -- Reconstruct each DT1 message as a contiguous hex string (no separators)
+    -- so the Python app can convert directly to .syx binary.
+    local sysexParts = {}
+    for _, k in ipairs(EXPORT_BLOCK_ORDER) do
+      local blk = rawSysexBlocks[k]
+      local addrAndData = {}
+      for _, b in ipairs(blk.addr) do addrAndData[#addrAndData+1] = b end
+      for _, b in ipairs(blk.data) do addrAndData[#addrAndData+1] = b end
+      local cs = tb3Checksum(addrAndData)
+      local msg = {0xF0, 0x41, 0x10, 0x00, 0x00, 0x7B, 0x12}
+      for _, b in ipairs(addrAndData) do msg[#msg+1] = b end
+      msg[#msg+1] = cs
+      msg[#msg+1] = 0xF7
+      local hex = {}
+      for _, b in ipairs(msg) do hex[#hex+1] = string.format("%02X", b) end
+      sysexParts[#sysexParts+1] = '"' .. table.concat(hex) .. '"'
+    end
+    local json = '{"blocks":[' .. table.concat(sysexParts, ",") .. ']}'
+    sendOSC("/tb3/backup", json)
+    return
+  end
+
   -- EFX type direct-select from efx_1_chooser / efx_2_chooser button grids
   -- value = "N,M": N = EFX number (1 or 2), M = button index (1-based)
   if key == "efx_type_select" then
@@ -679,7 +1034,12 @@ function onReceiveOSC(message, connections)
     return
   end
 
-  if message.address ~= "/tb3/patch" then return end
+  -- /tb3/patch — update UI only (test harness, no TB-3 required).
+  -- /tb3/restore — update UI AND forward SysEx to the TB-3 (Python preset
+  --   manager restore path; TB-3 must be connected).
+  local isRestore = (message.address == "/tb3/restore")
+  if message.address ~= "/tb3/patch" and not isRestore then return end
+
   local arg = message.arguments[1]
   if not arg then return end
   local hexStr = arg.value
@@ -697,10 +1057,30 @@ function onReceiveOSC(message, connections)
   if bytes[2] ~= 0x41 then return end
   if bytes[7] ~= 0x12 then return end
 
+  -- Forward to TB-3 hardware when restoring from Python preset manager.
+  if isRestore then
+    sendMIDI(bytes, TB3_CONNECTION)
+  end
+
   local addr = {bytes[8], bytes[9], bytes[10], bytes[11]}
   local data = {}
   for i = 12, #bytes - 2 do data[#data + 1] = bytes[i] end
   parseBlock(addr, data)
+
+  -- Forward EFX blocks to their section nodes.
+  if addr[1] == 0x10 and addr[2] == 0x00 then
+    local efxSection
+    if addr[3] == 0x10 then
+      efxSection = root:findByName("efx1_section", true)
+    elseif addr[3] == 0x12 then
+      efxSection = root:findByName("efx2_section", true)
+    end
+    if efxSection then
+      local hex = {}
+      for _, b in ipairs(data) do hex[#hex+1] = string.format("%02X", b) end
+      efxSection:notify("patch_data", table.concat(hex, ","))
+    end
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -722,6 +1102,16 @@ end
 -- ---------------------------------------------------------------------------
 
 function init()
+  -- Initialise global tuning encoder to CC 64 (0.0 st) on startup.
+  local tuningGrp = root:findByName("tuning_group", true)
+  local encGrp    = tuningGrp and tuningGrp.children["tuning_enc"]
+  if encGrp then
+    local fader = encGrp.children["control_fader"]
+    if fader then fader.values.x = 64 / 127 end
+    local lbl = encGrp.children["value_label"]
+    if lbl then lbl.values.text = GLOBAL_TUNING_DISPLAY[64] end
+  end
+
   -- Push current fader positions to BCR2000 #1 on layout load so its LED
   -- rings reflect whatever values the layout last had.
   syncBCR1()
