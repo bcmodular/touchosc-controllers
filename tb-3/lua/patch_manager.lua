@@ -406,10 +406,10 @@ local REGISTRY = {
     {off= 0, enc="porta_time_enc",      kind="sw",  sw=true},  -- PORTA SW
     {off= 1, enc="porta_time_enc",      kind="u7"},             -- PORTA TIME
     {off= 2, kind="sp",                 sp="porta_mode"},       -- PORTA MODE (radio buttons)
-    -- TEMP: max raised 23→127 to match enc_map.lua's probe value, so the
-    -- on-screen slider position stays consistent between send and sync-back
-    -- while testing. Restore both once the real ceiling is confirmed.
-    {off= 3, enc="pitch_bend_range_enc",kind="u7",  max=127},   -- BENDER RANGE (raw)
+    -- Confirmed via hardware probe: raw 0-23, where raw N = ±(N+1) semitones
+    -- (0 = ±1 ... 23 = ±24). semitoneRange flag tells applyValue to display
+    -- "±N st" instead of the raw byte.
+    {off= 3, enc="pitch_bend_range_enc",kind="u7",  max=23, semitoneRange=true},  -- BENDER RANGE
     -- offsets 4–11: PARAM ID assignments (16-bit nibble-packed, u16=true)
     {off= 4, kind="sp", sp="assign_xy_mod",      u16=true},    -- XY PAD MOD param ID
     {off= 6, kind="sp", sp="assign_effect_knob", u16=true},    -- EFFECT KNOB param ID
@@ -463,7 +463,10 @@ local function applyValue(field, raw)
   if kind == "u7" then
     local m = maxV or 127
     faderVal  = raw / m
-    if field.bipolar then
+    if field.semitoneRange then
+      -- Range-size display: raw N → ±(N+1) semitones (BENDER RANGE: 0=±1 ... 23=±24).
+      labelText = "\194\177" .. (raw + 1) .. " st"  -- \194\177 = UTF-8 plus-minus sign
+    elseif field.bipolar then
       -- Bipolar linear: centre = floor(max/2), display as ±value.
       local half = field.center or math.floor(m / 2)
       local s    = raw - half

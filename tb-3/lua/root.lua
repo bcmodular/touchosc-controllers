@@ -768,8 +768,13 @@ function onReceiveNotify(key, value)
           local raw  = math.floor(x * m + 0.5)
           local s    = raw - math.floor(m / 2)
           lbl_text   = (s >= 0 and "+" or "") .. tostring(s)
+        elseif entry.semitoneRange then
+          -- Range-size display: raw N → ±(N+1) semitones (BENDER RANGE: 0=±1 ... 23=±24).
+          local raw = math.floor(x * (entry.max or 127) + 0.5)
+          lbl_text  = "\194\177" .. tostring(raw + 1) .. " st"  -- \194\177 = UTF-8 plus-minus sign
         elseif entry.max and entry.max ~= 127 then
-          -- Custom 7-bit max (e.g. DRIVE=120, BENDER=17).
+          -- Custom 7-bit max (e.g. DRIVE=120). BENDER RANGE has its own
+          -- semitoneRange branch above despite also having a custom max.
           lbl_text = tostring(math.floor(x * entry.max + 0.5))
         elseif entry.sp == "global_tuning" then
           -- Global tuning: CC 104. Lookup table verified against hardware.

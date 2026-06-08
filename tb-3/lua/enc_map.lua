@@ -98,11 +98,11 @@ local ENC_SEND_MAP = {
 
   -- ---- PORTAMENTO / PARAM ASSIGN  10 00 14 00 ----
   ["portamento_group,porta_time_enc"]      = { addr={0x10,0x00,0x14,0x01}, bits=7 },
-  -- TEMP: max raised 17→127 to probe the hardware's real ceiling — slide to
-  -- the top and find where the TB-3 stops extending the bend range (likely
-  -- ~23, i.e. ±24 semitones). Restore both this and the matching REGISTRY
-  -- entry in patch_manager.lua to the confirmed value once known.
-  ["other_group,pitch_bend_range_enc"]     = { addr={0x10,0x00,0x14,0x03}, bits=7, max=127 },
+  -- Confirmed via hardware probe: raw 0-23, where raw N = ±(N+1) semitones
+  -- (0 = ±1 ... 23 = ±24). semitoneRange flag tells enc_moved's label logic
+  -- to display "±N st" instead of the raw byte — see TB3_CC_DISPLAY_MAP-
+  -- adjacent label code in root.lua and applyValue in patch_manager.lua.
+  ["other_group,pitch_bend_range_enc"]     = { addr={0x10,0x00,0x14,0x03}, bits=7, max=23, semitoneRange=true },
 
   -- EFX1/EFX2 slots: added in Phase 4
 }
