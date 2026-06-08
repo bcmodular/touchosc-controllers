@@ -24,6 +24,15 @@ local function applyLabelColor(isOn)
   end
 end
 
+function init()
+  -- Synchronise the sibling label's textColor to the current button state.
+  -- Needed because textColor is a static XML property (not a live value), so
+  -- it doesn't update on load — only when onValueChanged fires a real change.
+  -- Without this, a layout loaded with the button off but the label baked
+  -- black (from a prior on-state save) stays stuck with a black label.
+  applyLabelColor(self.values.x >= 0.5)
+end
+
 function onValueChanged(key)
   if key ~= "x" then return end
   if updating then return end
