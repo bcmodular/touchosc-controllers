@@ -98,7 +98,7 @@ local ENC_SEND_MAP = {
 
   -- ---- PORTAMENTO / PARAM ASSIGN  10 00 14 00 ----
   ["portamento_group,porta_time_enc"]      = { addr={0x10,0x00,0x14,0x01}, bits=7 },
-  ["pitch_bend_group,pitch_bend_range_enc"]= { addr={0x10,0x00,0x14,0x03}, bits=7, max=17 },
+  ["other_group,pitch_bend_range_enc"]     = { addr={0x10,0x00,0x14,0x03}, bits=7, max=17 },
 
   -- EFX1/EFX2 slots: added in Phase 4
 }

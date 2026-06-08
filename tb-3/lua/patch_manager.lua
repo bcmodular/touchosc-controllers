@@ -95,7 +95,7 @@ local PARAM_ID_MAP = {
   ["dist_group,dist_dry_level_enc"] = {id= 73, name="DIST DRY LEVEL"},
   -- ---- Portamento / Pitch Bend ----
   ["portamento_group,porta_time_enc"]       = {id=255, name="PORTA TIME"},
-  ["pitch_bend_group,pitch_bend_range_enc"] = {id=257, name="BENDER RANGE"},
+  ["other_group,pitch_bend_range_enc"]      = {id=257, name="BENDER RANGE"},
 }
 
 -- SW_PARAM_ID_MAP — switch/button parameter IDs, keyed by "section,enc" path.
