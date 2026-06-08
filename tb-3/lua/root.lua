@@ -263,7 +263,15 @@ local syncTimer = 0        -- frame countdown; fires syncBCR1() as a fallback
 -- max 17 vs 23), which silently rewrites the hardware value on every sync.
 -- The enc_moved/sw_toggled handlers check this flag and skip the SysEx send
 -- (but still update labels / mirror to the BCR LED rings).
+--
+-- Cleared synchronously right after parseBlock() returns (the normal path —
+-- parseBlock and everything it triggers run synchronously, so this is exact
+-- and never swallows real user input). receivingPatchTimer is a frame-based
+-- backstop that force-clears the flag a few frames later in case parseBlock
+-- errors partway through — TouchOSC's sandboxed Lua has no pcall, so we
+-- can't wrap-and-restore directly.
 local receivingPatch = false
+local receivingPatchTimer = 0
 
 local function syncBCR1()
   for cc, entry in pairs(BCR1_MAP) do
@@ -623,11 +631,14 @@ local function handleTB3SysEx(message)
   end
 
   -- Guard against parseBlock() echoing values back to the TB-3 (see
-  -- receivingPatch declaration above). pcall ensures the flag is always
-  -- cleared even if parsing hits an error partway through.
+  -- receivingPatch declaration above). receivingPatchTimer force-clears the
+  -- flag in update() as a backstop if parseBlock errors before reaching the
+  -- explicit clear below.
   receivingPatch = true
-  pcall(parseBlock, addr, data)
+  receivingPatchTimer = 5
+  parseBlock(addr, data)
   receivingPatch = false
+  receivingPatchTimer = 0
 
   -- Forward EFX blocks to their section nodes as hex CSV strings.
   -- efx_section.lua stores the raw bytes and remaps slots when it receives them.
@@ -1100,8 +1111,10 @@ function onReceiveOSC(message, connections)
   -- we don't also want applyValue()'s UI updates re-deriving and re-sending
   -- (potentially mismatched) values for each field on top of that.
   receivingPatch = true
-  pcall(parseBlock, addr, data)
+  receivingPatchTimer = 5
+  parseBlock(addr, data)
   receivingPatch = false
+  receivingPatchTimer = 0
 
   -- Forward EFX blocks to their section nodes.
   if addr[1] == 0x10 and addr[2] == 0x00 then
@@ -1120,16 +1133,25 @@ function onReceiveOSC(message, connections)
 end
 
 -- ---------------------------------------------------------------------------
--- update — frame callback used as a reliable post-receive BCR sync fallback.
--- syncTimer is set by requestPatchDump(); the awaitingBlocks countdown clears
--- it early if all 11 DT1 blocks arrive intact. Otherwise it fires after ~3s,
--- catching cases where large EFX blocks are split by the MIDI interface.
+-- update — frame callback. Two independent countdowns:
+--   syncTimer            — post-receive BCR sync fallback (see requestPatchDump;
+--                          fires after ~3s unless the awaitingBlocks countdown
+--                          beats it, catching split-EFX-block edge cases)
+--   receivingPatchTimer  — receivingPatch backstop (see declaration)
 -- ---------------------------------------------------------------------------
 
 function update()
   if syncTimer > 0 then
     syncTimer = syncTimer - 1
     if syncTimer == 0 then syncBCR1() end
+  end
+
+  -- Backstop for receivingPatch (see declaration) — normally cleared
+  -- synchronously right after parseBlock() returns; this only fires if
+  -- parseBlock errored before reaching that explicit clear.
+  if receivingPatchTimer > 0 then
+    receivingPatchTimer = receivingPatchTimer - 1
+    if receivingPatchTimer == 0 then receivingPatch = false end
   end
 end
 
