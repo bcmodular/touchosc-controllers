@@ -500,7 +500,8 @@ end
 
 -- ---------------------------------------------------------------------------
 -- TB-3 CC receive — hardware knob feedback updates the layout display.
--- CCs 74 (Cutoff) and 71 (Resonance) are hardwired standard MIDI.
+-- CCs 16 (Accent), 74 (Cutoff) and 71 (Resonance) are hardwired standard MIDI —
+-- the physical knobs send these alongside their SysEx patch writes.
 -- CCs 1/12/13/17 are the four parameter-assign hardware controls; we update
 -- whichever on-screen encoder is currently assigned to each slot.
 --
@@ -510,6 +511,7 @@ end
 
 -- Fixed CC → encoder path (always mapped regardless of assign state).
 local TB3_CC_DISPLAY_MAP = {
+  [16] = "vcf_group,accent_level_enc",
   [71] = "vcf_group,vcf_resonance_enc",
   [74] = "vcf_group,vcf_cutoff_enc",
 }
