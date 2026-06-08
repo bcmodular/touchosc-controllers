@@ -98,7 +98,11 @@ local ENC_SEND_MAP = {
 
   -- ---- PORTAMENTO / PARAM ASSIGN  10 00 14 00 ----
   ["portamento_group,porta_time_enc"]      = { addr={0x10,0x00,0x14,0x01}, bits=7 },
-  ["other_group,pitch_bend_range_enc"]     = { addr={0x10,0x00,0x14,0x03}, bits=7, max=17 },
+  -- TEMP: max raised 17→127 to probe the hardware's real ceiling — slide to
+  -- the top and find where the TB-3 stops extending the bend range (likely
+  -- ~23, i.e. ±24 semitones). Restore both this and the matching REGISTRY
+  -- entry in patch_manager.lua to the confirmed value once known.
+  ["other_group,pitch_bend_range_enc"]     = { addr={0x10,0x00,0x14,0x03}, bits=7, max=127 },
 
   -- EFX1/EFX2 slots: added in Phase 4
 }

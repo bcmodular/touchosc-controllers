@@ -406,7 +406,10 @@ local REGISTRY = {
     {off= 0, enc="porta_time_enc",      kind="sw",  sw=true},  -- PORTA SW
     {off= 1, enc="porta_time_enc",      kind="u7"},             -- PORTA TIME
     {off= 2, kind="sp",                 sp="porta_mode"},       -- PORTA MODE (radio buttons)
-    {off= 3, enc="pitch_bend_range_enc",kind="u7",  max=23},    -- BENDER RANGE (raw)
+    -- TEMP: max raised 23→127 to match enc_map.lua's probe value, so the
+    -- on-screen slider position stays consistent between send and sync-back
+    -- while testing. Restore both once the real ceiling is confirmed.
+    {off= 3, enc="pitch_bend_range_enc",kind="u7",  max=127},   -- BENDER RANGE (raw)
     -- offsets 4–11: PARAM ID assignments (16-bit nibble-packed, u16=true)
     {off= 4, kind="sp", sp="assign_xy_mod",      u16=true},    -- XY PAD MOD param ID
     {off= 6, kind="sp", sp="assign_effect_knob", u16=true},    -- EFFECT KNOB param ID
