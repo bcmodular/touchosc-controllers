@@ -1,6 +1,8 @@
 # TB-3 TouchOSC Layout — Phased Delivery Plan
 
-> **Status as of 2026-06-06.** Phases 0–5 complete. Phase 5 delivered: parameter assign UI (4 slot buttons + status display), PARAM_ID_MAP covering all on-screen encoders, SysEx block cache + Save to Library + JSON export, /tb3/restore OSC path, and Python Qt preset manager app.
+> **Status as of 2026-06-08.** Phases 0–5 complete. Phase 5 delivered: parameter assign UI (4 slot buttons + status display), PARAM_ID_MAP covering all on-screen encoders, SysEx block cache + Save to Library + JSON export, /tb3/restore OSC path, and Python Qt preset manager app (now committed and tested).
+>
+> **Open items triaged 2026-06-08:** BENDER RANGE scaling is next up for investigation. The four mapping-curve approximations (Flanger HPF, RATE, EQ freq/Q, Compressor attack/release) are deferred — no on-device readout exists to verify against, and a proper test would require a full audio measurement setup; reached out to the Dope Robot panel author for reference data. CC17 feedback is already wired up; CC16 (Accent) support is planned — a new on-screen encoder group is being added to the layout.
 
 ---
 
@@ -265,12 +267,14 @@ Modelled on `sp404-mk2/preset-manager/python/`. Requires `pip install python-osc
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **BENDER RANGE scaling** | ⚠️ Unresolved | Raw `0x17`=23 at hardware, panel shows 17. Offset? Scale? Needs second patch with different value or hardware test. Stored/sent as raw for now. |
-| **Flanger HPF table** | ⚠️ Needs verify | `FL_HPF_FREQS` (11 steps, Flat→800 Hz) is a best-guess approximation. Hardware test needed for exact frequencies. |
-| **RATE display curve** | ⚠️ Needs verify | `dispRate` uses a linear approximation of the 8000ms→20ms log curve. |
-| **EQ frequency mapping** | ⚠️ Needs verify | `dispEQFreq` / `dispEQQ` are estimates; hardware measurement needed. |
-| **Compressor attack/release** | ⚠️ Needs verify | Linear approximation of actual curves. |
-| **Phase 5** | ✅ Complete | Parameter assign UI, PARAM_ID_MAP, Save to Library, /tb3/restore, Python Qt app |
-| **CC16/CC17 (Accent, Effect)** | ⚠️ Deferred | TB-3 hardware knobs send these; depend on which parameters are currently assigned |
+| **BENDER RANGE scaling** | 🔜 Awaiting clean reference | Found (and fixed — see `receivingPatch` note below) an active corruption bug: `REGISTRY` used `max=23` to normalise the received raw byte while `ENC_SEND_MAP` used `max=17` to re-derive and resend it, so every "SYNC FROM TB-3" silently rewrote the hardware value (confirmed live: 17 → 13 → 10 across successive syncs). Patches are read-only on the TB-3 so the drift was transient, but it means the value we've observed isn't a trustworthy reference for the raw↔display mapping. Plan: connect a MIDI keyboard with a pitch wheel, set a known Bender Range on the hardware, and capture one clean sync to determine the correct mapping. |
+| **SysEx echo on patch receive** | ✅ Fixed | Root cause of the BENDER RANGE corruption above, and a latent risk for any future scaling mismatch: `applyValue()` sets fader/switch values directly, which synchronously re-triggers `enc_moved`/`sw_toggled` → a real SysEx write back to the TB-3 — for every field in every block, on every sync *and* every restore. Added a `receivingPatch` guard flag (set around all `parseBlock()` calls in `handleTB3SysEx` and `onReceiveOSC`, wrapped in `pcall` so it can't get stuck on error) that suppresses the SysEx echo while still updating labels and BCR LED rings. |
+| **Flanger HPF table** | ⏸ Deferred | `FL_HPF_FREQS` (11 steps, Flat→800 Hz) is a best-guess approximation. No on-device readout to verify against — proper test needs a full audio measurement rig. Reached out to Dope Robot author for reference data. |
+| **RATE display curve** | ⏸ Deferred | `dispRate` is a linear approximation of the 8000ms→20ms log curve. Same testing constraint as Flanger HPF — deferred pending Dope Robot reference data. |
+| **EQ frequency mapping** | ⏸ Deferred | `dispEQFreq` / `dispEQQ` are estimates. Same testing constraint — deferred pending Dope Robot reference data. |
+| **Compressor attack/release** | ⏸ Deferred | Linear approximation of actual curves. Same testing constraint — deferred pending Dope Robot reference data. |
+| **Phase 5** | ✅ Complete | Parameter assign UI, PARAM_ID_MAP, Save to Library, /tb3/restore, Python Qt app — committed and tested |
+| **CC17 (Effect Knob assign feedback)** | ✅ Resolved | Already wired up — `ASSIGN_CC_SLOTS[17] = "effect_knob"` in `root.lua` updates the assigned on-screen encoder when the hardware EFX knob moves. |
+| **CC16 (Accent)** | 🔜 Planned | TB-3 hardware ACCENT knob sends CC16; no on-screen encoder exists yet to receive/display it. A new `accent` encoder group is being added to the layout, then will need CC handling wired up (mirroring the `TB3_CC_DISPLAY_MAP` / `ASSIGN_CC_SLOTS` pattern in `root.lua`). |
 | **Global TUNING (CC104)** | ✅ Resolved | BCR1 CC100 sends plain MIDI CC 104 to TB-3 CH2 (not SysEx). Device-global, not in patch dumps. |
 | **TB3.tosc naming fixes** | ✅ Resolved | All naming issues from early planning resolved in final layout. |

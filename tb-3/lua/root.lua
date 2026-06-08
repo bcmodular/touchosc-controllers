@@ -254,6 +254,17 @@ local awaitingBlocks = 0   -- counts DT1 blocks expected after requestPatchDump
 local pushToggleState = {} -- BCR push-encoder toggle state; key = channel*1000+cc
 local syncTimer = 0        -- frame countdown; fires syncBCR1() as a fallback
 
+-- Set around every parseBlock() call (patch dump / OSC patch / restore).
+-- applyValue() sets fader/switch values directly, which synchronously
+-- triggers control_fader/sw_button → enc_moved/sw_toggled → SysEx back to
+-- the TB-3. That round trip is pointless when we're just mirroring received
+-- data into the UI — and actively harmful for any parameter whose
+-- ENC_SEND_MAP scaling differs from its REGISTRY scaling (e.g. BENDER RANGE:
+-- max 17 vs 23), which silently rewrites the hardware value on every sync.
+-- The enc_moved/sw_toggled handlers check this flag and skip the SysEx send
+-- (but still update labels / mirror to the BCR LED rings).
+local receivingPatch = false
+
 local function syncBCR1()
   for cc, entry in pairs(BCR1_MAP) do
     if entry.addr then
@@ -611,7 +622,12 @@ local function handleTB3SysEx(message)
     if awaitingBlocks == 0 then triggerSync = true end
   end
 
-  parseBlock(addr, data)
+  -- Guard against parseBlock() echoing values back to the TB-3 (see
+  -- receivingPatch declaration above). pcall ensures the flag is always
+  -- cleared even if parsing hits an error partway through.
+  receivingPatch = true
+  pcall(parseBlock, addr, data)
+  receivingPatch = false
 
   -- Forward EFX blocks to their section nodes as hex CSV strings.
   -- efx_section.lua stores the raw bytes and remaps slots when it receives them.
@@ -703,7 +719,12 @@ function onReceiveNotify(key, value)
 
       local entry = ENC_SEND_MAP[sec .. "," .. enc]
       if entry then
-        sendFromEntryFloat(entry, x)
+        -- Skip the SysEx echo while applying a received patch — see
+        -- receivingPatch declaration. Label/BCR mirroring below still runs
+        -- so the UI and BCR LED rings reflect the received value.
+        if not receivingPatch then
+          sendFromEntryFloat(entry, x)
+        end
 
         -- Correct the value_label: control_fader.lua shows a fallback 0-127
         -- value; override it here with the parameter's actual range/encoding.
@@ -782,7 +803,11 @@ function onReceiveNotify(key, value)
       if entry then
         local a = entry.addr
         local v = tonumber(vs) or 0
-        tb3Send7bit(a[1], a[2], a[3], a[4], v)
+        -- Skip the SysEx echo while applying a received patch — see
+        -- receivingPatch declaration. BCR mirroring below still runs.
+        if not receivingPatch then
+          tb3Send7bit(a[1], a[2], a[3], a[4], v)
+        end
         -- Mirror to BCR2000 #1 if this switch has a BCR mapping.
         local addrKey = string.format("%02X%02X%02X%02X", a[1],a[2],a[3],a[4])
         local bcr1cc = ADDR_TO_BCR1_CC[addrKey]
@@ -1069,7 +1094,14 @@ function onReceiveOSC(message, connections)
   local addr = {bytes[8], bytes[9], bytes[10], bytes[11]}
   local data = {}
   for i = 12, #bytes - 2 do data[#data + 1] = bytes[i] end
-  parseBlock(addr, data)
+
+  -- Same parseBlock() echo guard as handleTB3SysEx (see receivingPatch
+  -- declaration). The raw SysEx forward above already restores the patch;
+  -- we don't also want applyValue()'s UI updates re-deriving and re-sending
+  -- (potentially mismatched) values for each field on top of that.
+  receivingPatch = true
+  pcall(parseBlock, addr, data)
+  receivingPatch = false
 
   -- Forward EFX blocks to their section nodes.
   if addr[1] == 0x10 and addr[2] == 0x00 then
