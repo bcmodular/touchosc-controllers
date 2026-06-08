@@ -57,6 +57,15 @@ Press **SYNC FROM TB-3** at the top-left to request a full patch dump. All param
 
 ---
 
+## Saving & Restoring Patches
+
+Press **SAVE TO LIBRARY** to export the current patch as a SysEx dump to the
+companion desktop app — see [`preset-manager/`](preset-manager/) (run with
+`./run-preset-manager.sh`, [setup + workflow in its README](preset-manager/README.md)).
+Default ports: utility listens on **9000**, sends to TouchOSC on **9001**.
+
+---
+
 ## Layout Overview
 
 The layout is divided into functional colour-coded sections:
@@ -183,6 +192,7 @@ See the `bcr2000/` folder for the full CC assignment tables.
 | `TB3.tosc` | TouchOSC layout — open this in TouchOSC |
 | `lua/` | Lua source scripts (build-time injected) |
 | `bcr2000/` | BCR2000 BC Manager preset documentation |
+| `preset-manager/` | Desktop app for saving/restoring `.syx` patch dumps |
 | `resources/` | TB-3 SysEx reference and Dope Robot panel files |
 | `tools/` | Layout maintenance scripts |
 

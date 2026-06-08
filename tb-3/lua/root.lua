@@ -1028,8 +1028,12 @@ end
 -- ---------------------------------------------------------------------------
 
 function onReceiveOSC(message, connections)
+  -- message is an array: message[1] = OSC address path, message[2] = arguments.
+  local address   = message[1]
+  local arguments = message[2]
+
   -- Allow external tools (Python, other apps) to trigger a dump request.
-  if message.address == "/tb3/request_dump" then
+  if address == "/tb3/request_dump" then
     requestPatchDump()
     return
   end
@@ -1037,12 +1041,12 @@ function onReceiveOSC(message, connections)
   -- /tb3/patch — update UI only (test harness, no TB-3 required).
   -- /tb3/restore — update UI AND forward SysEx to the TB-3 (Python preset
   --   manager restore path; TB-3 must be connected).
-  local isRestore = (message.address == "/tb3/restore")
-  if message.address ~= "/tb3/patch" and not isRestore then return end
+  local isRestore = (address == "/tb3/restore")
+  if address ~= "/tb3/patch" and not isRestore then return end
 
-  local arg = message.arguments[1]
-  if not arg then return end
-  local hexStr = arg.value
+  local arg = arguments and arguments[1]
+  if arg == nil then return end
+  local hexStr = (type(arg) == "table") and arg.value or arg
   if type(hexStr) ~= "string" then return end
 
   -- Parse comma-separated hex bytes back into a byte array.
