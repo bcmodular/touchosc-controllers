@@ -124,10 +124,6 @@
       ]
     },
     {
-      "lua": "save_to_library_btn.lua",
-      "node_name": "save_to_library_btn"
-    },
-    {
       "lua": "preset_grid.lua",
       "node_name": "preset_grid"
     },

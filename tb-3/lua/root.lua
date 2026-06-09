@@ -83,6 +83,7 @@ local patchGridMode   = nil   -- nil | "delete" | "grab" | "morph"
 local grabSnapshot    = nil   -- JSON string saved on grab press
 local morphTargetSlot = nil
 local morphBaseSnapshot = nil -- JSON string of patch at morph-target selection time
+local currentBankName = ""    -- name of the most recently restored bank
 local morphLastBlocks   = nil -- block hex strings last sent by applyMorph (for diff)
 local morphAmount     = 0.0  -- 0.0–1.0 float from fader
 local morphing        = false -- true while applyMorph is running; suppresses BCR sends
@@ -1330,6 +1331,11 @@ function onReceiveNotify(key, value)
       else
         print("patch_grid: recalling slot " .. slotKey)
         applySnapshotDiff(json.fromTable(slots[slotKey]), snapshotCurrentPatch())
+        local presetName = (type(slots[slotKey]) == "table" and slots[slotKey].name) or ""
+        local bankLbl   = root:findByName("bank_name_label",   true)
+        local presetLbl = root:findByName("preset_name_label", true)
+        if bankLbl   then bankLbl.values.text   = currentBankName end
+        if presetLbl then presetLbl.values.text = presetName end
       end
     end
     return
@@ -1356,15 +1362,23 @@ function onReceiveNotify(key, value)
   -- Clear all 16 slots (delete_all_presets_button).
   if key == "patch_clear_all" then
     setPatchGridSlots({})
+    currentBankName = ""
+    local bankLbl   = root:findByName("bank_name_label",   true)
+    local presetLbl = root:findByName("preset_name_label", true)
+    if bankLbl   then bankLbl.values.text   = "" end
+    if presetLbl then presetLbl.values.text = "" end
     return
   end
 
   -- Sent by the Python preset manager app to restore a whole bank.
-  -- value = JSON string {"version":1,"slots":{"1":{...},"2":null,...}}
+  -- value = JSON string {"version":2,"name":"...","slots":{"1":{...},"2":null,...}}
   if key == "patchgrid_restore_bank" then
     local bank = json.toTable(value)
     if bank and bank.slots then
       setPatchGridSlots(bank.slots)
+      currentBankName = bank.name or ""
+      local bankLbl = root:findByName("bank_name_label", true)
+      if bankLbl then bankLbl.values.text = currentBankName end
     end
     return
   end
