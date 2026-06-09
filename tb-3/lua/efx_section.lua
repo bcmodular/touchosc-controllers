@@ -287,6 +287,7 @@ local TYPE_DEFS = {
       {off=0x0E, name="EQ HIGH", max=30,  display=dispDb15},
     },
     btns = {
+      nil, nil, nil,
       {off=0x0C, name="UP",   action="set", val=0},
       {off=0x0C, name="DOWN", action="set", val=1},
     },
@@ -592,7 +593,7 @@ end
 -- Button colour: "set" → SEL_HEX, everything else → BASE_HEX.
 -- ---------------------------------------------------------------------------
 
-local function applyType(typeIdx)
+local function applyType(typeIdx, syncBCR)
   curType = typeIdx
   local def = TYPE_DEFS[typeIdx]
 
@@ -601,8 +602,10 @@ local function applyType(typeIdx)
 
   updateLabel("EFX" .. efxNum .. ": " .. (def and def.name or "???"))
 
-  local typeCCval = (MAX_TYPE > 0) and math.floor(typeIdx / MAX_TYPE * 127 + 0.5) or 0
-  sendBCRcc(TYPE_CC, typeCCval)
+  if syncBCR ~= false then
+    local typeCCval = (MAX_TYPE > 0) and math.floor(typeIdx / MAX_TYPE * 127 + 0.5) or 0
+    sendBCRcc(TYPE_CC, typeCCval)
+  end
 
   -- ── Chooser radio + chooser label text colours ──────────────────────────
   local cgrp  = chooserGroup()
@@ -767,11 +770,10 @@ function onReceiveNotify(key, value)
 
   if key == "type_cc" then
     local ccVal   = tonumber(value) or 0
-    local typeIdx = math.floor(ccVal / 127 * MAX_TYPE + 0.5)
+    local typeIdx = math.min(math.floor(ccVal / 10), MAX_TYPE)
     sendParam(0x00, typeIdx)
     rawData[1] = typeIdx
-    applyType(typeIdx)
-    -- applyType ends with self.tag = json.fromTable(rawData)
+    applyType(typeIdx, false)
     return
   end
 
@@ -825,7 +827,9 @@ function onReceiveNotify(key, value)
   end
 
   if key == "btn_press" then
-    local btnIdx = tonumber(value) or 0
+    local valStr  = tostring(value)
+    local btnIdx  = tonumber(valStr:match("^(%d+)")) or 0
+    local fromBCR = valStr:find(",bcr", 1, true) ~= nil
     if btnIdx < 1 or btnIdx > 8 then return end
     local def    = TYPE_DEFS[curType]
     local lblGrp = btnLabelsGroup()
@@ -844,7 +848,7 @@ function onReceiveNotify(key, value)
       if lbl then lbl.textColor = Color.fromHexString(nxt >= 0.5 and ON_TXT or OFF_TXT) end
       self.tag = ""
       self.tag = json.fromTable(rawData)
-      sendBCRcc(BTN_CC[1], nxt * 127)
+      if not fromBCR then sendBCRcc(BTN_CC[1], nxt * 127) end
       -- Notify root for parameter assignment: EFX SW param (swOff encodes param ID).
       root:notify("efx_sw_touched", efxNum .. "," .. def.swOff)
       return
@@ -865,7 +869,7 @@ function onReceiveNotify(key, value)
           local isActive = (bi == btnIdx)
           if bb  then bb.values.x   = isActive and 1 or 0 end
           if bl  then bl.textColor  = Color.fromHexString(isActive and ON_TXT or OFF_TXT) end
-          sendBCRcc(BTN_CC[bi], isActive and 127 or 0)
+          if not fromBCR then sendBCRcc(BTN_CC[bi], isActive and 127 or 0) end
         end
       end
       self.tag = ""
@@ -883,7 +887,7 @@ function onReceiveNotify(key, value)
       if lbl then lbl.textColor  = Color.fromHexString(nxt >= 0.5 and ON_TXT or OFF_TXT) end
       self.tag = ""
       self.tag = json.fromTable(rawData)
-      sendBCRcc(BTN_CC[btnIdx], nxt * 127)
+      if not fromBCR then sendBCRcc(BTN_CC[btnIdx], nxt * 127) end
     end
 
     return

@@ -487,12 +487,12 @@ local function handleBCR2(cc, ccVal)
 
   -- EFX1 dedicated buttons (CC 65–68 = B1–B4, CC 73–76 = B5–B8)
   -- B1 (CC 65) = EFX1 SW — handled by efx_section receiving btn_press=1
+  -- BCR Toggle On mode: CC=127 = latch-on press, CC=0 = latch-off press.
+  -- Both are distinct physical presses. `,bcr` flag suppresses re-echo feedback.
   local b1 = efx1BtnIndex(cc)
   if b1 then
-    if ccVal == 127 then
-      local efx1 = root:findByName("efx1_section", true)
-      if efx1 then efx1:notify("btn_press", b1) end
-    end
+    local efx1 = root:findByName("efx1_section", true)
+    if efx1 then efx1:notify("btn_press", b1 .. ",bcr") end
     return
   end
 
@@ -500,10 +500,8 @@ local function handleBCR2(cc, ccVal)
   -- B1 (CC 69) = EFX2 SW
   local b2 = efx2BtnIndex(cc)
   if b2 then
-    if ccVal == 127 then
-      local efx2 = root:findByName("efx2_section", true)
-      if efx2 then efx2:notify("btn_press", b2) end
-    end
+    local efx2 = root:findByName("efx2_section", true)
+    if efx2 then efx2:notify("btn_press", b2 .. ",bcr") end
     return
   end
 
