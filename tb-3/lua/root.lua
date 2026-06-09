@@ -794,7 +794,9 @@ local function snapshotCurrentPatch()
     end
     parts[#parts+1] = '"' .. hexStr .. '"'
   end
-  return '{"blocks":[' .. table.concat(parts, ",") .. ']}'
+  local presetLbl = root:findByName("preset_name_label", true)
+  local nameStr   = (presetLbl and presetLbl.values.text or ""):gsub('"', '\\"')
+  return '{"name":"' .. nameStr .. '","blocks":[' .. table.concat(parts, ",") .. ']}'
 end
 
 -- Apply a snapshot (JSON string with "blocks" array) to the TB-3 and UI.

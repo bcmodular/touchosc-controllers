@@ -4,28 +4,29 @@ TB-3 TouchOSC Preset Manager
 =============================
 Saves and restores Roland TB-3 patches exchanged with the TouchOSC TB-3 controller.
 
-Pull flow (Python → TouchOSC → Python):
-  1. Press "Pull Current Patch" in the Patches tab.
-  2. The app sends OSC /tb3/request_patch_export to TouchOSC.
-  3. TouchOSC snapshots its current state and replies with /tb3/backup (JSON).
-  4. This app receives the JSON and prompts for a name to save as a .syx file.
+Library layout:
+  Left  — Bank list.  First entry "(individual patches)" shows standalone .syx files
+           in the top-level patches folder.  Real banks show 16 numbered slots.
+  Right — Slot list for the selected bank / orphan patches.
 
-Restore flow (Python → TouchOSC → TB-3):
-  1. Select a bank (left) — or the special "(individual patches)" entry for
-     standalone .syx files — then select a slot/patch (middle) and press
-     "Restore Slot".
-  2. The app sends each SysEx block as a comma-separated hex string via
-     OSC /tb3/restore.
-  3. TouchOSC parses each message, updates its own UI, and forwards the raw
-     SysEx to the TB-3 hardware.
+OSC paths:
+  Python → TouchOSC:
+    /tb3/request_patch_export       Request snapshot of current patch → /tb3/backup
+    /tb3/patchgrid/request_backup   Request all 16 grid slots → /tb3/patchgrid/backup
+    /tb3/patchgrid/restore          Load 16 slots into grid (grid only, no TB-3 SysEx)
+    /tb3/restore                    Restore one SysEx block to UI + TB-3 hardware
+
+  TouchOSC → Python:
+    /tb3/backup                     Single-patch JSON snapshot
+    /tb3/patchgrid/backup           Bank JSON snapshot
 
 Bank format (v2):
-  {"version": 2, "name": "...", "slots": {"1": {"name": "...", "blocks": [...]}, "2": null, ...}}
+  {"version": 2, "name": "...", "slots": {"1": {"name": "...", "blocks": [...]}, ...}}
 
 Requirements: pip install python-osc PyQt5
 """
 
-import sys, os, json, time, threading
+import sys, json, time, shutil
 from pathlib import Path
 from datetime import datetime
 
@@ -33,8 +34,8 @@ try:
     from PyQt5.QtWidgets import (
         QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
         QPushButton, QListWidget, QListWidgetItem, QLabel, QLineEdit,
-        QStatusBar, QGroupBox, QFormLayout, QFileDialog, QMessageBox,
-        QInputDialog, QSplitter, QTabWidget
+        QGroupBox, QFormLayout, QFileDialog, QMessageBox, QInputDialog,
+        QSplitter, QTabWidget
     )
     from PyQt5.QtCore import QByteArray, Qt, QThread, pyqtSignal
     from PyQt5.QtGui import QFont, QColor
@@ -55,11 +56,11 @@ except ImportError:
 
 SETTINGS_FILE = Path.home() / ".tb3_preset_manager" / "settings.json"
 DEFAULT_SETTINGS = {
-    "listen_ip":      "0.0.0.0",
-    "listen_port":    9000,
-    "touchosc_ip":    "127.0.0.1",
-    "touchosc_port":  9001,
-    "patches_dir":    str(Path.home() / "tb3_patches"),
+    "listen_ip":     "0.0.0.0",
+    "listen_port":   9000,
+    "touchosc_ip":   "127.0.0.1",
+    "touchosc_port": 9001,
+    "patches_dir":   str(Path.home() / "tb3_patches"),
 }
 
 
@@ -84,16 +85,14 @@ def save_settings(s):
 # SysEx utilities
 # ---------------------------------------------------------------------------
 
-def parse_syx(data: bytes) -> list[bytes]:
-    """Split a binary .syx blob into individual F0…F7 messages."""
-    messages = []
-    i = 0
+def parse_syx(data: bytes) -> list:
+    messages, i = [], 0
     while i < len(data):
         if data[i] == 0xF0:
             j = i + 1
             while j < len(data) and data[j] != 0xF7:
                 j += 1
-            j += 1  # include F7
+            j += 1
             messages.append(data[i:j])
             i = j
         else:
@@ -102,27 +101,24 @@ def parse_syx(data: bytes) -> list[bytes]:
 
 
 def hex_string_to_bytes(hex_str: str) -> bytes:
-    """Convert a contiguous hex string ('F04110…F7') to bytes."""
     return bytes.fromhex(hex_str)
 
 
 def bytes_to_csv_hex(data: bytes) -> str:
-    """Convert bytes to comma-separated hex for /tb3/restore ('F0,41,10,…,F7')."""
     return ",".join(f"{b:02X}" for b in data)
 
 
+def syx_bytes_to_block_list(syx_data: bytes) -> list:
+    """Convert raw .syx bytes to the list-of-hex-strings format used in bank JSON."""
+    return [m.hex().upper() for m in parse_syx(syx_data)]
+
+
 def json_to_syx(json_str: str) -> bytes:
-    """Parse the JSON blob sent by TouchOSC /tb3/backup and return raw .syx bytes."""
     obj = json.loads(json_str)
-    blocks = obj.get("blocks", [])
-    out = b""
-    for hex_str in blocks:
-        out += hex_string_to_bytes(hex_str)
-    return out
+    return b"".join(hex_string_to_bytes(h) for h in obj.get("blocks", []))
 
 
 def upgrade_bank_to_v2(bank_data: dict) -> dict:
-    """Add name='' to filled slots that don't have a name field (v1 → v2)."""
     for slot in (bank_data.get("slots") or {}).values():
         if slot is not None and isinstance(slot, dict) and "name" not in slot:
             slot["name"] = ""
@@ -135,8 +131,8 @@ def upgrade_bank_to_v2(bank_data: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 EMPTY_COLOUR  = QColor(150, 150, 150)
-ORPHAN_COLOUR = QColor(100, 130, 200)   # blue-ish for the sentinel bank row
-ORPHAN_KEY    = "__orphan__"            # UserRole sentinel for the <None> bank
+ORPHAN_COLOUR = QColor(100, 130, 200)
+ORPHAN_KEY    = "__orphan__"
 
 
 # ---------------------------------------------------------------------------
@@ -144,37 +140,36 @@ ORPHAN_KEY    = "__orphan__"            # UserRole sentinel for the <None> bank
 # ---------------------------------------------------------------------------
 
 class OSCListenerThread(QThread):
-    backup_received      = pyqtSignal(str, bytes)  # (suggested_name, syx_bytes)
-    bank_backup_received = pyqtSignal(str)          # raw JSON string from TouchOSC
+    backup_received      = pyqtSignal(str, bytes)   # suggested_name, syx_bytes
+    bank_backup_received = pyqtSignal(str)           # raw JSON string
     status_update        = pyqtSignal(str)
-    listening            = pyqtSignal(bool, str)    # (is_listening, address_or_error)
+    listening            = pyqtSignal(bool, str)
 
     def __init__(self, ip, port):
         super().__init__()
-        self.ip   = ip
-        self.port = port
+        self.ip, self.port = ip, port
         self._server = None
 
     def handle_backup(self, addr, *args):
         if not args:
             self.status_update.emit("Received /tb3/backup but no arguments.")
             return
-        json_str = args[0]
         try:
-            syx = json_to_syx(json_str)
+            obj = json.loads(args[0])
+            syx = b"".join(hex_string_to_bytes(h) for h in obj.get("blocks", []))
         except Exception as e:
             self.status_update.emit(f"Parse error: {e}")
             return
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        suggested = f"tb3_patch_{ts}"
-        self.status_update.emit(f"Received patch ({len(syx)} bytes) — prompting save…")
-        self.backup_received.emit(suggested, syx)
+        # Emit the raw preset name (may be ""); callers generate a fallback if needed.
+        preset_name = (obj.get("name") or "").strip()
+        self.status_update.emit(f"Received patch ({len(syx)} bytes).")
+        self.backup_received.emit(preset_name, syx)
 
     def handle_bank_backup(self, addr, *args):
         if not args:
             self.status_update.emit("Received /tb3/patchgrid/backup but no arguments.")
             return
-        self.status_update.emit("Received bank from TouchOSC — prompting save…")
+        self.status_update.emit("Received bank from TouchOSC.")
         self.bank_backup_received.emit(str(args[0]))
 
     def run(self):
@@ -182,12 +177,10 @@ class OSCListenerThread(QThread):
         d.map("/tb3/backup",           self.handle_backup)
         d.map("/tb3/patchgrid/backup", self.handle_bank_backup)
         try:
-            self._server = osc_server.BlockingOSCUDPServer(
-                (self.ip, self.port), d
-            )
+            self._server = osc_server.BlockingOSCUDPServer((self.ip, self.port), d)
             addr = f"{self.ip}:{self.port}"
-            self.status_update.emit(f"Listening on {addr}")
             self.listening.emit(True, addr)
+            self.status_update.emit(f"Listening on {addr}")
             self._server.serve_forever()
         except Exception as e:
             self.status_update.emit(f"OSC listener error: {e}")
@@ -205,19 +198,23 @@ class OSCListenerThread(QThread):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.settings = load_settings()
+        self.settings  = load_settings()
         self._listener = None
         self._client   = None
+        # Snapshot of pull target at the moment "Pull Current Patch" is pressed.
+        # None → orphan (add new file); int → bank slot number to write into.
+        self._pending_pull_slot      = None
+        self._pending_pull_bank_path = None
 
         self.setWindowTitle("TB-3 Preset Manager")
         if not self._restore_window_geometry():
-            self.resize(1100, 580)
+            self.resize(900, 560)
         self._build_ui()
         self._refresh_bank_list()
         self._start_listener()
 
     # ------------------------------------------------------------------
-    # Window geometry persistence
+    # Geometry persistence
     # ------------------------------------------------------------------
 
     def _restore_window_geometry(self) -> bool:
@@ -227,149 +224,137 @@ class MainWindow(QMainWindow):
         return self.restoreGeometry(QByteArray.fromBase64(encoded.encode("ascii")))
 
     def _save_window_geometry(self):
-        self.settings["windowGeometry"] = bytes(self.saveGeometry().toBase64()).decode("ascii")
+        self.settings["windowGeometry"] = (
+            bytes(self.saveGeometry().toBase64()).decode("ascii")
+        )
 
     # ------------------------------------------------------------------
-    # UI construction
+    # UI
     # ------------------------------------------------------------------
 
     def _build_ui(self):
-        central = QWidget()
-        self.setCentralWidget(central)
-        root_layout = QVBoxLayout(central)
-        root_layout.setContentsMargins(8, 8, 8, 8)
+        tabs = QTabWidget()
+        self.setCentralWidget(tabs)
+
+        # ── Library tab ──────────────────────────────────────────────────
+        library = QWidget()
+        lib_layout = QVBoxLayout(library)
+        lib_layout.setContentsMargins(8, 8, 8, 8)
 
         splitter = QSplitter(Qt.Horizontal)
 
-        # ── Left: bank list ──────────────────────────────────────────────
+        # Left — bank list
         left = QWidget()
-        left_v = QVBoxLayout(left)
-        left_v.setContentsMargins(0, 0, 0, 0)
+        lv = QVBoxLayout(left)
+        lv.setContentsMargins(0, 0, 0, 0)
 
-        lbl_b = QLabel("Banks")
-        lbl_b.setFont(QFont("", 11, QFont.Bold))
-        left_v.addWidget(lbl_b)
+        lv.addWidget(self._bold_label("Banks"))
 
         self.bank_list = QListWidget()
-        self.bank_list.currentRowChanged.connect(self._on_bank_selection_changed)
-        left_v.addWidget(self.bank_list)
+        self.bank_list.currentRowChanged.connect(self._on_bank_changed)
+        lv.addWidget(self.bank_list)
 
-        bank_osc_row = QHBoxLayout()
-        self.btn_pull_bank = QPushButton("Pull from TouchOSC")
+        row = QHBoxLayout()
+        self.btn_pull_bank = QPushButton("Pull Bank")
         self.btn_pull_bank.clicked.connect(self._pull_bank)
-        self.btn_push_bank = QPushButton("Push to TouchOSC")
+        self.btn_push_bank = QPushButton("Send Bank")
         self.btn_push_bank.clicked.connect(self._push_bank)
         self.btn_push_bank.setEnabled(False)
-        bank_osc_row.addWidget(self.btn_pull_bank)
-        bank_osc_row.addWidget(self.btn_push_bank)
-        left_v.addLayout(bank_osc_row)
+        row.addWidget(self.btn_pull_bank)
+        row.addWidget(self.btn_push_bank)
+        lv.addLayout(row)
 
-        bank_btn_row = QHBoxLayout()
-        self.btn_rename_bank = QPushButton("Rename")
+        row2 = QHBoxLayout()
+        self.btn_rename_bank = QPushButton("Rename Bank")
         self.btn_rename_bank.clicked.connect(self._rename_bank)
         self.btn_rename_bank.setEnabled(False)
-        self.btn_delete_bank = QPushButton("Delete")
+        self.btn_delete_bank = QPushButton("Delete Bank")
         self.btn_delete_bank.clicked.connect(self._delete_bank)
         self.btn_delete_bank.setEnabled(False)
-        bank_btn_row.addWidget(self.btn_rename_bank)
-        bank_btn_row.addWidget(self.btn_delete_bank)
-        left_v.addLayout(bank_btn_row)
+        row2.addWidget(self.btn_rename_bank)
+        row2.addWidget(self.btn_delete_bank)
+        lv.addLayout(row2)
 
-        bank_file_row = QHBoxLayout()
+        row3 = QHBoxLayout()
+        btn_new_bank = QPushButton("New Bank")
+        btn_new_bank.clicked.connect(self._new_bank)
         btn_import_bank = QPushButton("Import JSON…")
         btn_import_bank.clicked.connect(self._import_bank)
         self.btn_export_bank = QPushButton("Export JSON…")
         self.btn_export_bank.clicked.connect(self._export_bank)
         self.btn_export_bank.setEnabled(False)
-        bank_file_row.addWidget(btn_import_bank)
-        bank_file_row.addWidget(self.btn_export_bank)
-        left_v.addLayout(bank_file_row)
+        row3.addWidget(btn_new_bank)
+        row3.addWidget(btn_import_bank)
+        row3.addWidget(self.btn_export_bank)
+        lv.addLayout(row3)
 
         splitter.addWidget(left)
 
-        # ── Middle: slot list ────────────────────────────────────────────
-        mid = QWidget()
-        mid_v = QVBoxLayout(mid)
-        mid_v.setContentsMargins(0, 0, 0, 0)
+        # Right — slot list
+        right = QWidget()
+        rv = QVBoxLayout(right)
+        rv.setContentsMargins(0, 0, 0, 0)
 
-        self.lbl_slots = QLabel("Slots")
-        self.lbl_slots.setFont(QFont("", 11, QFont.Bold))
-        mid_v.addWidget(self.lbl_slots)
+        self.lbl_slots = self._bold_label("Slots")
+        rv.addWidget(self.lbl_slots)
 
         self.slot_list = QListWidget()
-        self.slot_list.currentRowChanged.connect(self._on_slot_selection_changed)
-        mid_v.addWidget(self.slot_list)
+        self.slot_list.currentRowChanged.connect(self._on_slot_changed)
+        rv.addWidget(self.slot_list)
 
-        slot_btn_row = QHBoxLayout()
-        self.btn_restore_slot = QPushButton("Restore Slot")
+        # Restore / rename / export / delete (require a filled slot)
+        slot_row1 = QHBoxLayout()
+        self.btn_restore_slot = QPushButton("Send Patch")
         self.btn_restore_slot.clicked.connect(self._restore_slot)
         self.btn_restore_slot.setEnabled(False)
-        self.btn_rename_slot = QPushButton("Rename Slot")
+        self.btn_rename_slot = QPushButton("Rename Preset")
         self.btn_rename_slot.clicked.connect(self._rename_slot)
         self.btn_rename_slot.setEnabled(False)
-        slot_btn_row.addWidget(self.btn_restore_slot)
-        slot_btn_row.addWidget(self.btn_rename_slot)
-        mid_v.addLayout(slot_btn_row)
+        self.btn_export_syx = QPushButton("Export .syx…")
+        self.btn_export_syx.clicked.connect(self._export_syx)
+        self.btn_export_syx.setEnabled(False)
+        self.btn_delete_slot = QPushButton("Empty Slot")
+        self.btn_delete_slot.clicked.connect(self._delete_slot)
+        self.btn_delete_slot.setEnabled(False)
+        slot_row1.addWidget(self.btn_restore_slot)
+        slot_row1.addWidget(self.btn_rename_slot)
+        slot_row1.addWidget(self.btn_export_syx)
+        slot_row1.addWidget(self.btn_delete_slot)
+        rv.addLayout(slot_row1)
 
-        splitter.addWidget(mid)
+        # Pull / Import — write into the selected slot (or orphan folder)
+        # Bank mode: requires a slot selected; orphan mode: always enabled.
+        slot_row2 = QHBoxLayout()
+        self.btn_pull_patch = QPushButton("Pull Patch")
+        self.btn_pull_patch.setToolTip(
+            "Request the current TB-3 patch from TouchOSC and write it into "
+            "the selected slot (bank mode) or the orphan patches folder."
+        )
+        self.btn_pull_patch.clicked.connect(self._pull_patch)
+        self.btn_pull_patch.setEnabled(False)
+        self.btn_import_syx = QPushButton("Import .syx…")
+        self.btn_import_syx.setToolTip(
+            "Import a .syx file and write it into the selected slot (bank mode) "
+            "or the orphan patches folder."
+        )
+        self.btn_import_syx.clicked.connect(self._import_syx)
+        self.btn_import_syx.setEnabled(False)
+        slot_row2.addWidget(self.btn_pull_patch)
+        slot_row2.addWidget(self.btn_import_syx)
+        rv.addLayout(slot_row2)
 
-        # ── Right: tabbed panel ──────────────────────────────────────────
-        tabs = QTabWidget()
+        splitter.addWidget(right)
+        splitter.setSizes([340, 520])
+        lib_layout.addWidget(splitter)
+        tabs.addTab(library, "Library")
 
-        # Tab 1 — Individual Patches
-        patches_tab = QWidget()
-        patches_v = QVBoxLayout(patches_tab)
-        patches_v.setContentsMargins(6, 6, 6, 6)
-
-        lbl_p = QLabel("Individual Patches (.syx)")
-        lbl_p.setFont(QFont("", 11, QFont.Bold))
-        patches_v.addWidget(lbl_p)
-
-        self.patch_list = QListWidget()
-        self.patch_list.currentRowChanged.connect(self._on_selection_changed)
-        patches_v.addWidget(self.patch_list)
-
-        pull_row = QHBoxLayout()
-        btn_pull_patch = QPushButton("Pull Current Patch from TB-3")
-        btn_pull_patch.clicked.connect(self._pull_patch)
-        pull_row.addWidget(btn_pull_patch)
-        patches_v.addLayout(pull_row)
-
-        patch_btn_row = QHBoxLayout()
-        self.btn_restore = QPushButton("Restore")
-        self.btn_restore.clicked.connect(self._restore_patch)
-        self.btn_restore.setEnabled(False)
-        self.btn_rename_patch = QPushButton("Rename")
-        self.btn_rename_patch.clicked.connect(self._rename_patch)
-        self.btn_rename_patch.setEnabled(False)
-        self.btn_delete = QPushButton("Delete")
-        self.btn_delete.clicked.connect(self._delete_patch)
-        self.btn_delete.setEnabled(False)
-        patch_btn_row.addWidget(self.btn_restore)
-        patch_btn_row.addWidget(self.btn_rename_patch)
-        patch_btn_row.addWidget(self.btn_delete)
-        patches_v.addLayout(patch_btn_row)
-
-        import_row = QHBoxLayout()
-        btn_import = QPushButton("Import .syx…")
-        btn_import.clicked.connect(self._import_syx)
-        self.btn_export = QPushButton("Export .syx…")
-        self.btn_export.clicked.connect(self._export_syx)
-        self.btn_export.setEnabled(False)
-        import_row.addWidget(btn_import)
-        import_row.addWidget(self.btn_export)
-        patches_v.addLayout(import_row)
-
-        tabs.addTab(patches_tab, "Patches")
-
-        # Tab 2 — Settings
+        # ── Settings tab ─────────────────────────────────────────────────
         settings_tab = QWidget()
-        settings_v = QVBoxLayout(settings_tab)
-        settings_v.setContentsMargins(6, 6, 6, 6)
+        sv = QVBoxLayout(settings_tab)
+        sv.setContentsMargins(12, 12, 12, 12)
 
-        form_box = QGroupBox("Network")
-        form = QFormLayout(form_box)
-
+        box = QGroupBox("Network")
+        form = QFormLayout(box)
         self.le_listen_ip   = QLineEdit(self.settings["listen_ip"])
         self.le_listen_port = QLineEdit(str(self.settings["listen_port"]))
         self.le_tosc_ip     = QLineEdit(self.settings["touchosc_ip"])
@@ -377,40 +362,34 @@ class MainWindow(QMainWindow):
         self.le_patches_dir = QLineEdit(self.settings["patches_dir"])
         self.le_patches_dir.setToolTip(self.settings["patches_dir"])
         self.le_patches_dir.textChanged.connect(self.le_patches_dir.setToolTip)
-
         form.addRow("Listen IP:",      self.le_listen_ip)
         form.addRow("Listen port:",    self.le_listen_port)
         form.addRow("TouchOSC IP:",    self.le_tosc_ip)
         form.addRow("TouchOSC port:",  self.le_tosc_port)
         form.addRow("Patches folder:", self.le_patches_dir)
-
         btn_browse = QPushButton("Browse…")
         btn_browse.clicked.connect(self._browse_dir)
         form.addRow("", btn_browse)
-
-        btn_save_settings = QPushButton("Restart listener")
-        btn_save_settings.clicked.connect(self._apply_settings)
-        form.addRow("", btn_save_settings)
-
+        btn_restart = QPushButton("Restart listener")
+        btn_restart.clicked.connect(self._apply_settings)
+        form.addRow("", btn_restart)
         self.lbl_listener_status = QLabel("○ Starting…")
         form.addRow("Status:", self.lbl_listener_status)
-
-        settings_v.addWidget(form_box)
-        settings_v.addStretch()
+        sv.addWidget(box)
+        sv.addStretch()
 
         tabs.addTab(settings_tab, "Settings")
 
-        splitter.addWidget(tabs)
-        splitter.setSizes([280, 380, 380])
-        root_layout.addWidget(splitter)
-
         self.statusBar().showMessage("Ready.")
 
-        # Populate the patch list now that patch_list widget exists.
-        self._refresh_patch_list()
+    @staticmethod
+    def _bold_label(text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setFont(QFont("", 11, QFont.Bold))
+        return lbl
 
     # ------------------------------------------------------------------
-    # Bank list management
+    # Bank list
     # ------------------------------------------------------------------
 
     def _banks_dir(self) -> Path:
@@ -418,17 +397,20 @@ class MainWindow(QMainWindow):
         p.mkdir(parents=True, exist_ok=True)
         return p
 
+    def _patches_dir(self) -> Path:
+        p = Path(self.settings["patches_dir"])
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
     def _bank_name_from_path(self, p: Path) -> str:
         return p.name.removesuffix(".tb3bank.json")
 
-    def _current_bank_path(self) -> Path | None:
+    def _current_bank_path(self):
         item = self.bank_list.currentItem()
         if not item:
             return None
         data = item.data(Qt.UserRole)
-        if data == ORPHAN_KEY:
-            return None
-        return Path(data) if data else None
+        return None if data == ORPHAN_KEY else (Path(data) if data else None)
 
     def _is_orphan_mode(self) -> bool:
         item = self.bank_list.currentItem()
@@ -436,25 +418,22 @@ class MainWindow(QMainWindow):
 
     def _refresh_bank_list(self):
         prev_key = None
-        if self.bank_list.currentItem():
-            prev_key = self.bank_list.currentItem().data(Qt.UserRole)
+        cur = self.bank_list.currentItem()
+        if cur:
+            prev_key = cur.data(Qt.UserRole)
 
         self.bank_list.clear()
 
-        # Sentinel first entry — individual .syx patches
         orphan = QListWidgetItem("(individual patches)")
         orphan.setData(Qt.UserRole, ORPHAN_KEY)
         orphan.setForeground(ORPHAN_COLOUR)
         self.bank_list.addItem(orphan)
 
-        # Real banks
         for f in sorted(self._banks_dir().glob("*.tb3bank.json")):
-            name = self._bank_name_from_path(f)
-            item = QListWidgetItem(name)
+            item = QListWidgetItem(self._bank_name_from_path(f))
             item.setData(Qt.UserRole, str(f))
             self.bank_list.addItem(item)
 
-        # Restore previous selection, defaulting to the orphan row.
         restored = False
         if prev_key:
             for i in range(self.bank_list.count()):
@@ -465,20 +444,19 @@ class MainWindow(QMainWindow):
         if not restored:
             self.bank_list.setCurrentRow(0)
 
-    def _on_bank_selection_changed(self, row):
-        is_real_bank = (row > 0 and
-                        self.bank_list.item(row) is not None and
-                        self.bank_list.item(row).data(Qt.UserRole) != ORPHAN_KEY)
-        self.btn_push_bank.setEnabled(is_real_bank)
-        self.btn_rename_bank.setEnabled(is_real_bank)
-        self.btn_delete_bank.setEnabled(is_real_bank)
-        self.btn_export_bank.setEnabled(is_real_bank)
+    def _on_bank_changed(self, row):
+        is_bank = (row > 0 and
+                   self.bank_list.item(row) is not None and
+                   self.bank_list.item(row).data(Qt.UserRole) != ORPHAN_KEY)
+        self.btn_push_bank.setEnabled(is_bank)
+        self.btn_rename_bank.setEnabled(is_bank)
+        self.btn_delete_bank.setEnabled(is_bank)
+        self.btn_export_bank.setEnabled(is_bank)
 
         if self._is_orphan_mode():
             self.lbl_slots.setText("Individual Patches")
-        elif is_real_bank:
-            bank_name = self.bank_list.item(row).text()
-            self.lbl_slots.setText(f"Slots — {bank_name}")
+        elif is_bank:
+            self.lbl_slots.setText(f"Slots — {self.bank_list.item(row).text()}")
         else:
             self.lbl_slots.setText("Slots")
 
@@ -490,7 +468,7 @@ class MainWindow(QMainWindow):
             return
         try:
             client.send_message("/tb3/patchgrid/request_backup", "")
-            self.statusBar().showMessage("Requested bank from TouchOSC — waiting for response…")
+            self.statusBar().showMessage("Requested bank from TouchOSC…")
         except Exception as e:
             self.statusBar().showMessage(f"Send error: {e}")
 
@@ -513,7 +491,6 @@ class MainWindow(QMainWindow):
         with open(path, "w") as f:
             json.dump(bank_data, f, indent=2)
         self._refresh_bank_list()
-        # Select the newly saved bank.
         for i in range(self.bank_list.count()):
             if self.bank_list.item(i).data(Qt.UserRole) == str(path):
                 self.bank_list.setCurrentRow(i)
@@ -531,7 +508,7 @@ class MainWindow(QMainWindow):
             return
         try:
             client.send_message("/tb3/patchgrid/restore", json.dumps(bank_data))
-            self.statusBar().showMessage(f"Pushed bank '{path.stem}' to TouchOSC.")
+            self.statusBar().showMessage(f"Pushed bank '{self._bank_name_from_path(path)}' to TouchOSC.")
         except Exception as e:
             self.statusBar().showMessage(f"Send error: {e}")
 
@@ -563,9 +540,9 @@ class MainWindow(QMainWindow):
         path = self._current_bank_path()
         if not path:
             return
-        name = self._bank_name_from_path(path)
         r = QMessageBox.question(
-            self, "Delete Bank", f"Delete bank '{name}'?",
+            self, "Delete Bank",
+            f"Delete bank '{self._bank_name_from_path(path)}'?",
             QMessageBox.Yes | QMessageBox.No
         )
         if r == QMessageBox.Yes:
@@ -580,13 +557,10 @@ class MainWindow(QMainWindow):
         if not path:
             return
         src = Path(path)
-        default_name = src.name.removesuffix(".tb3bank.json").removesuffix(".json")
-        name, ok = QInputDialog.getText(
-            self, "Import Bank", "Bank name:", text=default_name
-        )
+        default = src.name.removesuffix(".tb3bank.json").removesuffix(".json")
+        name, ok = QInputDialog.getText(self, "Import Bank", "Bank name:", text=default)
         if not (ok and name.strip()):
             return
-        import shutil
         dst = self._banks_dir() / f"{name.strip()}.tb3bank.json"
         shutil.copy2(src, dst)
         self._refresh_bank_list()
@@ -605,12 +579,39 @@ class MainWindow(QMainWindow):
             "TB-3 Bank (*.tb3bank.json);;All (*)"
         )
         if dst:
-            import shutil
             shutil.copy2(path, dst)
             self.statusBar().showMessage(f"Exported bank to {dst}")
 
+    def _new_bank(self):
+        name, ok = QInputDialog.getText(self, "New Bank", "Bank name:")
+        if not (ok and name.strip()):
+            return
+        path = self._banks_dir() / f"{name.strip()}.tb3bank.json"
+        if path.exists():
+            r = QMessageBox.question(
+                self, "Overwrite?",
+                f"A bank named '{name.strip()}' already exists.\nOverwrite it?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if r != QMessageBox.Yes:
+                return
+        bank_data = {
+            "version":   2,
+            "name":      name.strip(),
+            "createdAt": datetime.now().isoformat(),
+            "slots":     {str(i): None for i in range(1, 17)},
+        }
+        with open(path, "w") as f:
+            json.dump(bank_data, f, indent=2)
+        self._refresh_bank_list()
+        for i in range(self.bank_list.count()):
+            if self.bank_list.item(i).data(Qt.UserRole) == str(path):
+                self.bank_list.setCurrentRow(i)
+                break
+        self.statusBar().showMessage(f"Created bank: {name.strip()}")
+
     # ------------------------------------------------------------------
-    # Slot list — bank slots or orphan .syx patches
+    # Slot list
     # ------------------------------------------------------------------
 
     def _refresh_slot_list(self):
@@ -619,10 +620,9 @@ class MainWindow(QMainWindow):
             self._populate_orphan_slots()
         else:
             self._populate_bank_slots()
-        self._on_slot_selection_changed(self.slot_list.currentRow())
+        self._on_slot_changed(self.slot_list.currentRow())
 
     def _populate_orphan_slots(self):
-        """List standalone .syx files in the top-level patches folder."""
         for f in sorted(self._patches_dir().glob("*.syx")):
             item = QListWidgetItem(f.stem)
             item.setData(Qt.UserRole, str(f))
@@ -639,215 +639,85 @@ class MainWindow(QMainWindow):
             return
         slots = bank_data.get("slots", {})
         for i in range(1, 17):
-            slot = slots.get(str(i))
+            slot   = slots.get(str(i))
             filled = slot is not None and isinstance(slot, dict) and slot.get("blocks")
             if filled:
-                name = (slot.get("name") or "").strip()
+                name  = (slot.get("name") or "").strip()
                 label = f"Slot {i:2d}:  {name}" if name else f"Slot {i:2d}:  [unnamed]"
             else:
                 label = f"Slot {i:2d}:  (empty)"
             item = QListWidgetItem(label)
-            item.setData(Qt.UserRole, i)   # store 1-based slot number
+            item.setData(Qt.UserRole,     i)       # int slot number
+            item.setData(Qt.UserRole + 1, filled)  # bool
             if not filled:
                 item.setForeground(EMPTY_COLOUR)
             self.slot_list.addItem(item)
 
-    def _on_slot_selection_changed(self, row):
-        if row < 0 or self.slot_list.item(row) is None:
-            self.btn_restore_slot.setEnabled(False)
-            self.btn_rename_slot.setEnabled(False)
-            return
+    def _slot_is_filled(self, row: int) -> bool:
         item = self.slot_list.item(row)
+        if not item:
+            return False
         if self._is_orphan_mode():
-            # All listed .syx items are restorable; rename renames the file.
-            self.btn_restore_slot.setEnabled(True)
-            self.btn_rename_slot.setEnabled(True)
-        else:
-            filled = item.foreground().color() != EMPTY_COLOUR
-            self.btn_restore_slot.setEnabled(filled)
-            self.btn_rename_slot.setEnabled(filled)
+            return True  # every listed orphan item is a real file
+        return bool(item.data(Qt.UserRole + 1))
 
-    def _restore_slot(self):
-        row = self.slot_list.currentRow()
-        if row < 0:
-            return
+    def _on_slot_changed(self, row):
+        has_item = row >= 0 and self.slot_list.item(row) is not None
+        filled   = has_item and self._slot_is_filled(row)
+
+        # Actions that require a filled slot
+        self.btn_restore_slot.setEnabled(filled)
+        self.btn_rename_slot.setEnabled(filled)
+        self.btn_export_syx.setEnabled(filled)
+        self.btn_delete_slot.setEnabled(filled)
+
+        # Pull / Import:
+        #   orphan mode → always enabled (adds new file to folder)
+        #   bank mode   → require a slot selection (any row, even empty)
         if self._is_orphan_mode():
-            self._restore_orphan_slot(row)
+            self.btn_pull_patch.setEnabled(True)
+            self.btn_import_syx.setEnabled(True)
         else:
-            self._restore_bank_slot(row)
-
-    def _restore_orphan_slot(self, row):
-        item = self.slot_list.item(row)
-        if not item:
-            return
-        path = Path(item.data(Qt.UserRole))
-        if not path.exists():
-            return
-        with open(path, "rb") as f:
-            syx_data = f.read()
-        messages = parse_syx(syx_data)
-        if not messages:
-            QMessageBox.warning(self, "Restore", "No SysEx messages found.")
-            return
-        self._send_blocks([(bytes_to_csv_hex(m)) for m in messages])
-
-    def _restore_bank_slot(self, row):
-        path = self._current_bank_path()
-        if not path or not path.exists():
-            return
-        item = self.slot_list.item(row)
-        if not item:
-            return
-        slot_num = item.data(Qt.UserRole)
-        try:
-            with open(path) as f:
-                bank_data = json.load(f)
-        except Exception:
-            return
-        slot = bank_data.get("slots", {}).get(str(slot_num))
-        if not slot or not isinstance(slot, dict):
-            return
-        blocks = slot.get("blocks", [])
-        if not blocks:
-            return
-        self._send_blocks([bytes_to_csv_hex(hex_string_to_bytes(b)) for b in blocks])
-
-    def _send_blocks(self, csv_list: list[str]):
-        client = self._get_client()
-        if not client:
-            return
-        total = len(csv_list)
-        for i, csv in enumerate(csv_list):
-            try:
-                client.send_message("/tb3/restore", csv)
-                self.statusBar().showMessage(f"Restoring block {i + 1}/{total}…")
-                QApplication.processEvents()
-                time.sleep(0.015)
-            except Exception as e:
-                self.statusBar().showMessage(f"Send error: {e}")
-                return
-        self.statusBar().showMessage(f"Restored {total} blocks to TouchOSC.")
-
-    def _rename_slot(self):
-        row = self.slot_list.currentRow()
-        if row < 0:
-            return
-        if self._is_orphan_mode():
-            self._rename_orphan_slot(row)
-        else:
-            self._rename_bank_slot(row)
-
-    def _rename_orphan_slot(self, row):
-        item = self.slot_list.item(row)
-        if not item:
-            return
-        path = Path(item.data(Qt.UserRole))
-        name, ok = QInputDialog.getText(self, "Rename Patch", "New name:", text=path.stem)
-        if not (ok and name.strip() and name.strip() != path.stem):
-            return
-        new_path = path.parent / f"{name.strip()}.syx"
-        path.rename(new_path)
-        self._refresh_slot_list()
-        self._refresh_patch_list()
-
-    def _rename_bank_slot(self, row):
-        path = self._current_bank_path()
-        if not path or not path.exists():
-            return
-        item = self.slot_list.item(row)
-        if not item:
-            return
-        slot_num = item.data(Qt.UserRole)
-        try:
-            with open(path) as f:
-                bank_data = json.load(f)
-        except Exception:
-            return
-        slot = bank_data.get("slots", {}).get(str(slot_num))
-        if not slot or not isinstance(slot, dict):
-            return
-        current_name = (slot.get("name") or "").strip()
-        name, ok = QInputDialog.getText(
-            self, "Rename Slot", f"Name for slot {slot_num}:", text=current_name
-        )
-        if not ok:
-            return
-        bank_data["slots"][str(slot_num)]["name"] = name.strip()
-        bank_data["version"] = 2
-        with open(path, "w") as f:
-            json.dump(bank_data, f, indent=2)
-        self._refresh_slot_list()
-        self.slot_list.setCurrentRow(row)
+            self.btn_pull_patch.setEnabled(has_item)
+            self.btn_import_syx.setEnabled(has_item)
 
     # ------------------------------------------------------------------
-    # Individual patch management (.syx files — Patches tab)
+    # Pull / Import — write into the selected slot or orphan folder
     # ------------------------------------------------------------------
-
-    def _patches_dir(self) -> Path:
-        p = Path(self.settings["patches_dir"])
-        p.mkdir(parents=True, exist_ok=True)
-        return p
-
-    def _refresh_patch_list(self):
-        self.patch_list.clear()
-        for f in sorted(self._patches_dir().glob("*.syx")):
-            self.patch_list.addItem(f.stem)
-        self._on_selection_changed(self.patch_list.currentRow())
-        # Keep orphan slot view in sync if currently shown.
-        if self._is_orphan_mode():
-            self._refresh_slot_list()
-
-    def _current_syx_path(self) -> Path | None:
-        item = self.patch_list.currentItem()
-        if not item:
-            return None
-        return self._patches_dir() / (item.text() + ".syx")
-
-    def _on_selection_changed(self, row):
-        has = row >= 0 and self.patch_list.item(row) is not None
-        self.btn_restore.setEnabled(has)
-        self.btn_rename_patch.setEnabled(has)
-        self.btn_delete.setEnabled(has)
-        self.btn_export.setEnabled(has)
 
     def _pull_patch(self):
         client = self._get_client()
         if not client:
             return
+        # Snapshot the target now so the async callback knows where to write.
+        if self._is_orphan_mode():
+            self._pending_pull_slot      = None
+            self._pending_pull_bank_path = None
+        else:
+            row = self.slot_list.currentRow()
+            if row < 0:
+                return
+            self._pending_pull_slot      = self.slot_list.item(row).data(Qt.UserRole)
+            self._pending_pull_bank_path = self._current_bank_path()
         try:
             client.send_message("/tb3/request_patch_export", "")
-            self.statusBar().showMessage("Requested current patch from TouchOSC — waiting…")
+            self.statusBar().showMessage("Requested current patch from TouchOSC…")
         except Exception as e:
             self.statusBar().showMessage(f"Send error: {e}")
 
-    def _save_patch(self, name: str, syx_bytes: bytes):
-        path = self._patches_dir() / f"{name}.syx"
-        with open(path, "wb") as f:
-            f.write(syx_bytes)
-        self._refresh_patch_list()
-        items = self.patch_list.findItems(name, Qt.MatchExactly)
-        if items:
-            self.patch_list.setCurrentItem(items[0])
-        self.statusBar().showMessage(f"Saved: {path.name}")
+    def _handle_backup_received(self, preset_name: str, syx_bytes: bytes):
+        """Called when /tb3/backup arrives. Routes to the pending target."""
+        slot_num  = self._pending_pull_slot
+        bank_path = self._pending_pull_bank_path
+        # Reset immediately so stale callbacks don't double-fire.
+        self._pending_pull_slot      = None
+        self._pending_pull_bank_path = None
 
-    def _handle_backup_received(self, suggested_name: str, syx_bytes: bytes):
-        name, ok = QInputDialog.getText(
-            self, "Save Patch", "Patch name:", text=suggested_name
-        )
-        if ok and name.strip():
-            self._save_patch(name.strip(), syx_bytes)
-
-    def _restore_patch(self):
-        path = self._current_syx_path()
-        if not path or not path.exists():
-            return
-        with open(path, "rb") as f:
-            syx_data = f.read()
-        messages = parse_syx(syx_data)
-        if not messages:
-            QMessageBox.warning(self, "Restore", "No SysEx messages found in file.")
-            return
-        self._send_blocks([bytes_to_csv_hex(m) for m in messages])
+        if slot_num is None:
+            self._write_syx_to_orphan(preset_name, syx_bytes)
+        else:
+            self._write_syx_to_bank_slot(syx_bytes, bank_path, slot_num,
+                                         default_name=preset_name)
 
     def _import_syx(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -858,52 +728,262 @@ class MainWindow(QMainWindow):
         src = Path(path)
         with open(src, "rb") as f:
             syx_bytes = f.read()
+
+        if self._is_orphan_mode():
+            self._write_syx_to_orphan(src.stem, syx_bytes)
+        else:
+            row = self.slot_list.currentRow()
+            if row < 0:
+                return
+            self._write_syx_to_bank_slot(
+                syx_bytes,
+                self._current_bank_path(),
+                self.slot_list.item(row).data(Qt.UserRole),
+                default_name=src.stem,
+            )
+
+    def _write_syx_to_orphan(self, suggested_name: str, syx_bytes: bytes):
+        if suggested_name:
+            # Name came from TouchOSC — save without asking, only warn on collision.
+            name = suggested_name
+        else:
+            # No name available — ask.
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            name, ok = QInputDialog.getText(
+                self, "Save Patch", "Patch name:", text=f"tb3_patch_{ts}"
+            )
+            if not (ok and name.strip()):
+                return
+            name = name.strip()
+        dest = self._patches_dir() / f"{name}.syx"
+        if dest.exists():
+            r = QMessageBox.question(
+                self, "Overwrite?",
+                f"A patch named '{name}' already exists.\nOverwrite it?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if r != QMessageBox.Yes:
+                return
+        with open(dest, "wb") as f:
+            f.write(syx_bytes)
+        if self._is_orphan_mode():
+            self._refresh_slot_list()
+        self.statusBar().showMessage(f"Saved patch: {dest.name}")
+
+    def _write_syx_to_bank_slot(self, syx_bytes: bytes, bank_path, slot_num: int,
+                                 default_name: str = ""):
+        if not bank_path or not bank_path.exists():
+            QMessageBox.warning(self, "Error", "Bank file not found.")
+            return
+        try:
+            with open(bank_path) as f:
+                bank_data = json.load(f)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not read bank: {e}")
+            return
+
+        slots    = bank_data.setdefault("slots", {})
+        existing = slots.get(str(slot_num))
+        filled   = existing is not None and isinstance(existing, dict) and existing.get("blocks")
+
+        if filled:
+            existing_name = (existing.get("name") or "").strip() or "[unnamed]"
+            r = QMessageBox.question(
+                self, "Overwrite?",
+                f"Slot {slot_num} already contains '{existing_name}'.\nOverwrite it?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if r != QMessageBox.Yes:
+                return
+            current_name = (existing.get("name") or "").strip()
+        else:
+            current_name = default_name
+
         name, ok = QInputDialog.getText(
-            self, "Import Patch", "Patch name:", text=src.stem
+            self, f"Name for Slot {slot_num}", "Preset name:", text=current_name
         )
-        if ok and name.strip():
-            self._save_patch(name.strip(), syx_bytes)
+        if not ok:
+            return
+
+        bank_data["slots"][str(slot_num)] = {
+            "name":   name.strip(),
+            "blocks": syx_bytes_to_block_list(syx_bytes),
+        }
+        bank_data["version"] = 2
+        with open(bank_path, "w") as f:
+            json.dump(bank_data, f, indent=2)
+
+        self._refresh_slot_list()
+        for i in range(self.slot_list.count()):
+            if self.slot_list.item(i).data(Qt.UserRole) == slot_num:
+                self.slot_list.setCurrentRow(i)
+                break
+        self.statusBar().showMessage(
+            f"Saved to slot {slot_num} of '{self._bank_name_from_path(bank_path)}'."
+        )
+
+    # ------------------------------------------------------------------
+    # Slot actions: restore / rename / export .syx / delete
+    # ------------------------------------------------------------------
+
+    def _restore_slot(self):
+        row = self.slot_list.currentRow()
+        if row < 0:
+            return
+        if self._is_orphan_mode():
+            path = Path(self.slot_list.item(row).data(Qt.UserRole))
+            if not path.exists():
+                return
+            with open(path, "rb") as f:
+                syx_data = f.read()
+            csvs = [bytes_to_csv_hex(m) for m in parse_syx(syx_data)]
+        else:
+            path = self._current_bank_path()
+            if not path or not path.exists():
+                return
+            slot_num = self.slot_list.item(row).data(Qt.UserRole)
+            try:
+                with open(path) as f:
+                    bank_data = json.load(f)
+            except Exception:
+                return
+            slot = bank_data.get("slots", {}).get(str(slot_num))
+            if not slot or not isinstance(slot, dict):
+                return
+            csvs = [bytes_to_csv_hex(hex_string_to_bytes(b))
+                    for b in slot.get("blocks", [])]
+        self._send_blocks(csvs)
+
+    def _rename_slot(self):
+        row = self.slot_list.currentRow()
+        if row < 0:
+            return
+        if self._is_orphan_mode():
+            item = self.slot_list.item(row)
+            path = Path(item.data(Qt.UserRole))
+            name, ok = QInputDialog.getText(
+                self, "Rename Patch", "New name:", text=path.stem
+            )
+            if not (ok and name.strip() and name.strip() != path.stem):
+                return
+            path.rename(path.parent / f"{name.strip()}.syx")
+            self._refresh_slot_list()
+        else:
+            bank_path = self._current_bank_path()
+            if not bank_path or not bank_path.exists():
+                return
+            slot_num = self.slot_list.item(row).data(Qt.UserRole)
+            try:
+                with open(bank_path) as f:
+                    bank_data = json.load(f)
+            except Exception:
+                return
+            slot = bank_data.get("slots", {}).get(str(slot_num))
+            if not slot or not isinstance(slot, dict):
+                return
+            current_name = (slot.get("name") or "").strip()
+            name, ok = QInputDialog.getText(
+                self, "Rename Slot", f"Name for slot {slot_num}:", text=current_name
+            )
+            if not ok:
+                return
+            bank_data["slots"][str(slot_num)]["name"] = name.strip()
+            bank_data["version"] = 2
+            with open(bank_path, "w") as f:
+                json.dump(bank_data, f, indent=2)
+            self._refresh_slot_list()
+            self.slot_list.setCurrentRow(row)
 
     def _export_syx(self):
-        path = self._current_syx_path()
-        if not path or not path.exists():
+        row = self.slot_list.currentRow()
+        if row < 0:
             return
-        dst, _ = QFileDialog.getSaveFileName(
-            self, "Export SysEx file", str(Path.home() / path.name), "SysEx (*.syx)"
-        )
-        if dst:
-            import shutil
-            shutil.copy2(path, dst)
-            self.statusBar().showMessage(f"Exported to {dst}")
+        if self._is_orphan_mode():
+            src = Path(self.slot_list.item(row).data(Qt.UserRole))
+            dst, _ = QFileDialog.getSaveFileName(
+                self, "Export SysEx", str(Path.home() / src.name), "SysEx (*.syx)"
+            )
+            if dst:
+                shutil.copy2(src, dst)
+                self.statusBar().showMessage(f"Exported to {dst}")
+        else:
+            bank_path = self._current_bank_path()
+            if not bank_path or not bank_path.exists():
+                return
+            slot_num = self.slot_list.item(row).data(Qt.UserRole)
+            try:
+                with open(bank_path) as f:
+                    bank_data = json.load(f)
+            except Exception:
+                return
+            slot   = bank_data.get("slots", {}).get(str(slot_num))
+            blocks = (slot or {}).get("blocks", []) if isinstance(slot, dict) else []
+            if not blocks:
+                return
+            bank_name = self._bank_name_from_path(bank_path)
+            slot_name = (slot.get("name") or "").strip() or f"slot{slot_num}"
+            dst, _ = QFileDialog.getSaveFileName(
+                self, "Export SysEx",
+                str(Path.home() / f"{bank_name}_{slot_name}.syx"),
+                "SysEx (*.syx)"
+            )
+            if not dst:
+                return
+            syx = b"".join(hex_string_to_bytes(b) for b in blocks)
+            with open(dst, "wb") as f:
+                f.write(syx)
+            self.statusBar().showMessage(f"Exported slot {slot_num} to {dst}")
 
-    def _delete_patch(self):
-        path = self._current_syx_path()
-        if not path:
+    def _delete_slot(self):
+        row = self.slot_list.currentRow()
+        if row < 0:
             return
-        r = QMessageBox.question(
-            self, "Delete", f"Delete '{path.stem}'?",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        if r == QMessageBox.Yes:
-            path.unlink(missing_ok=True)
-            self._refresh_patch_list()
-
-    def _rename_patch(self):
-        path = self._current_syx_path()
-        if not path:
-            return
-        name, ok = QInputDialog.getText(
-            self, "Rename Patch", "New name:", text=path.stem
-        )
-        if ok and name.strip() and name.strip() != path.stem:
-            new_path = path.parent / f"{name.strip()}.syx"
-            path.rename(new_path)
-            self._refresh_patch_list()
-            items = self.patch_list.findItems(name.strip(), Qt.MatchExactly)
-            if items:
-                self.patch_list.setCurrentItem(items[0])
-            if self._is_orphan_mode():
+        if self._is_orphan_mode():
+            item = self.slot_list.item(row)
+            path = Path(item.data(Qt.UserRole))
+            r = QMessageBox.question(
+                self, "Delete", f"Delete '{path.stem}'?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if r == QMessageBox.Yes:
+                path.unlink(missing_ok=True)
                 self._refresh_slot_list()
+        else:
+            bank_path = self._current_bank_path()
+            if not bank_path or not bank_path.exists():
+                return
+            slot_num = self.slot_list.item(row).data(Qt.UserRole)
+            r = QMessageBox.question(
+                self, "Delete Slot", f"Clear slot {slot_num}?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if r != QMessageBox.Yes:
+                return
+            try:
+                with open(bank_path) as f:
+                    bank_data = json.load(f)
+                bank_data["slots"][str(slot_num)] = None
+                with open(bank_path, "w") as f:
+                    json.dump(bank_data, f, indent=2)
+            except Exception:
+                return
+            self._refresh_slot_list()
+            self.slot_list.setCurrentRow(row)
+
+    def _send_blocks(self, csv_list: list):
+        client = self._get_client()
+        if not client:
+            return
+        for i, csv in enumerate(csv_list):
+            try:
+                client.send_message("/tb3/restore", csv)
+                self.statusBar().showMessage(f"Restoring block {i + 1}/{len(csv_list)}…")
+                QApplication.processEvents()
+                time.sleep(0.015)
+            except Exception as e:
+                self.statusBar().showMessage(f"Send error: {e}")
+                return
+        self.statusBar().showMessage(f"Restored {len(csv_list)} blocks to TouchOSC.")
 
     # ------------------------------------------------------------------
     # Settings
@@ -927,12 +1007,11 @@ class MainWindow(QMainWindow):
         save_settings(self.settings)
         self._client = None
         self._start_listener()
-        self._refresh_patch_list()
         self._refresh_bank_list()
         self.statusBar().showMessage("Settings saved. Listener restarted.")
 
     # ------------------------------------------------------------------
-    # OSC client / listener
+    # OSC
     # ------------------------------------------------------------------
 
     def _get_client(self):
@@ -960,10 +1039,10 @@ class MainWindow(QMainWindow):
         self._listener.backup_received.connect(self._handle_backup_received)
         self._listener.bank_backup_received.connect(self._handle_bank_backup_received)
         self._listener.status_update.connect(self.statusBar().showMessage)
-        self._listener.listening.connect(self._on_listener_state_changed)
+        self._listener.listening.connect(self._on_listener_state)
         self._listener.start()
 
-    def _on_listener_state_changed(self, ok, info):
+    def _on_listener_state(self, ok, info):
         if ok:
             self.lbl_listener_status.setText(f"● Listening on {info}")
             self.lbl_listener_status.setStyleSheet("color: #2a8a2a;")
