@@ -79,10 +79,12 @@ local rawSysexBlocks = {}
 -- Patch grid state
 -- ---------------------------------------------------------------------------
 
-local patchGridMode  = nil   -- nil | "delete" | "grab" | "morph"
-local grabSnapshot   = nil   -- blocks JSON string saved on grab entry
+local patchGridMode   = nil   -- nil | "delete" | "grab" | "morph"
+local grabSnapshot    = nil   -- JSON string saved on grab press
 local morphTargetSlot = nil
-local morphAmount    = 0
+local morphBaseSnapshot = nil -- JSON string of patch at morph-target selection time
+local morphLastBlocks   = nil -- block hex strings last sent by applyMorph (for diff)
+local morphAmount     = 0
 
 local EXPORT_BLOCK_ORDER = {
   "10000000", "10000200", "10000400", "10000600",
@@ -839,6 +841,63 @@ local function applySnapshotDiff(targetJson, baseJson)
   print("patch_grid: diff applied " .. sent .. "/" .. #target.blocks .. " blocks")
 end
 
+-- Interpolate every data byte between morphBaseSnapshot and the morph target
+-- slot at the current morphAmount (0–127).  Only sends blocks that changed
+-- since the last applyMorph call (morphLastBlocks).
+-- Switch-type bytes (enums, on/off flags) snap at the midpoint (amount ≥ 64).
+local function applyMorph()
+  if not morphTargetSlot or not morphBaseSnapshot then return end
+  local slots = getPatchGridSlots()
+  local targetData = slots[tostring(morphTargetSlot)]
+  if not targetData then return end
+
+  local base   = json.toTable(morphBaseSnapshot)
+  local target = json.toTable(json.fromTable(targetData))
+  if not base or not target or not base.blocks or not target.blocks then return end
+
+  local t = morphAmount / 127   -- 0.0 … 1.0
+
+  -- Build one blended block per EXPORT_BLOCK_ORDER entry.
+  local blended = {}
+  for i = 1, #base.blocks do
+    local bHex = base.blocks[i]
+    local tHex = target.blocks[i] or bHex
+    if bHex == tHex then
+      blended[i] = bHex           -- identical — skip heavy work
+    else
+      -- Decode both full SysEx messages to byte arrays.
+      local bB, tB = {}, {}
+      for j = 1, #bHex - 1, 2 do bB[#bB+1] = tonumber(bHex:sub(j,j+1),16) or 0 end
+      for j = 1, #tHex - 1, 2 do tB[#tB+1] = tonumber(tHex:sub(j,j+1),16) or 0 end
+      -- addr = bytes 8-11 (1-indexed); data = bytes 12 … #-2
+      local addr = {bB[8], bB[9], bB[10], bB[11]}
+      local newData = {}
+      for j = 12, #bB - 2 do
+        local b  = bB[j] or 0
+        local tb = tB[j] or b
+        newData[#newData+1] = math.floor(b + (tb - b) * t + 0.5)
+      end
+      blended[i] = blockToHexString(addr, newData)
+    end
+  end
+
+  -- Send only blocks that changed vs last morph position.
+  local prev = morphLastBlocks or {}
+  local sent = 0
+  for i, hexStr in ipairs(blended) do
+    if hexStr ~= prev[i] then
+      local bytes = {}
+      for j = 1, #hexStr - 1, 2 do bytes[#bytes+1] = tonumber(hexStr:sub(j,j+1),16) or 0 end
+      if #bytes >= 14 and bytes[1] == 0xF0 and bytes[2] == 0x41 and bytes[7] == 0x12 then
+        sendMIDI(bytes, TB3_CONNECTION)
+        handleTB3SysEx(bytes)
+        sent = sent + 1
+      end
+    end
+  end
+  morphLastBlocks = blended
+end
+
 -- Read all 16 slot snapshots from preset_grid's tag.
 local function getPatchGridSlots()
   local pgNode = root:findByName("preset_grid", true)
@@ -1239,10 +1298,17 @@ function onReceiveNotify(key, value)
       end
 
     elseif patchGridMode == "morph" then
-      -- TODO: set morph target, update morph_target_label
-      morphTargetSlot = slotNum
+      -- Record base snapshot and reset fader so morph starts from current patch.
+      morphTargetSlot   = slotNum
+      morphBaseSnapshot = snapshotCurrentPatch()
+      if morphBaseSnapshot then
+        morphLastBlocks = (json.toTable(morphBaseSnapshot) or {}).blocks
+      end
+      morphAmount = 0
+      local fader = root:findByName("morph_amount_fader", true)
+      if fader then fader.values.x = 0 end
       local lbl = root:findByName("morph_target_label", true)
-      if lbl then lbl.values.text = "TARGET: " .. slotNum end
+      if lbl then lbl.values.text = "→ " .. slotNum end
 
     else
       -- Default: empty → store; filled → recall
@@ -1279,7 +1345,7 @@ function onReceiveNotify(key, value)
   -- Morph amount fader (0–127). Stub: stores the value; blend logic TBD.
   if key == "morph_amount_changed" then
     morphAmount = tonumber(value) or 0
-    -- TODO: apply blend toward morphTargetSlot
+    applyMorph()
     return
   end
 
