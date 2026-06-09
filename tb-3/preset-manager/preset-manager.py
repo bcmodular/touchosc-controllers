@@ -125,9 +125,10 @@ def json_to_syx(json_str: str) -> bytes:
 # ---------------------------------------------------------------------------
 
 class OSCListenerThread(QThread):
-    backup_received = pyqtSignal(str, bytes)   # (suggested_name, syx_bytes)
-    status_update   = pyqtSignal(str)
-    listening       = pyqtSignal(bool, str)    # (is_listening, address_or_error)
+    backup_received      = pyqtSignal(str, bytes)  # (suggested_name, syx_bytes)
+    bank_backup_received = pyqtSignal(str)          # raw JSON string from TouchOSC
+    status_update        = pyqtSignal(str)
+    listening            = pyqtSignal(bool, str)    # (is_listening, address_or_error)
 
     def __init__(self, ip, port):
         super().__init__()
@@ -150,15 +151,23 @@ class OSCListenerThread(QThread):
         self.status_update.emit(f"Received patch ({len(syx)} bytes) — prompting save…")
         self.backup_received.emit(suggested, syx)
 
+    def handle_bank_backup(self, addr, *args):
+        if not args:
+            self.status_update.emit("Received /tb3/patchgrid/backup but no arguments.")
+            return
+        self.status_update.emit("Received bank from TouchOSC — prompting save…")
+        self.bank_backup_received.emit(str(args[0]))
+
     def run(self):
         d = dispatcher.Dispatcher()
-        d.map("/tb3/backup", self.handle_backup)
+        d.map("/tb3/backup",           self.handle_backup)
+        d.map("/tb3/patchgrid/backup", self.handle_bank_backup)
         try:
             self._server = osc_server.BlockingOSCUDPServer(
                 (self.ip, self.port), d
             )
             addr = f"{self.ip}:{self.port}"
-            self.status_update.emit(f"Listening for /tb3/backup on {addr}")
+            self.status_update.emit(f"Listening on {addr}")
             self.listening.emit(True, addr)
             self._server.serve_forever()
         except Exception as e:
@@ -183,9 +192,10 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("TB-3 Preset Manager")
         if not self._restore_window_geometry():
-            self.resize(680, 500)
+            self.resize(1020, 500)
         self._build_ui()
         self._refresh_patch_list()
+        self._refresh_bank_list()
         self._start_listener()
 
     # ------------------------------------------------------------------
@@ -257,6 +267,52 @@ class MainWindow(QMainWindow):
 
         splitter.addWidget(left)
 
+        # Middle: bank list
+        mid = QWidget()
+        mid_v = QVBoxLayout(mid)
+        mid_v.setContentsMargins(0, 0, 0, 0)
+
+        lbl_b = QLabel("Patch Banks")
+        lbl_b.setFont(QFont("", 11, QFont.Bold))
+        mid_v.addWidget(lbl_b)
+
+        self.bank_list = QListWidget()
+        self.bank_list.currentRowChanged.connect(self._on_bank_selection_changed)
+        mid_v.addWidget(self.bank_list)
+
+        bank_osc_row = QHBoxLayout()
+        self.btn_pull_bank = QPushButton("Pull from TouchOSC")
+        self.btn_pull_bank.clicked.connect(self._pull_bank)
+        self.btn_push_bank = QPushButton("Push to TouchOSC")
+        self.btn_push_bank.clicked.connect(self._push_bank)
+        self.btn_push_bank.setEnabled(False)
+        bank_osc_row.addWidget(self.btn_pull_bank)
+        bank_osc_row.addWidget(self.btn_push_bank)
+        mid_v.addLayout(bank_osc_row)
+
+        bank_btn_row = QHBoxLayout()
+        self.btn_rename_bank = QPushButton("Rename")
+        self.btn_rename_bank.clicked.connect(self._rename_bank)
+        self.btn_rename_bank.setEnabled(False)
+        self.btn_delete_bank = QPushButton("Delete")
+        self.btn_delete_bank.clicked.connect(self._delete_bank)
+        self.btn_delete_bank.setEnabled(False)
+        bank_btn_row.addWidget(self.btn_rename_bank)
+        bank_btn_row.addWidget(self.btn_delete_bank)
+        mid_v.addLayout(bank_btn_row)
+
+        bank_file_row = QHBoxLayout()
+        btn_import_bank = QPushButton("Import JSON…")
+        btn_import_bank.clicked.connect(self._import_bank)
+        self.btn_export_bank = QPushButton("Export JSON…")
+        self.btn_export_bank.clicked.connect(self._export_bank)
+        self.btn_export_bank.setEnabled(False)
+        bank_file_row.addWidget(btn_import_bank)
+        bank_file_row.addWidget(self.btn_export_bank)
+        mid_v.addLayout(bank_file_row)
+
+        splitter.addWidget(mid)
+
         # Right: settings
         right = QGroupBox("Settings")
         form = QFormLayout(right)
@@ -287,7 +343,7 @@ class MainWindow(QMainWindow):
         form.addRow("Status:", self.lbl_listener_status)
 
         splitter.addWidget(right)
-        splitter.setSizes([400, 280])
+        splitter.setSizes([380, 320, 280])
         root_layout.addWidget(splitter)
 
         self.statusBar().showMessage("Ready.")
@@ -433,6 +489,157 @@ class MainWindow(QMainWindow):
                 self.patch_list.setCurrentItem(items[0])
 
     # ------------------------------------------------------------------
+    # Bank management (16-slot preset grids)
+    # ------------------------------------------------------------------
+
+    def _banks_dir(self) -> Path:
+        p = Path(self.settings["patches_dir"]) / "banks"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    def _current_bank_path(self) -> Path | None:
+        item = self.bank_list.currentItem()
+        if not item:
+            return None
+        return self._banks_dir() / (item.text() + ".tb3bank.json")
+
+    def _refresh_bank_list(self):
+        self.bank_list.clear()
+        for f in sorted(self._banks_dir().glob("*.tb3bank.json")):
+            self.bank_list.addItem(f.stem)
+        self._on_bank_selection_changed(self.bank_list.currentRow())
+
+    def _on_bank_selection_changed(self, row):
+        has = row >= 0 and self.bank_list.item(row) is not None
+        self.btn_push_bank.setEnabled(has)
+        self.btn_rename_bank.setEnabled(has)
+        self.btn_delete_bank.setEnabled(has)
+        self.btn_export_bank.setEnabled(has)
+
+    def _pull_bank(self):
+        """Request the current patch grid state from TouchOSC."""
+        client = self._get_client()
+        if not client:
+            return
+        try:
+            client.send_message("/tb3/patchgrid/request_backup", "")
+            self.statusBar().showMessage("Requested bank from TouchOSC — waiting for response…")
+        except Exception as e:
+            self.statusBar().showMessage(f"Send error: {e}")
+
+    def _handle_bank_backup_received(self, json_str: str):
+        """Called (in main thread) when /tb3/patchgrid/backup arrives."""
+        try:
+            bank_data = json.loads(json_str)
+        except Exception as e:
+            self.statusBar().showMessage(f"Bank parse error: {e}")
+            return
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name, ok = QInputDialog.getText(
+            self, "Save Bank", "Bank name:", text=f"bank_{ts}"
+        )
+        if not (ok and name.strip()):
+            return
+        bank_data["name"]      = name.strip()
+        bank_data["createdAt"] = datetime.now().isoformat()
+        path = self._banks_dir() / f"{name.strip()}.tb3bank.json"
+        with open(path, "w") as f:
+            json.dump(bank_data, f, indent=2)
+        self._refresh_bank_list()
+        items = self.bank_list.findItems(name.strip(), Qt.MatchExactly)
+        if items:
+            self.bank_list.setCurrentItem(items[0])
+        self.statusBar().showMessage(f"Saved bank: {path.name}")
+
+    def _push_bank(self):
+        """Send the selected bank to TouchOSC (/tb3/patchgrid/restore)."""
+        path = self._current_bank_path()
+        if not path or not path.exists():
+            return
+        with open(path) as f:
+            bank_data = json.load(f)
+        client = self._get_client()
+        if not client:
+            return
+        try:
+            client.send_message("/tb3/patchgrid/restore", json.dumps(bank_data))
+            self.statusBar().showMessage(f"Pushed bank '{path.stem}' to TouchOSC.")
+        except Exception as e:
+            self.statusBar().showMessage(f"Send error: {e}")
+
+    def _rename_bank(self):
+        path = self._current_bank_path()
+        if not path:
+            return
+        name, ok = QInputDialog.getText(
+            self, "Rename Bank", "New name:", text=path.stem
+        )
+        if not (ok and name.strip() and name.strip() != path.stem):
+            return
+        new_path = path.parent / f"{name.strip()}.tb3bank.json"
+        # Also update the embedded name field
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            data["name"] = name.strip()
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2)
+        except Exception:
+            pass
+        path.rename(new_path)
+        self._refresh_bank_list()
+        items = self.bank_list.findItems(name.strip(), Qt.MatchExactly)
+        if items:
+            self.bank_list.setCurrentItem(items[0])
+
+    def _delete_bank(self):
+        path = self._current_bank_path()
+        if not path:
+            return
+        r = QMessageBox.question(
+            self, "Delete Bank", f"Delete bank '{path.stem}'?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if r == QMessageBox.Yes:
+            path.unlink(missing_ok=True)
+            self._refresh_bank_list()
+
+    def _import_bank(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import bank file", str(Path.home()),
+            "TB-3 Bank (*.tb3bank.json);;JSON (*.json);;All (*)"
+        )
+        if not path:
+            return
+        src = Path(path)
+        name, ok = QInputDialog.getText(
+            self, "Import Bank", "Bank name:", text=src.stem.replace(".tb3bank", "")
+        )
+        if not (ok and name.strip()):
+            return
+        import shutil
+        dst = self._banks_dir() / f"{name.strip()}.tb3bank.json"
+        shutil.copy2(src, dst)
+        self._refresh_bank_list()
+        items = self.bank_list.findItems(name.strip(), Qt.MatchExactly)
+        if items:
+            self.bank_list.setCurrentItem(items[0])
+        self.statusBar().showMessage(f"Imported bank: {dst.name}")
+
+    def _export_bank(self):
+        path = self._current_bank_path()
+        if not path or not path.exists():
+            return
+        dst, _ = QFileDialog.getSaveFileName(
+            self, "Export bank file", str(Path.home() / path.name),
+            "TB-3 Bank (*.tb3bank.json);;All (*)"
+        )
+        if dst:
+            import shutil
+            shutil.copy2(path, dst)
+            self.statusBar().showMessage(f"Exported bank to {dst}")
+
+    # ------------------------------------------------------------------
     # Settings
     # ------------------------------------------------------------------
 
@@ -455,6 +662,7 @@ class MainWindow(QMainWindow):
         self._client = None
         self._start_listener()
         self._refresh_patch_list()
+        self._refresh_bank_list()
         self.statusBar().showMessage("Settings saved. Listener restarted.")
 
     # ------------------------------------------------------------------
@@ -484,6 +692,7 @@ class MainWindow(QMainWindow):
             self.settings["listen_port"]
         )
         self._listener.backup_received.connect(self._handle_backup_received)
+        self._listener.bank_backup_received.connect(self._handle_bank_backup_received)
         self._listener.status_update.connect(self.statusBar().showMessage)
         self._listener.listening.connect(self._on_listener_state_changed)
         self._listener.start()
