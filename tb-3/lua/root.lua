@@ -813,6 +813,32 @@ local function applySnapshot(snapshotJson)
   end
 end
 
+-- Apply only the blocks that differ between targetJson and baseJson.
+-- targetJson = where we want to end up; baseJson = current state.
+-- Block comparison is on the full hex string (includes checksum, so any
+-- data change makes the strings differ).  Positional: both use EXPORT_BLOCK_ORDER.
+local function applySnapshotDiff(targetJson, baseJson)
+  local target = json.toTable(targetJson)
+  if not target or not target.blocks then return end
+  local base = (baseJson and json.toTable(baseJson)) or {}
+  local baseBlocks = base.blocks or {}
+  local sent = 0
+  for i, hexStr in ipairs(target.blocks) do
+    if hexStr ~= baseBlocks[i] then
+      local bytes = {}
+      for j = 1, #hexStr - 1, 2 do
+        bytes[#bytes+1] = tonumber(hexStr:sub(j, j+1), 16) or 0
+      end
+      if #bytes >= 14 and bytes[1] == 0xF0 and bytes[2] == 0x41 and bytes[7] == 0x12 then
+        sendMIDI(bytes, TB3_CONNECTION)
+        handleTB3SysEx(bytes)
+        sent = sent + 1
+      end
+    end
+  end
+  print("patch_grid: diff applied " .. sent .. "/" .. #target.blocks .. " blocks")
+end
+
 -- Read all 16 slot snapshots from preset_grid's tag.
 local function getPatchGridSlots()
   local pgNode = root:findByName("preset_grid", true)
@@ -1205,10 +1231,11 @@ function onReceiveNotify(key, value)
       setPatchGridSlots(slots)
 
     elseif patchGridMode == "grab" then
-      -- Snapshot current state, apply the slot; patch_slot_released restores.
+      -- Snapshot current state, diff-apply the slot; release restores.
       if slots[slotKey] then
         grabSnapshot = snapshotCurrentPatch()
-        applySnapshot(json.fromTable(slots[slotKey]))
+        local slotJson = json.fromTable(slots[slotKey])
+        applySnapshotDiff(slotJson, grabSnapshot)
       end
 
     elseif patchGridMode == "morph" then
@@ -1232,7 +1259,7 @@ function onReceiveNotify(key, value)
         end
       else
         print("patch_grid: recalling slot " .. slotKey)
-        applySnapshot(json.fromTable(slots[slotKey]))
+        applySnapshotDiff(json.fromTable(slots[slotKey]), snapshotCurrentPatch())
       end
     end
     return
@@ -1242,7 +1269,8 @@ function onReceiveNotify(key, value)
   -- In grab mode: restore the snapshot saved on press.
   if key == "patch_slot_released" then
     if patchGridMode == "grab" and grabSnapshot then
-      applySnapshot(grabSnapshot)
+      -- Diff against current state (= the grabbed preset) to restore original.
+      applySnapshotDiff(grabSnapshot, snapshotCurrentPatch())
       grabSnapshot = nil
     end
     return
