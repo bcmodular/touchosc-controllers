@@ -57,6 +57,40 @@ Press **SYNC FROM TB-3** at the top-left to request a full patch dump. All param
 
 ---
 
+## Patch Grid
+
+The **Patch Grid** (16 slots) lets you store, recall, and manipulate patches without leaving TouchOSC.
+
+### Store & Recall
+
+- **Tap an empty slot** (light grey) → stores the current patch into that slot.
+- **Tap a filled slot** (white) → recalls it, sending only the blocks that differ from the current state.
+
+### Mode Buttons
+
+Three mode buttons appear to the right of the grid. Pressing the active mode again turns it off.
+
+| Button | Behaviour when a slot is tapped |
+|--------|----------------------------------|
+| **DELETE** | Clears the slot (works on empty slots too) |
+| **GRAB** | Previews the slot while held — restores the previous patch when released |
+| **MORPH** | Sets that slot as the morph target; use the **MORPH AMOUNT** fader to blend from current to target |
+
+**DELETE ALL** clears every slot at once.
+
+### Morph
+
+1. Press **MORPH** to enter morph mode.
+2. Tap any filled slot — it becomes the morph target (shown in the **→ N** label).
+3. Move the **MORPH AMOUNT** fader from left (0 %) to right (100 %) to blend the current patch towards the target.
+4. Press **MORPH** again to exit; the BCR2000 LED rings snap to the final blended position.
+
+### Bank Backup (desktop app)
+
+The preset manager's **Banks** panel can pull all 16 slots from TouchOSC as a single `.tb3bank.json` file and push saved banks back. See [`preset-manager/README.md`](preset-manager/README.md).
+
+---
+
 ## Saving & Restoring Patches
 
 Press **SAVE TO LIBRARY** to export the current patch as a SysEx dump to the

@@ -56,6 +56,43 @@ Defaults: listen `0.0.0.0:9000`, send to TouchOSC at `127.0.0.1:9001`.
 Settings auto-save to `~/.tb3_preset_manager/settings.json` (no Save button
 beyond the Settings group's own save action).
 
+## Banks
+
+The **Banks** panel (right column) saves and restores the entire 16-slot patch grid
+as a single named file.
+
+| Button | Action |
+|--------|--------|
+| **Pull from TouchOSC** | Requests all 16 slots from the layout; prompts for a name; saves as `<name>.tb3bank.json` |
+| **Push to TouchOSC** | Sends the selected bank back to the layout, restoring all slots |
+| **Delete** | Removes the bank file from disk |
+| **Rename** | Renames the bank file |
+| **Import** | Copies a `.tb3bank.json` from anywhere on disk into the banks folder |
+| **Export** | Saves a copy of the selected bank to a location you choose |
+
+Banks are stored in a `banks/` subfolder of your patches folder.
+
+### Bank file format
+
+`.tb3bank.json` files are plain JSON:
+
+```jsonc
+{
+  "version": 1,
+  "name": "Live Set 1",
+  "createdAt": "2026-01-01T12:00:00",
+  "slots": {
+    "1":  {"blocks": ["F041...F7", "F041...F7", ...]},
+    "2":  null,
+    ...
+    "16": {"blocks": [...]}
+  }
+}
+```
+
+Each `"blocks"` array contains 11 hex-encoded Roland DT1 SysEx messages (the same
+blocks as a `.syx` file). Empty slots are `null`.
+
 ## File format
 
 `.syx` files are raw binary SysEx dumps — 11 contiguous `F0…F7` Roland DT1
