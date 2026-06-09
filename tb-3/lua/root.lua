@@ -1388,6 +1388,14 @@ function onReceiveOSC(message, connections)
     return
   end
 
+  -- Python app requests a snapshot of the current patch (replaces the old
+  -- "SAVE TO LIBRARY" TouchOSC button).  Responds with /tb3/backup.
+  if address == "/tb3/request_patch_export" then
+    local snapshot = snapshotCurrentPatch()
+    if snapshot then sendOSC("/tb3/backup", snapshot) end
+    return
+  end
+
   -- Python app requests a backup of all 16 patch grid slots.
   if address == "/tb3/patchgrid/request_backup" then
     local slots = getPatchGridSlots()
