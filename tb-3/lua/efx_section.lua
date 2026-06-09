@@ -713,6 +713,7 @@ local function applyType(typeIdx)
   end
 
   self.tag = ""
+  self.tag = json.fromTable(rawData)
 end
 
 -- ---------------------------------------------------------------------------
@@ -727,6 +728,7 @@ local function sendSlotFromFloat(slotIdx, x)
   local raw = math.floor(x * slotDef.max + 0.5)
   sendParam(slotDef.off, raw)
   rawData[slotDef.off + 1] = raw
+  self.tag = json.fromTable(rawData)
   local slotGrp = self.children[slotGroupName(slotIdx)]
   if slotGrp then
     local valLbl = slotGrp.children["value_label"]
@@ -744,6 +746,7 @@ local function sendSlotFromCC(slotIdx, ccVal)
   local raw = math.floor(ccVal / 127 * slotDef.max + 0.5)
   sendParam(slotDef.off, raw)
   rawData[slotDef.off + 1] = raw
+  self.tag = json.fromTable(rawData)
   local slotGrp = self.children[slotGroupName(slotIdx)]
   if slotGrp then
     local fader  = slotGrp.children["control_fader"]
@@ -768,6 +771,7 @@ function onReceiveNotify(key, value)
     sendParam(0x00, typeIdx)
     rawData[1] = typeIdx
     applyType(typeIdx)
+    -- applyType ends with self.tag = json.fromTable(rawData)
     return
   end
 
@@ -796,6 +800,7 @@ function onReceiveNotify(key, value)
     end
     local typeIdx = rawData[1] or 0
     applyType(typeIdx)
+    -- applyType ends with self.tag = json.fromTable(rawData)
     return
   end
 
@@ -838,6 +843,7 @@ function onReceiveNotify(key, value)
       if b1  then b1.values.x   = nxt end
       if lbl then lbl.textColor = Color.fromHexString(nxt >= 0.5 and ON_TXT or OFF_TXT) end
       self.tag = ""
+      self.tag = json.fromTable(rawData)
       sendBCRcc(BTN_CC[1], nxt * 127)
       -- Notify root for parameter assignment: EFX SW param (swOff encodes param ID).
       root:notify("efx_sw_touched", efxNum .. "," .. def.swOff)
@@ -863,6 +869,7 @@ function onReceiveNotify(key, value)
         end
       end
       self.tag = ""
+      self.tag = json.fromTable(rawData)
 
     elseif btnDef.action == "toggle" then
       local cur = rawData[btnDef.off + 1] or 0
@@ -875,6 +882,7 @@ function onReceiveNotify(key, value)
       if btn then btn.values.x   = nxt end
       if lbl then lbl.textColor  = Color.fromHexString(nxt >= 0.5 and ON_TXT or OFF_TXT) end
       self.tag = ""
+      self.tag = json.fromTable(rawData)
       sendBCRcc(BTN_CC[btnIdx], nxt * 127)
     end
 

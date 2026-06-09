@@ -65,11 +65,24 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Raw SysEx block cache — stores the last received DT1 block per address key.
--- Used by "save_to_library" to export a .syx-compatible JSON blob.
+-- Used by "save_to_library" and snapshotCurrentPatch() to export patches.
 -- Key: "%02X%02X%02X%02X" of the 4-byte address.
+-- Kept continuously fresh: every send call site patches the corresponding
+-- byte(s) so the cache reflects current UI state, not just the last sync.
+-- EFX blocks (10001000 / 10001200) are NOT stored here; they live in
+-- efx1_section.tag / efx2_section.tag as JSON byte arrays (see efx_section.lua).
 -- ---------------------------------------------------------------------------
 
 local rawSysexBlocks = {}
+
+-- ---------------------------------------------------------------------------
+-- Patch grid state
+-- ---------------------------------------------------------------------------
+
+local patchGridMode  = nil   -- nil | "delete" | "grab" | "morph"
+local grabSnapshot   = nil   -- blocks JSON string saved on grab entry
+local morphTargetSlot = nil
+local morphAmount    = 0
 
 local EXPORT_BLOCK_ORDER = {
   "10000000", "10000200", "10000400", "10000600",
@@ -192,12 +205,20 @@ local function sendFromEntryFloat(entry, x)
     return
   end
   local a = entry.addr
+  local blockKey = string.format("%02X%02X%02X00", a[1], a[2], a[3])
   if entry.bits == 16 then
     local raw = math.floor(x * (entry.max or 255) + 0.5)
     tb3Send16bit(a[1], a[2], a[3], a[4], raw)
+    local blk = rawSysexBlocks[blockKey]
+    if blk then
+      blk.data[a[4] + 1] = math.floor(raw / 16)
+      blk.data[a[4] + 2] = raw % 16
+    end
   else
     local raw = math.floor(x * (entry.max or 127) + 0.5)
     tb3Send7bit(a[1], a[2], a[3], a[4], raw)
+    local blk = rawSysexBlocks[blockKey]
+    if blk then blk.data[a[4] + 1] = raw end
   end
 end
 
@@ -340,8 +361,10 @@ end
 local DIST_TYPE_ADDR = {0x10, 0x00, 0x0E, 0x01}
 
 local function sendDistType()
-  tb3Send7bit(DIST_TYPE_ADDR[1], DIST_TYPE_ADDR[2],
-              DIST_TYPE_ADDR[3], DIST_TYPE_ADDR[4], distType)
+  local a = DIST_TYPE_ADDR
+  tb3Send7bit(a[1], a[2], a[3], a[4], distType)
+  local blk = rawSysexBlocks[string.format("%02X%02X%02X00", a[1], a[2], a[3])]
+  if blk then blk.data[a[4] + 1] = distType end
   local lbl = root:findByName("distortion_section_label", true)
   if lbl then
     lbl.values.text = "DISTORTION: " .. (DIST_TYPE_NAMES[distType + 1] or tostring(distType))
@@ -708,6 +731,117 @@ function onReceiveMIDI(message, connections)
 end
 
 -- ---------------------------------------------------------------------------
+-- Patch snapshot helpers
+-- ---------------------------------------------------------------------------
+
+local EFX1_KEY = "10001000"
+local EFX2_KEY = "10001200"
+local EFX1_ADDR = {0x10, 0x00, 0x10, 0x00}
+local EFX2_ADDR = {0x10, 0x00, 0x12, 0x00}
+
+-- Build a DT1 hex string from a block's addr+data arrays.
+local function blockToHexString(blkAddr, blkData)
+  local addrAndData = {}
+  for _, b in ipairs(blkAddr) do addrAndData[#addrAndData+1] = b end
+  for _, b in ipairs(blkData) do addrAndData[#addrAndData+1] = b end
+  local cs = tb3Checksum(addrAndData)
+  local msg = {0xF0, 0x41, 0x10, 0x00, 0x00, 0x7B, 0x12}
+  for _, b in ipairs(addrAndData) do msg[#msg+1] = b end
+  msg[#msg+1] = cs
+  msg[#msg+1] = 0xF7
+  local hex = {}
+  for _, b in ipairs(msg) do hex[#hex+1] = string.format("%02X", b) end
+  return table.concat(hex)
+end
+
+-- Assemble the current patch state as a JSON string (same shape as /tb3/backup).
+-- EFX blocks are read from efx1_section.tag / efx2_section.tag (byte arrays
+-- written there by efx_section.lua on every parameter change).
+-- Returns nil if any required block is missing (never-synced session).
+local function snapshotCurrentPatch()
+  local efx1Node = root:findByName("efx1_section", true)
+  local efx2Node = root:findByName("efx2_section", true)
+  local efx1Data = efx1Node and json.toTable(efx1Node.tag)
+  local efx2Data = efx2Node and json.toTable(efx2Node.tag)
+
+  for _, k in ipairs(EXPORT_BLOCK_ORDER) do
+    if k == EFX1_KEY then
+      if not efx1Data or #efx1Data == 0 then
+        if not rawSysexBlocks[k] then return nil end
+      end
+    elseif k == EFX2_KEY then
+      if not efx2Data or #efx2Data == 0 then
+        if not rawSysexBlocks[k] then return nil end
+      end
+    else
+      if not rawSysexBlocks[k] then return nil end
+    end
+  end
+
+  local parts = {}
+  for _, k in ipairs(EXPORT_BLOCK_ORDER) do
+    local hexStr
+    if k == EFX1_KEY and efx1Data and #efx1Data > 0 then
+      hexStr = blockToHexString(EFX1_ADDR, efx1Data)
+    elseif k == EFX2_KEY and efx2Data and #efx2Data > 0 then
+      hexStr = blockToHexString(EFX2_ADDR, efx2Data)
+    else
+      local blk = rawSysexBlocks[k]
+      if not blk then return nil end
+      hexStr = blockToHexString(blk.addr, blk.data)
+    end
+    parts[#parts+1] = '"' .. hexStr .. '"'
+  end
+  return '{"blocks":[' .. table.concat(parts, ",") .. ']}'
+end
+
+-- Apply a snapshot (JSON string with "blocks" array) to the TB-3 and UI.
+-- Each block is a contiguous DT1 hex string (no separators).
+-- Sends the SysEx to hardware AND updates the truth cache + UI via handleTB3SysEx.
+local function applySnapshot(snapshotJson)
+  local t = json.toTable(snapshotJson)
+  if not t or not t.blocks then return end
+  for _, hexStr in ipairs(t.blocks) do
+    local bytes = {}
+    for i = 1, #hexStr - 1, 2 do
+      bytes[#bytes+1] = tonumber(hexStr:sub(i, i+1), 16) or 0
+    end
+    if #bytes >= 14 and bytes[1] == 0xF0 and bytes[2] == 0x41 and bytes[7] == 0x12 then
+      sendMIDI(bytes, TB3_CONNECTION)
+      handleTB3SysEx(bytes)
+    end
+  end
+end
+
+-- Read all 16 slot snapshots from preset_grid's tag.
+local function getPatchGridSlots()
+  local pgNode = root:findByName("preset_grid", true)
+  if not pgNode then return {} end
+  return json.toTable(pgNode.tag) or {}
+end
+
+-- Write all 16 slot snapshots back to preset_grid's tag and refresh the UI.
+local function setPatchGridSlots(slots)
+  local pgNode = root:findByName("preset_grid", true)
+  if not pgNode then return end
+  pgNode.tag = json.fromTable(slots)
+  pgNode:notify("refresh_preset_ui", "")
+end
+
+-- Broadcast the current mode to all mode buttons.
+local function broadcastPatchMode()
+  local modeStr = patchGridMode or ""
+  local btns = {"morph_button", "delete_button", "grab_mode_button"}
+  for _, name in ipairs(btns) do
+    local btn = root:findByName(name, true)
+    if btn then btn:notify("patch_mode_changed", modeStr) end
+  end
+  -- Show morph_group only when morph mode is active.
+  local morphGrp = root:findByName("morph_group", true)
+  if morphGrp then morphGrp.visible = (patchGridMode == "morph") end
+end
+
+-- ---------------------------------------------------------------------------
 -- Notify entry point — called by child nodes / UI buttons
 -- ---------------------------------------------------------------------------
 
@@ -825,6 +959,8 @@ function onReceiveNotify(key, value)
         -- receivingPatch declaration. BCR mirroring below still runs.
         if not receivingPatch then
           tb3Send7bit(a[1], a[2], a[3], a[4], v)
+          local blk = rawSysexBlocks[string.format("%02X%02X%02X00", a[1],a[2],a[3])]
+          if blk then blk.data[a[4] + 1] = v end
         end
         -- Mirror to BCR2000 #1 if this switch has a BCR mapping.
         local addrKey = string.format("%02X%02X%02X%02X", a[1],a[2],a[3],a[4])
@@ -842,6 +978,8 @@ function onReceiveNotify(key, value)
   if key == "porta_mode_set" then
     local v = tonumber(value) or 0
     tb3Send7bit(0x10, 0x00, 0x14, 0x02, v)
+    local blk = rawSysexBlocks["10001400"]
+    if blk then blk.data[0x02 + 1] = v end
     -- Notify both radio buttons so they update their visual state in sync.
     local legato = root:findByName("porta_legato_btn", true)
     local always  = root:findByName("porta_always_btn", true)
@@ -997,39 +1135,16 @@ function onReceiveNotify(key, value)
     return
   end
 
-  -- Sent by save_to_library_btn.lua.  Builds a JSON blob from the cached
-  -- raw SysEx blocks and sends it to the Python preset manager via OSC.
-  -- Requires a prior SYNC FROM TB-3 to have populated rawSysexBlocks.
+  -- Sent by save_to_library_btn.lua.  Snapshots current patch state and
+  -- sends it to the Python preset manager via OSC.
   if key == "save_to_library" then
-    -- Verify all 11 blocks are cached.
-    local missing
-    for _, k in ipairs(EXPORT_BLOCK_ORDER) do
-      if not rawSysexBlocks[k] then missing = k; break end
-    end
-    if missing then
+    local snapshot = snapshotCurrentPatch()
+    if not snapshot then
       local lbl = root:findByName("assign_status_label", true)
       if lbl then lbl.values.text = "Sync from TB-3 first!" end
       return
     end
-    -- Reconstruct each DT1 message as a contiguous hex string (no separators)
-    -- so the Python app can convert directly to .syx binary.
-    local sysexParts = {}
-    for _, k in ipairs(EXPORT_BLOCK_ORDER) do
-      local blk = rawSysexBlocks[k]
-      local addrAndData = {}
-      for _, b in ipairs(blk.addr) do addrAndData[#addrAndData+1] = b end
-      for _, b in ipairs(blk.data) do addrAndData[#addrAndData+1] = b end
-      local cs = tb3Checksum(addrAndData)
-      local msg = {0xF0, 0x41, 0x10, 0x00, 0x00, 0x7B, 0x12}
-      for _, b in ipairs(addrAndData) do msg[#msg+1] = b end
-      msg[#msg+1] = cs
-      msg[#msg+1] = 0xF7
-      local hex = {}
-      for _, b in ipairs(msg) do hex[#hex+1] = string.format("%02X", b) end
-      sysexParts[#sysexParts+1] = '"' .. table.concat(hex) .. '"'
-    end
-    local json = '{"blocks":[' .. table.concat(sysexParts, ",") .. ']}'
-    sendOSC("/tb3/backup", json)
+    sendOSC("/tb3/backup", snapshot)
     return
   end
 
@@ -1061,6 +1176,82 @@ function onReceiveNotify(key, value)
     end
     return
   end
+
+  -- Sent by mode buttons (delete_button, grab_mode_button, morph_button).
+  -- Toggles the mode on/off (pressing the active mode again clears it).
+  if key == "patch_mode_set" then
+    if value == patchGridMode then
+      patchGridMode = nil
+    else
+      patchGridMode = value
+    end
+    broadcastPatchMode()
+    return
+  end
+
+  -- Sent by slot buttons "1"–"16" under preset_grid.
+  -- Default (nil mode): empty slot → store; filled slot → recall.
+  -- Delete mode: clear the slot.
+  -- Grab / Morph: stubbed — wired but no action yet.
+  if key == "patch_slot_pressed" then
+    local slotNum = tonumber(value)
+    if not slotNum then return end
+    local slots = getPatchGridSlots()
+    local slotKey = tostring(slotNum)
+
+    if patchGridMode == "delete" then
+      slots[slotKey] = nil
+      setPatchGridSlots(slots)
+
+    elseif patchGridMode == "grab" then
+      -- TODO: snapshot current truth, apply target, restore on release
+      if slots[slotKey] then
+        applySnapshot(json.fromTable(slots[slotKey]))
+      end
+
+    elseif patchGridMode == "morph" then
+      -- TODO: set morph target, update morph_target_label
+      morphTargetSlot = slotNum
+      local lbl = root:findByName("morph_target_label", true)
+      if lbl then lbl.values.text = "TARGET: " .. slotNum end
+
+    else
+      -- Default: empty → store; filled → recall
+      if slots[slotKey] == nil then
+        local snapshot = snapshotCurrentPatch()
+        if snapshot then
+          slots[slotKey] = json.toTable(snapshot)
+          setPatchGridSlots(slots)
+        end
+      else
+        applySnapshot(json.fromTable(slots[slotKey]))
+      end
+    end
+    return
+  end
+
+  -- Morph amount fader (0–127). Stub: stores the value; blend logic TBD.
+  if key == "morph_amount_changed" then
+    morphAmount = tonumber(value) or 0
+    -- TODO: apply blend toward morphTargetSlot
+    return
+  end
+
+  -- Clear all 16 slots (delete_all_presets_button).
+  if key == "patch_clear_all" then
+    setPatchGridSlots({})
+    return
+  end
+
+  -- Sent by the Python preset manager app to restore a whole bank.
+  -- value = JSON string {"version":1,"slots":{"1":{...},"2":null,...}}
+  if key == "patchgrid_restore_bank" then
+    local bank = json.toTable(value)
+    if bank and bank.slots then
+      setPatchGridSlots(bank.slots)
+    end
+    return
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -1078,6 +1269,27 @@ function onReceiveOSC(message, connections)
   -- Allow external tools (Python, other apps) to trigger a dump request.
   if address == "/tb3/request_dump" then
     requestPatchDump()
+    return
+  end
+
+  -- Python app requests a backup of all 16 patch grid slots.
+  if address == "/tb3/patchgrid/request_backup" then
+    local slots = getPatchGridSlots()
+    local bankJson = json.fromTable({version=1, slots=slots})
+    sendOSC("/tb3/patchgrid/backup", bankJson)
+    return
+  end
+
+  -- Python app sends a previously backed-up bank to restore all 16 slots.
+  if address == "/tb3/patchgrid/restore" then
+    local arg = arguments and arguments[1]
+    if arg == nil then return end
+    local bankStr = (type(arg) == "table") and arg.value or arg
+    if type(bankStr) ~= "string" then return end
+    local bank = json.toTable(bankStr)
+    if bank and bank.slots then
+      setPatchGridSlots(bank.slots)
+    end
     return
   end
 

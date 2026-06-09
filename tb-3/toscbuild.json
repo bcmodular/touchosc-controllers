@@ -126,6 +126,35 @@
     {
       "lua": "save_to_library_btn.lua",
       "node_name": "save_to_library_btn"
+    },
+    {
+      "lua": "preset_grid.lua",
+      "node_name": "preset_grid"
+    },
+    {
+      "lua": "preset_grid_slot_btn.lua",
+      "under_name": "preset_grid",
+      "node_names": ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"]
+    },
+    {
+      "lua": "morph_button.lua",
+      "node_name": "morph_button"
+    },
+    {
+      "lua": "morph_amount_fader.lua",
+      "node_name": "morph_amount_fader"
+    },
+    {
+      "lua": "delete_button.lua",
+      "node_name": "delete_button"
+    },
+    {
+      "lua": "delete_all_presets_button.lua",
+      "node_name": "delete_all_presets_button"
+    },
+    {
+      "lua": "grab_mode_button.lua",
+      "node_name": "grab_mode_button"
     }
   ]
 }
