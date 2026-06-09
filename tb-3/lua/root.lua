@@ -84,7 +84,7 @@ local grabSnapshot    = nil   -- JSON string saved on grab press
 local morphTargetSlot = nil
 local morphBaseSnapshot = nil -- JSON string of patch at morph-target selection time
 local morphLastBlocks   = nil -- block hex strings last sent by applyMorph (for diff)
-local morphAmount     = 0
+local morphAmount     = 0.0  -- 0.0–1.0 float from fader
 
 local EXPORT_BLOCK_ORDER = {
   "10000000", "10000200", "10000400", "10000600",
@@ -855,7 +855,7 @@ local function applyMorph()
   local target = json.toTable(json.fromTable(targetData))
   if not base or not target or not base.blocks or not target.blocks then return end
 
-  local t = morphAmount / 127   -- 0.0 … 1.0
+  local t = morphAmount   -- already 0.0–1.0
 
   -- Build one blended block per EXPORT_BLOCK_ORDER entry.
   local blended = {}
@@ -1304,9 +1304,9 @@ function onReceiveNotify(key, value)
       if morphBaseSnapshot then
         morphLastBlocks = (json.toTable(morphBaseSnapshot) or {}).blocks
       end
-      morphAmount = 0
+      morphAmount = 0.0
       local fader = root:findByName("morph_amount_fader", true)
-      if fader then fader.values.x = 0 end
+      if fader then fader.values.x = 0.0 end
       local lbl = root:findByName("morph_target_label", true)
       if lbl then lbl.values.text = "→ " .. slotNum end
 

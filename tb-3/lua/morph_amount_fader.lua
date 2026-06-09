@@ -1,8 +1,8 @@
 -- morph_amount_fader.lua
--- Sends morph blend amount (0–127) to root when the fader moves.
+-- Sends raw 0.0–1.0 blend factor to root when the fader moves.
 
-function onValueChanged(key, value)
+function onValueChanged(key)
   if key == 'x' then
-    root:notify("morph_amount_changed", math.floor(value * 127 + 0.5))
+    root:notify("morph_amount_changed", self.values.x)
   end
 end
