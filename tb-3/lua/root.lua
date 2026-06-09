@@ -85,6 +85,7 @@ local morphTargetSlot = nil
 local morphBaseSnapshot = nil -- JSON string of patch at morph-target selection time
 local morphLastBlocks   = nil -- block hex strings last sent by applyMorph (for diff)
 local morphAmount     = 0.0  -- 0.0–1.0 float from fader
+local morphing        = false -- true while applyMorph is running; suppresses BCR sends
 
 local EXPORT_BLOCK_ORDER = {
   "10000000", "10000200", "10000400", "10000600",
@@ -893,8 +894,11 @@ local function applyMorph()
   end
 
   local prev = morphLastBlocks or {}
+  local anyChanged = false
+  morphing = true
   for i, hexStr in ipairs(blended) do
     if hexStr ~= prev[i] then
+      anyChanged = true
       local bytes = {}
       for j = 1, #hexStr - 1, 2 do bytes[#bytes+1] = tonumber(hexStr:sub(j,j+1),16) or 0 end
       if #bytes >= 14 and bytes[1] == 0xF0 and bytes[2] == 0x41 and bytes[7] == 0x12 then
@@ -903,7 +907,10 @@ local function applyMorph()
       end
     end
   end
+  morphing = false
   morphLastBlocks = blended
+  -- After all blocks are processed, do a single BCR sync pass for the changes.
+  if anyChanged then syncBCR1() end
 end
 
 -- Broadcast the current mode to all mode buttons.
@@ -1003,15 +1010,18 @@ function onReceiveNotify(key, value)
         end
 
         -- Mirror to BCR2000 #1 so its LED ring tracks the on-screen fader.
-        if entry.sp == "global_tuning" then
-          -- Global tuning has no SysEx addr; BCR uses CC 100 on channel 1.
-          sendMIDI({0xB0, 100, math.floor(x * 127 + 0.5)}, BCR_CONNECTION)
-        elseif entry.addr then
-          local addrKey = string.format("%02X%02X%02X%02X",
-            entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
-          local bcr1cc = ADDR_TO_BCR1_CC[addrKey]
-          if bcr1cc then
-            sendMIDI({0xB0, bcr1cc, math.floor(x * 127 + 0.5)}, BCR_CONNECTION)
+        -- Skip during morph — applyMorph calls syncBCR1() once after the batch.
+        if not morphing then
+          if entry.sp == "global_tuning" then
+            -- Global tuning has no SysEx addr; BCR uses CC 100 on channel 1.
+            sendMIDI({0xB0, 100, math.floor(x * 127 + 0.5)}, BCR_CONNECTION)
+          elseif entry.addr then
+            local addrKey = string.format("%02X%02X%02X%02X",
+              entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+            local bcr1cc = ADDR_TO_BCR1_CC[addrKey]
+            if bcr1cc then
+              sendMIDI({0xB0, bcr1cc, math.floor(x * 127 + 0.5)}, BCR_CONNECTION)
+            end
           end
         end
       else
@@ -1258,12 +1268,15 @@ function onReceiveNotify(key, value)
   -- Sent by mode buttons (delete_button, grab_mode_button, morph_button).
   -- Toggles the mode on/off (pressing the active mode again clears it).
   if key == "patch_mode_set" then
+    local wasInMorph = (patchGridMode == "morph")
     if value == patchGridMode then
       patchGridMode = nil
     else
       patchGridMode = value
     end
     broadcastPatchMode()
+    -- When leaving morph mode, sync BCR1 to the final blended state.
+    if wasInMorph then syncBCR1() end
     return
   end
 
