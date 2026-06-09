@@ -1205,8 +1205,9 @@ function onReceiveNotify(key, value)
       setPatchGridSlots(slots)
 
     elseif patchGridMode == "grab" then
-      -- TODO: snapshot current truth, apply target, restore on release
+      -- Snapshot current state, apply the slot; patch_slot_released restores.
       if slots[slotKey] then
+        grabSnapshot = snapshotCurrentPatch()
         applySnapshot(json.fromTable(slots[slotKey]))
       end
 
@@ -1233,6 +1234,16 @@ function onReceiveNotify(key, value)
         print("patch_grid: recalling slot " .. slotKey)
         applySnapshot(json.fromTable(slots[slotKey]))
       end
+    end
+    return
+  end
+
+  -- Sent by slot buttons on release (x → 0).
+  -- In grab mode: restore the snapshot saved on press.
+  if key == "patch_slot_released" then
+    if patchGridMode == "grab" and grabSnapshot then
+      applySnapshot(grabSnapshot)
+      grabSnapshot = nil
     end
     return
   end

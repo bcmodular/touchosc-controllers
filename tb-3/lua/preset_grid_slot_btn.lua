@@ -4,8 +4,9 @@
 
 function onValueChanged(key)
   if key ~= 'x' then return end
-  print("slot btn " .. tostring(self.name) .. " x=" .. tostring(self.values.x))
   if self.values.x == 1 then
     root:notify("patch_slot_pressed", tonumber(self.name))
+  else
+    root:notify("patch_slot_released", tonumber(self.name))
   end
 end
