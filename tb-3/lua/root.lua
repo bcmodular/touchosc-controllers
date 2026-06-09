@@ -1370,18 +1370,6 @@ function onReceiveNotify(key, value)
     return
   end
 
-  -- Sent by the Python preset manager app to restore a whole bank.
-  -- value = JSON string {"version":2,"name":"...","slots":{"1":{...},"2":null,...}}
-  if key == "patchgrid_restore_bank" then
-    local bank = json.toTable(value)
-    if bank and bank.slots then
-      setPatchGridSlots(bank.slots)
-      currentBankName = bank.name or ""
-      local bankLbl = root:findByName("bank_name_label", true)
-      if bankLbl then bankLbl.values.text = currentBankName end
-    end
-    return
-  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -1413,7 +1401,10 @@ function onReceiveOSC(message, connections)
   -- Python app requests a backup of all 16 patch grid slots.
   if address == "/tb3/patchgrid/request_backup" then
     local slots = getPatchGridSlots()
-    local bankJson = json.fromTable({version=1, slots=slots})
+    for _, slot in pairs(slots) do
+      if type(slot) == "table" and slot.name == nil then slot.name = "" end
+    end
+    local bankJson = json.fromTable({version=2, slots=slots})
     sendOSC("/tb3/patchgrid/backup", bankJson)
     return
   end
@@ -1434,11 +1425,8 @@ function onReceiveOSC(message, connections)
     return
   end
 
-  -- /tb3/patch — update UI only (test harness, no TB-3 required).
-  -- /tb3/restore — update UI AND forward SysEx to the TB-3 (Python preset
-  --   manager restore path; TB-3 must be connected).
-  local isRestore = (address == "/tb3/restore")
-  if address ~= "/tb3/patch" and not isRestore then return end
+  -- /tb3/restore — update UI AND forward SysEx to the TB-3.
+  if address ~= "/tb3/restore" then return end
 
   local arg = arguments and arguments[1]
   if arg == nil then return end
@@ -1457,10 +1445,7 @@ function onReceiveOSC(message, connections)
   if bytes[2] ~= 0x41 then return end
   if bytes[7] ~= 0x12 then return end
 
-  -- Forward to TB-3 hardware when restoring from Python preset manager.
-  if isRestore then
-    sendMIDI(bytes, TB3_CONNECTION)
-  end
+  sendMIDI(bytes, TB3_CONNECTION)
 
   local addr = {bytes[8], bytes[9], bytes[10], bytes[11]}
   local data = {}
