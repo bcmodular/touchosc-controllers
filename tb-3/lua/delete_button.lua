@@ -5,9 +5,7 @@ local updating = false
 function onValueChanged(key)
   if key ~= 'x' then return end
   if updating then return end
-  if self.values.x == 1 then
-    root:notify("patch_mode_set", MODE)
-  end
+  root:notify("patch_mode_set", MODE)
 end
 
 function onReceiveNotify(key, value)
