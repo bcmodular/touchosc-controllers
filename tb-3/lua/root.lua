@@ -1194,6 +1194,7 @@ function onReceiveNotify(key, value)
   -- Delete mode: clear the slot.
   -- Grab / Morph: stubbed — wired but no action yet.
   if key == "patch_slot_pressed" then
+    print("patch_grid: slot pressed " .. tostring(value) .. " mode=" .. tostring(patchGridMode))
     local slotNum = tonumber(value)
     if not slotNum then return end
     local slots = getPatchGridSlots()
@@ -1218,12 +1219,18 @@ function onReceiveNotify(key, value)
     else
       -- Default: empty → store; filled → recall
       if slots[slotKey] == nil then
+        print("patch_grid: storing slot " .. slotKey)
         local snapshot = snapshotCurrentPatch()
         if snapshot then
+          print("patch_grid: snapshot ok, saving")
           slots[slotKey] = json.toTable(snapshot)
           setPatchGridSlots(slots)
+        else
+          print("patch_grid: snapshot nil - blocks missing, triggering sync")
+          requestPatchDump()
         end
       else
+        print("patch_grid: recalling slot " .. slotKey)
         applySnapshot(json.fromTable(slots[slotKey]))
       end
     end

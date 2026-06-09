@@ -6,7 +6,7 @@
 
 -- Colors (RRGGBBAA as used by Color.fromHexString in this layout)
 local FILLED_COLOR  = "4A90D9FF"   -- blue — slot has a patch
-local EMPTY_COLOR   = "1A1A2EFF"   -- dark — slot is empty
+local EMPTY_COLOR   = "BFBFBFFF"   -- light gray — slot is empty
 
 local function refreshUI()
   local slots = json.toTable(self.tag) or {}

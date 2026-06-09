@@ -2,8 +2,10 @@
 -- Injected into slot buttons "1"–"16" under the preset_grid group.
 -- Thin relay: notifies root when a slot is tapped.
 
-function onValueChanged(key, value)
-  if key == 'x' and value == 1 then
+function onValueChanged(key)
+  if key ~= 'x' then return end
+  print("slot btn " .. tostring(self.name) .. " x=" .. tostring(self.values.x))
+  if self.values.x == 1 then
     root:notify("patch_slot_pressed", tonumber(self.name))
   end
 end

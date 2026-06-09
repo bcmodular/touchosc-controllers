@@ -3,10 +3,10 @@
 
 local updating = false
 
-function onValueChanged(key, value)
+function onValueChanged(key)
   if key ~= 'x' then return end
   if updating then return end
-  if value == 1 then
+  if self.values.x == 1 then
     root:notify("patch_mode_set", self.tag)
   end
 end
