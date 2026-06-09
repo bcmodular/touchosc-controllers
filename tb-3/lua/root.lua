@@ -1427,6 +1427,9 @@ function onReceiveOSC(message, connections)
     local bank = json.toTable(bankStr)
     if bank and bank.slots then
       setPatchGridSlots(bank.slots)
+      currentBankName = bank.name or ""
+      local bankLbl = root:findByName("bank_name_label", true)
+      if bankLbl then bankLbl.values.text = currentBankName end
     end
     return
   end
