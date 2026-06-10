@@ -398,6 +398,25 @@ end
 -- ---------------------------------------------------------------------------
 
 local function handleBCR1(cc, ccVal)
+  -- DIST TYPE (CC 88) — update distType state BEFORE setting fader so that the
+  -- enc_moved special case guard (typeIdx ~= distType) sees them equal and skips
+  -- the redundant SysEx send.
+  if cc == 88 then
+    local typeIdx = math.min(math.floor(ccVal * (DIST_NUM_TYPES - 1) / 127 + 0.5), DIST_NUM_TYPES - 1)
+    distType = typeIdx
+    local a = DIST_TYPE_ADDR
+    tb3Send7bit(a[1], a[2], a[3], a[4], distType)
+    local blk = rawSysexBlocks[string.format("%02X%02X%02X00", a[1], a[2], a[3])]
+    if blk then blk.data[a[4]+1] = distType end
+    local encGrp = root:findByName("dist_type_enc", true)
+    if encGrp then
+      local fader = encGrp.children["control_fader"]
+      -- enc_moved fires but guard prevents double-send; it updates value_label.
+      if fader then fader.values.x = DIST_NUM_TYPES > 1 and (distType / (DIST_NUM_TYPES - 1)) or 0 end
+    end
+    return
+  end
+
   -- GLOBAL TUNING (CC 100) — plain MIDI CC 104 to TB-3, not SysEx.
   -- The TB-3 has no SysEx address for global tuning; responds to CC 104
   -- via standard MIDI. Device-global, not saved in patch dumps.

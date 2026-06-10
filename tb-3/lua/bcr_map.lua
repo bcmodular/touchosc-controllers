@@ -83,9 +83,9 @@ local BCR1_MAP = {
   [83] = { addr = {0x10,0x00,0x0C,0x02}, bits = 7 },              -- VCA SUSTAIN
   [84] = { addr = {0x10,0x00,0x0C,0x03}, bits = 7 },              -- VCA RELEASE
   [85] = { addr = {0x10,0x00,0x00,0x0A}, bits = 7, signed = true },-- VCA LFO DEPTH
-  [86] = { addr = {0x10,0x00,0x0E,0x02}, bits = 7, max = 120 },   -- DIST DRIVE (0–120)
-  -- CC 87: spare
-  -- CC 88: spare
+  [86] = { addr = {0x10,0x00,0x0C,0x04}, bits = 7 },              -- PATCH VOLUME
+  [87] = { addr = {0x10,0x00,0x0E,0x02}, bits = 7, max = 120 },   -- DIST DRIVE (0–120)
+  [88] = { addr = {0x10,0x00,0x0E,0x01}, bits = 7, max = 24  },   -- DIST TYPE (0–24; special-cased in handleBCR1)
 
   -- ---- Fixed encoder row 2: VCF ADSR + LFO MOD + Distortion character ----
   -- CUTOFF, RESONANCE and ACCENT moved to panel_controls_group (not BCR-controllable).
