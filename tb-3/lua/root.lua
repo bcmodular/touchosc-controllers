@@ -960,6 +960,11 @@ broadcastPatchMode = function()
     if btn then btn:notify("patch_mode_changed", modeStr) end
   end
   -- morph_group visibility is always-on; no longer toggled here.
+  -- When entering morph mode, reset the target label; clear it on exit.
+  local morphLbl = root:findByName("morph_preset_label", true)
+  if morphLbl then
+    morphLbl.values.text = patchGridMode == "morph" and "Pick Preset" or ""
+  end
 end
 
 -- Update the single combined preset_name_label with bank + preset info.
@@ -1395,8 +1400,8 @@ function onReceiveNotify(key, value)
       local morphEnc = root:findByName("morph_enc", true)
       local fader    = morphEnc and morphEnc.children["control_fader"]
       if fader then fader.values.x = 0.0 end
-      local lbl = root:findByName("morph_target_label", true)
-      if lbl then lbl.values.text = "→ " .. slotNum end
+      local morphLbl = root:findByName("morph_preset_label", true)
+      if morphLbl then morphLbl.values.text = "Preset " .. slotNum end
 
     else
       -- Default: empty → store; filled → recall
