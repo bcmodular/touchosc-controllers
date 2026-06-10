@@ -959,9 +959,7 @@ broadcastPatchMode = function()
     local btn = root:findByName(name, true)
     if btn then btn:notify("patch_mode_changed", modeStr) end
   end
-  -- Show morph_group only when morph mode is active.
-  local morphGrp = root:findByName("morph_group", true)
-  if morphGrp then morphGrp.visible = (patchGridMode == "morph") end
+  -- morph_group visibility is always-on; no longer toggled here.
 end
 
 -- Update the single combined preset_name_label with bank + preset info.
