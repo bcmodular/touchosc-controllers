@@ -1373,6 +1373,8 @@ function onReceiveNotify(key, value)
     if patchGridMode == "delete" then
       slots[slotKey] = nil
       setPatchGridSlots(slots)
+      currentPresetName = ""
+      updatePatchInfoLabel()
 
     elseif patchGridMode == "grab" then
       -- Snapshot current state, diff-apply the slot; release restores.
