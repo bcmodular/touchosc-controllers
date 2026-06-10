@@ -340,8 +340,7 @@ local function syncBCR1()
       end
     end
   end
-  -- Morph amount (CC 95, no addr entry, handled manually)
-  sendMIDI({0xB0, 95, math.floor(morphAmount * 127 + 0.5)}, BCR_CONNECTION)
+  -- TODO: add morph feedback once its BCR CC is confirmed
 end
 
 -- ---------------------------------------------------------------------------
@@ -399,18 +398,6 @@ end
 -- ---------------------------------------------------------------------------
 
 local function handleBCR1(cc, ccVal)
-  -- MORPH AMOUNT (CC 95) — BCR fixed encoder row 2, slot 7
-  if cc == 95 then
-    morphAmount = ccVal / 127
-    applyMorph()
-    local morphEnc = root:findByName("morph_enc", true)
-    if morphEnc then
-      local fader = morphEnc.children["control_fader"]
-      if fader then fader.values.x = morphAmount end
-    end
-    return
-  end
-
   -- GLOBAL TUNING (CC 100) — plain MIDI CC 104 to TB-3, not SysEx.
   -- The TB-3 has no SysEx address for global tuning; responds to CC 104
   -- via standard MIDI. Device-global, not saved in patch dumps.

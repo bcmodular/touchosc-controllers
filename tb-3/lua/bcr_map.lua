@@ -77,33 +77,36 @@ local BCR1_MAP = {
   [71] = { addr = {0x10,0x00,0x0E,0x00}, bits = 7, max = 1 },     -- DIST ON/OFF
   [79] = { addr = {0x10,0x00,0x0E,0x07}, bits = 7, max = 1 },     -- DIST COLOR
 
-  -- ---- Fixed encoder row 1: VCA + Distortion character ----
+  -- ---- Fixed encoder row 1: VCA ----
   [81] = { addr = {0x10,0x00,0x0C,0x00}, bits = 7 },              -- VCA ATTACK
   [82] = { addr = {0x10,0x00,0x0C,0x01}, bits = 7 },              -- VCA DECAY
   [83] = { addr = {0x10,0x00,0x0C,0x02}, bits = 7 },              -- VCA SUSTAIN
   [84] = { addr = {0x10,0x00,0x0C,0x03}, bits = 7 },              -- VCA RELEASE
   [85] = { addr = {0x10,0x00,0x00,0x0A}, bits = 7, signed = true },-- VCA LFO DEPTH
   [86] = { addr = {0x10,0x00,0x0E,0x02}, bits = 7, max = 120 },   -- DIST DRIVE (0–120)
-  [87] = { addr = {0x10,0x00,0x0E,0x03}, bits = 7, max = 100 },   -- DIST BOTTOM (0=−50…100=+50)
-  [88] = { addr = {0x10,0x00,0x0E,0x04}, bits = 7, max = 100 },   -- DIST TONE
+  -- CC 87: spare
+  -- CC 88: spare
 
-  -- ---- Fixed encoder row 2: VCF ADSR + dist efx level + morph ----
-  -- CUTOFF and RESONANCE moved to panel_controls_group (not BCR-controllable).
-  [91] = { addr = {0x10,0x00,0x0A,0x06}, bits = 7 },              -- VCF ATTACK
-  [92] = { addr = {0x10,0x00,0x0A,0x07}, bits = 7 },              -- VCF DECAY
-  [93] = { addr = {0x10,0x00,0x0A,0x08}, bits = 7 },              -- VCF SUSTAIN
-  [94] = { addr = {0x10,0x00,0x0A,0x09}, bits = 7 },              -- VCF RELEASE
-  [95] = { morph = true },                                         -- MORPH AMOUNT (no SysEx addr)
-  [96] = { addr = {0x10,0x00,0x0E,0x05}, bits = 7,  max = 100 },  -- DIST EFFECT LEVEL
+  -- ---- Fixed encoder row 2: VCF ADSR + LFO MOD + Distortion character ----
+  -- CUTOFF, RESONANCE and ACCENT moved to panel_controls_group (not BCR-controllable).
+  [89] = { addr = {0x10,0x00,0x0A,0x06}, bits = 7 },              -- VCF ATTACK
+  [90] = { addr = {0x10,0x00,0x0A,0x07}, bits = 7 },              -- VCF DECAY
+  [91] = { addr = {0x10,0x00,0x0A,0x08}, bits = 7 },              -- VCF SUSTAIN
+  [92] = { addr = {0x10,0x00,0x0A,0x09}, bits = 7 },              -- VCF RELEASE
+  [93] = { addr = {0x10,0x00,0x00,0x09}, bits = 7, signed = true },-- VCF LFO MOD
+  -- CC 94: spare
+  [95] = { addr = {0x10,0x00,0x0E,0x03}, bits = 7, max = 100, bipolar = true }, -- DIST BOTTOM
+  [96] = { addr = {0x10,0x00,0x0E,0x04}, bits = 7, max = 100, bipolar = true }, -- DIST TONE
 
-  -- ---- Fixed encoder row 3: Tuning + VCF modulation + dist dry ----
-  [97]  = { addr = {0x10,0x00,0x02,0x02}, bits = 16, max = 255 }, -- SAW TUNING (CV offset)
-  [98]  = { addr = {0x10,0x00,0x02,0x00}, bits = 16, max = 255 }, -- SQR TUNING (CV offset)
-  [99]  = { addr = {0x10,0x00,0x02,0x04}, bits = 16, max = 255 }, -- RING+SIN TUNING (CV offset)
+  -- ---- Fixed encoder row 3: Tuning + VCF ENV/KEY + Dist levels ----
+  -- CC 97/98 order confirmed from hardware SysEx capture (SAW=0x00, SQR=0x02).
+  [97]  = { addr = {0x10,0x00,0x02,0x00}, bits = 16, max = 255 }, -- SAW TUNING
+  [98]  = { addr = {0x10,0x00,0x02,0x02}, bits = 16, max = 255 }, -- SQR TUNING
+  [99]  = { addr = {0x10,0x00,0x02,0x04}, bits = 16, max = 255 }, -- RING+SIN TUNING
   -- CC 100: GLOBAL TUNING — sends plain MIDI CC 104 to TB-3 (handled in root.lua)
   [101] = { addr = {0x10,0x00,0x0A,0x04}, bits = 16, max = 255 }, -- VCF ENV DEPTH
   [102] = { addr = {0x10,0x00,0x0A,0x0A}, bits = 7 },             -- VCF KEY FOLLOW
-  [103] = { addr = {0x10,0x00,0x00,0x09}, bits = 7, signed = true },-- VCF LFO DEPTH
+  [103] = { addr = {0x10,0x00,0x0E,0x05}, bits = 7, max = 100 },  -- DIST EFX LEVEL
   [104] = { addr = {0x10,0x00,0x0E,0x06}, bits = 7, max = 100 },  -- DIST DRY LEVEL
 }
 
