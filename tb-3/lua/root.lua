@@ -89,6 +89,7 @@ local morphLastBlocks   = nil -- block hex strings last sent by applyMorph (for 
 local morphAmount     = 0.0  -- 0.0–1.0 float from fader
 local morphing        = false -- true while applyMorph is running; suppresses BCR sends
 local applyMorph              -- forward declaration; defined below after getPatchGridSlots
+local broadcastPatchMode      -- forward declaration; defined below after applyMorph
 
 local EXPORT_BLOCK_ORDER = {
   "10000000", "10000200", "10000400", "10000600",
@@ -337,7 +338,9 @@ local function syncBCR1()
       end
     end
   end
-  -- TODO: add morph feedback once its BCR CC is confirmed
+  -- Morph amount (CC 8) and morph on/off (CC 40) — no addr entries, handled manually
+  sendMIDI({0xB0, 8,  math.floor(morphAmount * 127 + 0.5)}, BCR_CONNECTION)
+  sendMIDI({0xB0, 40, patchGridMode == "morph" and 127 or 0}, BCR_CONNECTION)
 end
 
 -- ---------------------------------------------------------------------------
@@ -395,6 +398,30 @@ end
 -- ---------------------------------------------------------------------------
 
 local function handleBCR1(cc, ccVal)
+  -- MORPH AMOUNT (CC 8) — encoder group 1, position 8
+  if cc == 8 then
+    morphAmount = ccVal / 127
+    applyMorph()
+    local morphEnc = root:findByName("morph_enc", true)
+    if morphEnc then
+      local fader = morphEnc.children["control_fader"]
+      if fader then fader.values.x = morphAmount end
+    end
+    return
+  end
+
+  -- MORPH ON/OFF (CC 40) — encoder group 1 push, position 8
+  -- BCR "Toggle On" mode: 127 = latched on, 0 = released.
+  if cc == 40 then
+    if ccVal >= 64 then
+      patchGridMode = "morph"
+    else
+      if patchGridMode == "morph" then patchGridMode = nil end
+    end
+    broadcastPatchMode()
+    return
+  end
+
   -- DIST TYPE (CC 88) — update distType state BEFORE setting fader so that the
   -- enc_moved special case guard (typeIdx ~= distType) sees them equal and skips
   -- the redundant SysEx send.
@@ -924,7 +951,7 @@ applyMorph = function()
 end
 
 -- Broadcast the current mode to all mode buttons.
-local function broadcastPatchMode()
+broadcastPatchMode = function()
   local modeStr = patchGridMode or ""
   local btns = {"morph_button", "delete_button", "grab_mode_button"}
   for _, name in ipairs(btns) do

@@ -46,7 +46,7 @@ local BCR1_MAP = {
   [5]  = { addr = {0x10,0x00,0x08,0x06}, bits = 7 },              -- VCO PINK LEVEL
   [6]  = { addr = {0x10,0x00,0x08,0x07}, bits = 7 },              -- VCO RING LEVEL
   [7]  = { addr = {0x10,0x00,0x00,0x08}, bits = 7, signed = true },-- VCO LFO DEPTH
-  [8]  = { addr = {0x10,0x00,0x0C,0x04}, bits = 7 },              -- PATCH VOLUME
+  [8]  = { morph = true },                                         -- MORPH AMOUNT (no SysEx addr; special-cased in handleBCR1/syncBCR1)
 
   -- ---- Encoder Group 2 rotate: LFO (Dope Robot ordering) ----
   [9]  = { addr = {0x10,0x00,0x00,0x00}, bits = 7 },              -- LFO RATE
@@ -66,7 +66,7 @@ local BCR1_MAP = {
   [37] = { addr = {0x10,0x00,0x08,0x0C}, bits = 7, max = 1 },     -- VCO PINK SW
   [38] = { addr = {0x10,0x00,0x08,0x0D}, bits = 7, max = 1 },     -- VCO RING SW
   -- CC 39: spare (VCO LFO DEPTH has no switch)
-  -- CC 40: spare (PATCH VOLUME has no switch)
+  [40] = { morph_btn = true },                                     -- MORPH ON/OFF (no SysEx addr; special-cased in handleBCR1/syncBCR1)
 
   -- ---- Encoder Group 2 push: LFO ----
   [41] = { addr = {0x10,0x00,0x00,0x0B}, bits = 7, max = 1 },     -- LFO BPM SYNC (push of RATE)
