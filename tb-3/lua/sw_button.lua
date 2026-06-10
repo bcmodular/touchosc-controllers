@@ -13,8 +13,22 @@
 
 local updating = false
 
+local LABEL_NAMES = {"bpm_sync_label1", "bpm_sync_label2", "retrig_label"}
+local LIT_TEXT    = "000000FF"   -- black on yellow button
+local OFF_TEXT    = "FFFFFFFF"   -- white on dark background
+
+local function refreshOverlayLabels()
+  local lit = (math.floor(self.values.x + 0.5) == 1)
+  local clr = Color.fromHexString(lit and LIT_TEXT or OFF_TEXT)
+  for _, name in ipairs(LABEL_NAMES) do
+    local lbl = self.parent.children[name]
+    if lbl then lbl.textColor = clr end
+  end
+end
+
 function onValueChanged(key)
   if key ~= "x" then return end
+  refreshOverlayLabels()
   if updating then return end
   -- Notify root for parameter assignment mode.
   root:notify("sw_touched",
@@ -32,4 +46,8 @@ function onReceiveNotify(key, value)
   updating = true
   self.values.x = 1 - self.values.x
   updating = false
+end
+
+function init()
+  refreshOverlayLabels()
 end

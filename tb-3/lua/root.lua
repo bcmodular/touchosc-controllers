@@ -90,6 +90,7 @@ local morphAmount     = 0.0  -- 0.0–1.0 float from fader
 local morphing        = false -- true while applyMorph is running; suppresses BCR sends
 local applyMorph              -- forward declaration; defined below after getPatchGridSlots
 local broadcastPatchMode      -- forward declaration; defined below after applyMorph
+local updateMorphEncState     -- forward declaration; defined below after broadcastPatchMode
 
 local EXPORT_BLOCK_ORDER = {
   "10000000", "10000200", "10000400", "10000600",
@@ -400,6 +401,7 @@ end
 local function handleBCR1(cc, ccVal)
   -- MORPH AMOUNT (CC 8) — encoder group 1, position 8
   if cc == 8 then
+    if patchGridMode ~= "morph" or not morphTargetSlot then return end
     morphAmount = ccVal / 127
     applyMorph()
     local morphEnc = root:findByName("morph_enc", true)
@@ -415,8 +417,16 @@ local function handleBCR1(cc, ccVal)
   if cc == 40 then
     if ccVal >= 64 then
       patchGridMode = "morph"
+      morphTargetSlot = nil
+      morphBaseSnapshot = nil
+      morphLastBlocks = nil
     else
-      if patchGridMode == "morph" then patchGridMode = nil end
+      if patchGridMode == "morph" then
+        patchGridMode = nil
+        morphTargetSlot = nil
+        morphBaseSnapshot = nil
+        morphLastBlocks = nil
+      end
     end
     broadcastPatchMode()
     return
@@ -963,6 +973,8 @@ broadcastPatchMode = function()
     local btn = root:findByName(name, true)
     if btn then btn:notify("patch_mode_changed", modeStr) end
   end
+  local pgNode = root:findByName("preset_grid", true)
+  if pgNode then pgNode:notify("patch_mode_changed", modeStr) end
   -- morph_group visibility is always-on; no longer toggled here.
   -- When entering morph mode: show "-" in morph_preset_label and "Pick Preset"
   -- in the morph_enc value_label. On exit: clear both.
@@ -974,6 +986,29 @@ broadcastPatchMode = function()
   local encValLbl = morphEnc and morphEnc.children["value_label"]
   if encValLbl then
     encValLbl.values.text = patchGridMode == "morph" and "Pick Preset" or ""
+  end
+  updateMorphEncState()
+end
+
+-- Enable morph_enc only when morph mode is on and a target preset is selected.
+local MORPH_ENC_DIM = "777777FF"
+local MORPH_ENC_LIT = "FFFFFFFF"
+
+updateMorphEncState = function()
+  local morphEnc = root:findByName("morph_enc", true)
+  if not morphEnc then return end
+  local enabled = (patchGridMode == "morph" and morphTargetSlot ~= nil)
+  local waitingForPick = (patchGridMode == "morph" and not morphTargetSlot)
+  morphEnc.tag = enabled and "" or "disabled"
+  local valLbl = morphEnc.children["value_label"]
+  local nameLbl = morphEnc.children["name_label"]
+  -- "Pick Preset" prompt stays white; only the encoder ring/name dim when disabled.
+  if valLbl then
+    valLbl.textColor = Color.fromHexString(
+      (enabled or waitingForPick) and MORPH_ENC_LIT or MORPH_ENC_DIM)
+  end
+  if nameLbl then
+    nameLbl.textColor = Color.fromHexString(enabled and MORPH_ENC_LIT or MORPH_ENC_DIM)
   end
 end
 
@@ -1038,6 +1073,7 @@ function onReceiveNotify(key, value)
 
       -- morph_enc special case: replaces old morph_amount_changed path.
       if sec == "morph_group" and enc == "morph_enc" then
+        if patchGridMode ~= "morph" or not morphTargetSlot then return end
         morphAmount = x
         applyMorph()
         return
@@ -1347,6 +1383,11 @@ function onReceiveNotify(key, value)
     else
       patchGridMode = value
     end
+    if patchGridMode ~= "morph" or not wasInMorph then
+      morphTargetSlot = nil
+      morphBaseSnapshot = nil
+      morphLastBlocks = nil
+    end
     broadcastPatchMode()
     -- When leaving morph mode, sync BCR1 to the final blended state.
     if wasInMorph then syncBCR1() end
@@ -1391,6 +1432,9 @@ function onReceiveNotify(key, value)
       if fader then fader.values.x = 0.0 end
       local morphLbl = root:findByName("morph_preset_label", true)
       if morphLbl then morphLbl.values.text = tostring(slotNum) end
+      local encValLbl = morphEnc and morphEnc.children["value_label"]
+      if encValLbl then encValLbl.values.text = "0" end
+      updateMorphEncState()
 
     else
       -- Default: empty → store; filled → recall
@@ -1574,4 +1618,5 @@ function init()
   -- Push current fader positions to BCR2000 #1 on layout load so its LED
   -- rings reflect whatever values the layout last had.
   syncBCR1()
+  updateMorphEncState()
 end

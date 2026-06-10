@@ -40,14 +40,14 @@ in `root.lua`. Do not re-declare them.
 | `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_dump", "")` |
 | `send_button.lua` | `send_button` BUTTON | Press → sends current state to TB-3 |
 | `control_fader.lua` | all `control_fader` nodes | Slider value → sends `enc_moved` notify via parent group |
-| `sw_button.lua` | all `sw_button` nodes | Toggle → sends `sw_toggled` |
+| `sw_button.lua` | all `sw_button` nodes | Toggle → sends `sw_toggled`; LFO BPM SYNC / RETRIG overlay labels flip to black when lit |
 | `porta_radio_btn.lua` | `porta_legato_btn`, `porta_always_btn` | Mutual-exclusion radio; sends `porta_mode_set` |
 | `dist_toggle_button.lua` | `dist_on_off`, `dist_color` | Toggle with assign-mode intercept; sends `sw_touched` / `sw_toggled` |
 | `efx_section.lua` | `efx1_section`, `efx2_section` | EFX type/slot/button state machine; raw SysEx byte cache in `self.tag` |
 | `efx_button.lua` | `efx1_b1`–`efx1_b8`, `efx2_b1`–`efx2_b8` | Button press relay → `efx_section:notify("btn_press", ...)` |
 | `efx_chooser_button.lua` | buttons `1`–`10` under `efx_1_chooser`; `1`–`9` under `efx_2_chooser` | Type direct-select → `root:notify("efx_type_select", "N,M")` |
 | `assign_slot_btn.lua` | `assign_xy_mod_btn`, `assign_effect_knob_btn`, `assign_pad_x_btn`, `assign_pad_y_btn` | Assign slot select → `root:notify("assign_slot_select", key)` |
-| `preset_grid.lua` | `preset_grid` group | Receives `refresh_preset_ui` → updates `back_N` slot colors |
+| `preset_grid.lua` | `preset_grid` group | Receives `refresh_preset_ui` / `patch_mode_changed` → updates `back_N` slot colors (blue filled default; red/orange/cyan when delete/grab/morph mode active) |
 | `preset_grid_slot_btn.lua` | slots `1`–`16` under `preset_grid` | Press/release relay → `root:notify("patch_slot_pressed/released", N)` |
 | `mode_button.lua` | `morph_button`, `delete_button`, `grab_mode_button` | Mode toggle → `root:notify("patch_mode_set", MODE)` where MODE is derived from `self.name` |
 
@@ -95,7 +95,20 @@ local morphing          = false -- true while applyMorph send loop runs; suppres
 | `applySnapshotDiff(targetJson, baseJson)` | Block-level diff: sends only blocks whose hex string differs |
 | `applyMorph()` | Byte-interpolates all 11 blocks at `morphAmount`; sends changed blocks; sets `morphing` flag to suppress BCR1 flood |
 | `getPatchGridSlots()` / `setPatchGridSlots(t)` | Read/write `preset_grid.tag` as a Lua table |
+| `updateMorphEncState()` | Enables `morph_enc` only when morph mode is on and a target slot is selected (`tag = "disabled"` otherwise); value label stays white for *Pick Preset* |
 | `refreshPatchGridUI()` | Broadcasts `refresh_preset_ui` to `preset_grid` node |
+
+### Preset slot colours (`preset_grid.lua`)
+
+| State | Colour | Hex |
+|-------|--------|-----|
+| Empty slot | Light grey | `BFBFBFFF` |
+| Filled (default) | Blue | `4A90D9FF` |
+| Filled + delete mode | Red | `E70000FF` |
+| Filled + grab mode | Orange | `FF9500FF` |
+| Filled + morph mode | Cyan | `00E6FFFF` |
+
+Only **filled** slots take the mode tint; empty slots stay grey.
 
 ### Mode button pattern
 
@@ -122,8 +135,10 @@ end
 ```
 
 Root's `patch_mode_set` handler: if `value == patchGridMode`, clears it (toggle off);
-otherwise sets it. Broadcasts `patch_mode_changed` to all three buttons so they stay
-in sync.
+otherwise sets it. Broadcasts `patch_mode_changed` to all three mode buttons and
+`preset_grid` (slot colour tint). Clears `morphTargetSlot` when entering or leaving
+morph mode. `updateMorphEncState()` runs from `broadcastPatchMode()` and after a
+morph target slot is picked.
 
 ### Slot data format
 

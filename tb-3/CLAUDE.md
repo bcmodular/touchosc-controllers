@@ -118,14 +118,14 @@ These two uses are mutually exclusive in time (the `"prog"` guard is cleared bef
 | `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_dump", "")` |
 | `send_button.lua` | `send_button` BUTTON | Press → sends current state to TB-3 via OSC /tb3/restore sequence |
 | `control_fader.lua` | all `control_fader` nodes | Slider value → sends `enc_moved` to root (via parent group notify) |
-| `sw_button.lua` | all `sw_button` nodes | Toggle → sends `sw_toggled` |
+| `sw_button.lua` | all `sw_button` nodes | Toggle → sends `sw_toggled`; LFO BPM SYNC / RETRIG overlay labels flip to black when lit |
 | `porta_radio_btn.lua` | `porta_legato_btn`, `porta_always_btn` | Mutual-exclusion radio; sends `porta_mode_set` |
 | `dist_toggle_button.lua` | `dist_on_off`, `dist_color` | Toggle with assign-mode intercept; sends `sw_touched` / `sw_toggled` |
 | `efx_section.lua` | `efx1_section`, `efx2_section` | EFX type/slot/button state machine; raw SysEx byte cache in tag |
 | `efx_button.lua` | `efx1_b1`–`efx1_b8`, `efx2_b1`–`efx2_b8` | Button press relay → `efx_section:notify("btn_press", ...)` |
 | `efx_chooser_button.lua` | buttons `1`–`10` under `efx_1_chooser`; `1`–`9` under `efx_2_chooser` | Type direct-select → `root:notify("efx_type_select", "N,M")` |
 | `assign_slot_btn.lua` | `assign_xy_mod_btn`, `assign_effect_knob_btn`, `assign_pad_x_btn`, `assign_pad_y_btn` | Assign slot select → `root:notify("assign_slot_select", key)` |
-| `preset_grid.lua` | `preset_grid` group | Receives `refresh_preset_ui` → updates `back_N` slot colors |
+| `preset_grid.lua` | `preset_grid` group | Receives `refresh_preset_ui` / `patch_mode_changed` → updates `back_N` slot colors (blue filled default; red/orange/cyan when delete/grab/morph mode active) |
 | `preset_grid_slot_btn.lua` | slots `1`–`16` under `preset_grid` | Press/release relay → `root:notify("patch_slot_pressed/released", N)` |
 | `mode_button.lua` | `morph_button`, `delete_button`, `grab_mode_button` | Mode toggle → `root:notify("patch_mode_set", MODE)` where MODE is derived from `self.name` |
 
@@ -173,7 +173,7 @@ All cross-element IPC uses `node:notify(key, value)`. The table below covers eve
 
 | Key | Payload | Receiver | Action |
 |-----|---------|----------|--------|
-| `patch_mode_changed` | `"delete"` \| `"grab"` \| `"morph"` \| `""` | `delete_button`, `grab_mode_button`, `morph_button` | Set lit state; guard `updating` flag to suppress re-notify |
+| `patch_mode_changed` | `"delete"` \| `"grab"` \| `"morph"` \| `""` | `delete_button`, `grab_mode_button`, `morph_button`, `preset_grid` | Mode buttons: set lit state (`updating` guard). `preset_grid`: tint filled slot colours by mode |
 
 ### Assign slot buttons receive
 
@@ -223,7 +223,24 @@ local morphing          = false -- true while applyMorph batch-sends; suppresses
 | `applySnapshotDiff(targetJson, baseJson)` | Block-level diff: sends only changed blocks to the TB-3 |
 | `applyMorph()` | Byte-interpolates all 11 blocks at `morphAmount`; sends changed blocks; sets `morphing` |
 | `getPatchGridSlots()` / `setPatchGridSlots(t)` | Read/write `preset_grid.tag` as Lua table |
+| `updateMorphEncState()` | Sets `morph_enc.tag` to `"disabled"` / `""` and dims encoder labels; enabled only when `patchGridMode == "morph"` and `morphTargetSlot ~= nil` |
 | `syncBCR1()` | Pushes all BCR1 fader positions to BCR2000 #1 after patch restore |
+
+### Preset slot colours (`preset_grid.lua`)
+
+| State | Colour | Hex |
+|-------|--------|-----|
+| Empty slot | Light grey | `BFBFBFFF` |
+| Filled (default) | Blue | `4A90D9FF` |
+| Filled + delete mode | Red | `E70000FF` |
+| Filled + grab mode | Orange | `FF9500FF` |
+| Filled + morph mode | Cyan | `00E6FFFF` |
+
+`grab_mode_button` layout colour matches grab orange (`update_colors.py`). Empty slots stay grey in all modes.
+
+### Morph encoder gating
+
+`morph_enc` is disabled (`tag = "disabled"`, name label dimmed) until morph mode is on **and** a target preset slot is selected. The value label stays white while showing *Pick Preset*. `pointer.lua` rejects drag input when the parent group tag is `"disabled"`. Root also gates on-screen `enc_moved` and BCR1 CC 8 (morph amount) on the same condition. `morphTargetSlot` is cleared when entering or leaving morph mode (UI mode buttons and BCR CC 40).
 
 ### `receivingPatch` guard
 
@@ -253,6 +270,7 @@ Set around `parseBlock()` and the EFX section `patch_data` notify to prevent re-
 - `tools/add_efx_scripts.py` — bootstrapped EFX script injection (superseded by toscbuild)
 - `tools/add_efx_button_labels.py` — one-time button label addition pass
 - `tools/fix_b_labels_placement.py` — one-time label placement fix
+- `tools/rename_retrig_label.py` — renamed duplicate `name_label` → `retrig_label` in `lfo_cv_offset_enc`
 
 ## Known design constraints
 

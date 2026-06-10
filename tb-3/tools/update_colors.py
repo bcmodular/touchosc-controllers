@@ -28,6 +28,9 @@ EFX2 section hierarchy (base = coral 0.85/0.38/0.12):
 The shared "selector" colour between the effect-type chooser grid and the
 type-option radio buttons (B5–B8) visually groups "things that pick what
 something IS" vs "things that change how it behaves".
+
+grab_mode_button   orange            (1.00, 0.584, 0.00)
+  Matches preset-grid grab-mode slot tint (FF9500FF).
 """
 
 import re, sys
@@ -101,6 +104,9 @@ for btn in ["efx1_b5", "efx1_b6", "efx1_b7", "efx1_b8"]:
 xml = update(xml, "efx_2_chooser",    1.00, 0.65, 0.35)   # bright coral-orange
 for btn in ["efx2_b5", "efx2_b6", "efx2_b7", "efx2_b8"]:
     xml = update(xml, btn,             1.00, 0.65, 0.35)
+
+# ── Preset grid modes ────────────────────────────────────────────────────────
+xml = update(xml, "grab_mode_button", 1.00, 0.584, 0.00)   # orange — grab mode
 
 tosc_write(TOSC, xml)
 print(f"\nWritten: {TOSC} ({TOSC.stat().st_size:,} bytes compressed)")

@@ -4,7 +4,7 @@ A full-featured TouchOSC layout for the Roland TB-3 synthesizer, providing compl
 
 The BCR2000 integration is designed for **two units** (one for tone/distortion, one for effects), but works equally well with a **single BCR2000** — load both presets onto it and switch between them to access each half of the feature set.
 
-![TB-3 controller showing patch C06](screenshots/C06.png)
+![TB-3 controller showing patch C06 — presets, morph, and LFO sections](screenshots/C06.png)
 
 ---
 
@@ -73,14 +73,17 @@ manipulating patches without leaving TouchOSC.
 ### Store & Recall
 
 - **Tap an empty slot** (light grey) → stores the current patch into that slot.
-- **Tap a filled slot** (white) → recalls it, sending only the blocks that differ from the current state.
+- **Tap a filled slot** (blue) → recalls it, sending only the blocks that differ from the current state.
 
 If blocks are not yet cached (e.g. right after loading the layout), tapping an
 empty slot triggers a sync request — tap again after **SYNC FROM TB-3** completes.
 
 ### Mode Buttons
 
-Two mode buttons sit to the right of the grid. Pressing the active mode again turns it off.
+Two mode buttons sit to the right of the grid (red **DEL. MODE**, orange **GRAB MODE**).
+Pressing the active mode again turns it off. While a mode is active, **filled** preset
+slots change colour to match the mode (red for delete, orange for grab) so it is
+clear which action will apply on tap. Empty slots stay grey.
 
 | Button | Behaviour when a slot is tapped |
 |--------|----------------------------------|
@@ -91,10 +94,11 @@ Two mode buttons sit to the right of the grid. Pressing the active mode again tu
 
 Morph lives in the separate **MORPH** group (not a third grid mode button):
 
-1. Press the **MORPH** button in the MORPH group to arm morph mode. The target
-   label shows `--` and the AMOUNT encoder shows *Pick Preset*.
+1. Press the **MORPH** button (cyan) in the MORPH group to arm morph mode. Filled
+   preset slots turn cyan. The target label shows `-` and the **AMOUNT** encoder
+   is disabled with *Pick Preset* shown in white in the value label.
 2. Tap any filled preset slot — it becomes the morph target (slot number shown
-   in the target label).
+   in the target label). The **AMOUNT** encoder becomes active.
 3. Turn the **AMOUNT** encoder from minimum (0 %) to maximum (100 %) to blend
    from the current patch towards the target.
 4. Press **MORPH** again to exit; the BCR2000 LED rings snap to the final blended position.
@@ -175,7 +179,7 @@ Eight encoders control source levels (SAW, SQUARE, SINE, WHITE NOISE, PINK NOISE
 
 ## LFO
 
-Controls LFO RATE, CV OFFSET, DELAY, and waveform mix levels (TRI, SAW, SQR, SIN, S&H). The LFO RATE encoder has a push-toggle for BPM SYNC; CV OFFSET has a RETRIGGER toggle.
+Controls LFO RATE, CV OFFSET, DELAY, and waveform mix levels (TRI, SAW, SQR, SIN, S&H). The LFO RATE encoder has a push-toggle for **BPM SYNC**; CV OFFSET has a **RETRIG** toggle. When either toggle is on (yellow), its label text switches to black for readability.
 
 ---
 
