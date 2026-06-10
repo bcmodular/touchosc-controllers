@@ -243,14 +243,11 @@ local function updateUIForAddr(addr, ccVal, srcEntry)
   if not encGrp then return end
   local x = ccVal / 127
   local fader = encGrp.children["control_fader"]
+  -- Setting fader.values.x fires control_fader → enc_moved, which re-derives
+  -- the correct label from ENC_SEND_MAP (handles bipolar, signed, semitoneRange,
+  -- custom max, etc.).  Do NOT set the label here — that would overwrite the
+  -- enc_moved result with a flat 0–max value that ignores display encoding.
   if fader then fader.values.x = x end
-  local lbl = encGrp.children["value_label"]
-  if lbl then
-    local max = (srcEntry and srcEntry.max) or
-                hit.entry.max or
-                (hit.entry.bits == 16 and 255 or 127)
-    lbl.values.text = tostring(math.floor(x * max + 0.5))
-  end
 end
 
 -- Update a sw_button (or standalone toggle button) by SysEx address.
