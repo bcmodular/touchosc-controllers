@@ -7,19 +7,19 @@ todos:
     status: pending
   - id: claude-md
     content: Create tb-3/CLAUDE.md with architecture, include-order contract, notify message table, and tag conventions
-    status: pending
+    status: completed
   - id: root-claude
     content: Add TB-3 section/pointer to repo-root CLAUDE.md
-    status: pending
+    status: completed
   - id: lua-readme
     content: Regenerate lua/README.md script table to match toscbuild.json
-    status: pending
+    status: completed
   - id: user-readme
     content: Sync tb-3/README.md with actual UI per screenshot (SYNC TO TB-3, morph AMOUNT encoder, drop DELETE ALL, TYPE encoder, add missing sections)
     status: pending
   - id: pm-readme
     content: Update preset-manager/README.md for tabbed UI, button names, and bank format v2
-    status: pending
+    status: in_progress
   - id: plans-status
     content: Add divergence/status headers to both plans docs and a tools/ script index
     status: pending
@@ -31,7 +31,7 @@ todos:
     status: pending
   - id: hygiene
     content: Gitignore tb-3/backups and .tosc.bak files; delete TB3.tosc.bak_naming
-    status: pending
+    status: completed
   - id: verify
     content: Rebuild with toscbuild.py and verify clean diff and doc/manifest consistency
     status: pending
