@@ -88,6 +88,7 @@ local currentPresetName = ""  -- name of the most recently recalled preset slot
 local morphLastBlocks   = nil -- block hex strings last sent by applyMorph (for diff)
 local morphAmount     = 0.0  -- 0.0–1.0 float from fader
 local morphing        = false -- true while applyMorph is running; suppresses BCR sends
+local applyMorph              -- forward declaration; defined below after getPatchGridSlots
 
 local EXPORT_BLOCK_ORDER = {
   "10000000", "10000200", "10000400", "10000600",
@@ -865,7 +866,7 @@ end
 -- Interpolate every data byte between morphBaseSnapshot and the morph target
 -- slot at the current morphAmount (0.0–1.0).  Only sends blocks that changed
 -- since the last applyMorph call (morphLastBlocks).
-local function applyMorph()
+applyMorph = function()
   if not morphTargetSlot or not morphBaseSnapshot then return end
   local slots = getPatchGridSlots()
   local targetData = slots[tostring(morphTargetSlot)]
