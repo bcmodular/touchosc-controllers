@@ -265,12 +265,7 @@ local TYPE_DEFS = {
       {off=0x07, name="GAIN",      max=80,  display=dispDb40},
       {off=0x08, name="BALANCE",   max=100, display=dispBipolar50},
     },
-    btns = {
-      nil, nil, nil,
-      {off=0x05, name="1:2",   action="set", val=6},
-      {off=0x05, name="1:4",   action="set", val=8},
-      {off=0x05, name="1:INF", action="set", val=13},
-    },
+    btns = {},
   },
 
   -- 2: RING MOD
@@ -869,7 +864,14 @@ function onReceiveNotify(key, value)
           local isActive = (bi == btnIdx)
           if bb  then bb.values.x   = isActive and 1 or 0 end
           if bl  then bl.textColor  = Color.fromHexString(isActive and ON_TXT or OFF_TXT) end
-          if not fromBCR then sendBCRcc(BTN_CC[bi], isActive and 127 or 0) end
+          -- When the press came from the BCR: skip echoing the active button back
+          -- (it's already lit), but DO send CC=0 for siblings so the BCR follows
+          -- the radio-button logic and turns off the previously active button.
+          if not fromBCR then
+            sendBCRcc(BTN_CC[bi], isActive and 127 or 0)
+          elseif not isActive then
+            sendBCRcc(BTN_CC[bi], 0)
+          end
         end
       end
       self.tag = ""

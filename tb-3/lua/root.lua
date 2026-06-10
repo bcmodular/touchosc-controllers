@@ -671,15 +671,15 @@ local function handleTB3SysEx(message)
     if awaitingBlocks == 0 then triggerSync = true end
   end
 
-  -- Guard against parseBlock() echoing values back to the TB-3 (see
-  -- receivingPatch declaration above). receivingPatchTimer force-clears the
-  -- flag in update() as a backstop if parseBlock errors before reaching the
-  -- explicit clear below.
+  -- Guard against parseBlock() and efx_section patch_data processing echoing
+  -- values back to the TB-3 (see receivingPatch declaration above).
+  -- The flag is kept active through the EFX section notify so that slot fader
+  -- updates triggered by applyType() don't fire slot_moved → sendSlotFromFloat
+  -- → sendParam, which would echo every slot value straight back to the TB-3.
+  -- receivingPatchTimer force-clears the flag in update() as a backstop.
   receivingPatch = true
   receivingPatchTimer = 5
   parseBlock(addr, data)
-  receivingPatch = false
-  receivingPatchTimer = 0
 
   -- Forward EFX blocks to their section nodes as hex CSV strings.
   -- efx_section.lua stores the raw bytes and remaps slots when it receives them.
@@ -696,6 +696,10 @@ local function handleTB3SysEx(message)
       efxSection:notify("patch_data", table.concat(hex, ","))
     end
   end
+
+  -- Clear only after both parseBlock and EFX section processing are done.
+  receivingPatch = false
+  receivingPatchTimer = 0
 
   if triggerSync then
     syncTimer = 0  -- cancel fallback timer; awaitingBlocks beat it
@@ -1117,8 +1121,12 @@ function onReceiveNotify(key, value)
       else
         -- Not in ENC_SEND_MAP — route EFX slot faders to their section.
         -- sec = "efx1_section" or "efx2_section"; enc = "efx1_s03" etc.
-        local efxSection = root:findByName(sec, true)
-        if efxSection then efxSection:notify("slot_moved", enc .. "," .. xs) end
+        -- Skip during patch receive: applyType() sets slot faders from rawData,
+        -- and we must not echo them back via sendSlotFromFloat → sendParam.
+        if not receivingPatch then
+          local efxSection = root:findByName(sec, true)
+          if efxSection then efxSection:notify("slot_moved", enc .. "," .. xs) end
+        end
       end
     end
     return

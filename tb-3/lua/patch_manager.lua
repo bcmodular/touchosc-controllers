@@ -71,8 +71,8 @@ local PARAM_ID_MAP = {
   ["vco_group,white_enc"]        = {id= 45, name="VCO WHITE LEVEL"},
   ["vco_group,pink_enc"]         = {id= 46, name="VCO PINK LEVEL"},
   ["vco_group,ring_enc"]         = {id= 47, name="VCO RING LEVEL"},
-  -- patch_volume_enc moved to vca_group in F1 layout
-  ["vca_group,patch_volume_enc"] = {id= 66, name="MASTER VOLUME"},
+  -- patch_volume_enc moved to patch_group in F1 layout
+  ["patch_group,patch_volume_enc"] = {id= 66, name="MASTER VOLUME"},
   -- ---- PANEL CONTROLS (moved from vcf_group/vco_group in F1 layout) ----
   ["panel_controls_group,vcf_cutoff_enc"]    = {id= 54, name="VCF CUTOFF"},
   ["panel_controls_group,vcf_resonance_enc"] = {id= 55, name="VCF RESONANCE"},

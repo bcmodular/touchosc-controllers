@@ -70,8 +70,8 @@ local ENC_SEND_MAP = {
   ["vco_group,white_enc"]          = { addr={0x10,0x00,0x08,0x05}, bits=7 },
   ["vco_group,pink_enc"]           = { addr={0x10,0x00,0x08,0x06}, bits=7 },
   ["vco_group,ring_enc"]           = { addr={0x10,0x00,0x08,0x07}, bits=7 },
-  -- patch_volume_enc moved to vca_group in F1 layout
-  ["vca_group,patch_volume_enc"]   = { addr={0x10,0x00,0x0C,0x04}, bits=7 },
+  -- patch_volume_enc moved to patch_group in F1 layout
+  ["patch_group,patch_volume_enc"]   = { addr={0x10,0x00,0x0C,0x04}, bits=7 },
 
   -- ---- PANEL CONTROLS  (vcf_cutoff, vcf_resonance, accent_level moved here in F1 layout) ----
   ["panel_controls_group,vcf_cutoff_enc"]    = { addr={0x10,0x00,0x0A,0x00}, bits=16 },
