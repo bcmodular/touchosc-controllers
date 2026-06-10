@@ -139,3 +139,17 @@ To convert a manager script from runtime to build-time injection:
 - **`sp404-mk2/tools/`** — SP404-specific layout maintenance scripts (`sync_bus1_ui_to_buses.py`, `inject_*.py`, etc.). Shared build tooling remains in repo `tools/`.
 - **`utils/`** — Launchkey Mini InControl mode scripts and MIDI tester layouts.
 - **`s-1/`** — Separate TouchOSC layout for Roland S-1 synth.
+
+## TB-3 Controller
+
+**`tb-3/`** — TouchOSC controller for the Roland TB-3 synthesizer. Separate architecture from the SP-404 MK2 controller. Full documentation is in **[`tb-3/CLAUDE.md`](tb-3/CLAUDE.md)**; read that before touching any TB-3 files.
+
+Key differences from the SP-404 layout:
+- Roland SysEx protocol (DT1/RQ1) rather than plain MIDI CC for all tone parameters.
+- Two BCR2000 units: BCR2000 #1 (MIDI CH 1) for tone/distortion; BCR2000 #2 (MIDI CH 2) for EFX1+EFX2.
+- Root script is a **concatenated chunk** of four files (`bcr_map.lua` + `patch_manager.lua` + `enc_map.lua` + `root.lua`) — include order is load-bearing (shared upvalues).
+- EFX state lives in element tags (`efx1_section.tag`, `efx2_section.tag`), not in root's `rawSysexBlocks`.
+- Patch preset grid stores 16 slots as complete 11-block SysEx snapshots in `preset_grid.tag`.
+- PyQt5 preset manager in `tb-3/preset-manager/` uses bank format v2 (`{"version":2,"slots":{...}}`) and communicates via OSC.
+
+Build: `python3 tools/toscbuild.py build tb-3`

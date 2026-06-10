@@ -8,5 +8,7 @@ sp404-mk2/preset-manager/python/settings.json
 sp404-mk2/SP404.tosc.bak
 sp404-mk2/backups/
 sp404-mk2/extracted/
+tb-3/backups/
+tb-3/*.tosc.bak*
 .vscode/settings.json
 __pycache__/

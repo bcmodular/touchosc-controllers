@@ -4,6 +4,10 @@ General TouchOSC/Lua patterns (naming, scoping, `findByName`, Lua 5.1 constraint
 namespace rules, 200-local limit, grid scope, button state) live in the shared
 [**`docs/lua-guide.md`**](../../docs/lua-guide.md). Read that first.
 
+For architecture detail — root chunk include order, notify message contract,
+dual data model, SysEx protocol, and connection constants — see
+[**`tb-3/CLAUDE.md`**](../CLAUDE.md).
+
 ---
 
 ## Build pipeline
@@ -15,29 +19,43 @@ python3 tools/toscbuild.py tree tb-3/TB3.tosc   # inspect node hierarchy
 ```
 
 Scripts are concatenated and injected at build time per `toscbuild.json`.
-The root script injection order is: `bcr_map.lua` → `patch_manager.lua` → `root.lua`.
+The root script injection order is:
+`bcr_map.lua` → `patch_manager.lua` → `enc_map.lua` → `root.lua`
+
 Variables declared in earlier files are visible to later ones (shared chunk scope),
 which is intentional — e.g. `distType` is declared in `patch_manager.lua` and used
-in `root.lua`.
+in `root.lua`. Do not re-declare them.
 
 ---
 
-## Script responsibilities
+## Script table
 
 | File | Injected into | Purpose |
 |------|--------------|---------|
-| `bcr_map.lua` | root (include) | CC→SysEx address table; EFX slot/button index helpers |
-| `patch_manager.lua` | root (include) | SysEx receive registry; `parseBlock`; shared dist type state |
-| `root.lua` | root node | MIDI routing; SysEx send/request helpers; BCR2000 handling; patch grid orchestration |
-| `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay |
-| `receive_button.lua` | `receive_button` BUTTON | Notifies root to send patch dump request |
-| `preset_grid.lua` | `preset_grid` group | Handles `refresh_preset_ui` — updates `back_N` slot colours |
-| `preset_grid_slot_btn.lua` | slots `1`–`16` under `preset_grid` | Sends `patch_slot_pressed`/`patch_slot_released` to root |
-| `delete_button.lua` | `delete_button` | Delete mode toggle; mutual-exclusion via `patch_mode_set`/`patch_mode_changed` |
-| `delete_all_presets_button.lua` | `delete_all_presets_button` | Sends `patch_clear_all` on release |
-| `grab_mode_button.lua` | `grab_mode_button` | Grab mode toggle; same mutual-exclusion pattern |
-| `morph_button.lua` | `morph_button` | Morph mode toggle; same mutual-exclusion pattern |
-| `morph_amount_fader.lua` | `morph_amount_fader` | Sends raw 0.0–1.0 float via `morph_amount_changed` notify |
+| `bcr_map.lua` | root (include #1) | `BCR1_MAP` / `BCR2_MAP` CC→SysEx tables; EFX slot/button index helpers |
+| `patch_manager.lua` | root (include #2) | `parseBlock`; `PARAM_ID_MAP`; `SW_PARAM_ID_MAP`; `EFX_SLOT_OFFSETS_*`; dist type state |
+| `enc_map.lua` | root (include #3) | `ENC_SEND_MAP` / `SW_SEND_MAP`; reverse `ADDR_TO_ENC` / `ADDR_TO_SW` lookup tables |
+| `root.lua` | root node | MIDI routing; SysEx helpers; BCR handling; patch grid; assign mode |
+| `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay; sends `enc_touched` on finger-down |
+| `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_dump", "")` |
+| `send_button.lua` | `send_button` BUTTON | Press → sends current state to TB-3 |
+| `control_fader.lua` | all `control_fader` nodes | Slider value → sends `enc_moved` notify via parent group |
+| `sw_button.lua` | all `sw_button` nodes | Toggle → sends `sw_toggled` |
+| `porta_radio_btn.lua` | `porta_legato_btn`, `porta_always_btn` | Mutual-exclusion radio; sends `porta_mode_set` |
+| `dist_toggle_button.lua` | `dist_on_off`, `dist_color` | Toggle with assign-mode intercept; sends `sw_touched` / `sw_toggled` |
+| `efx_section.lua` | `efx1_section`, `efx2_section` | EFX type/slot/button state machine; raw SysEx byte cache in `self.tag` |
+| `efx_button.lua` | `efx1_b1`–`efx1_b8`, `efx2_b1`–`efx2_b8` | Button press relay → `efx_section:notify("btn_press", ...)` |
+| `efx_chooser_button.lua` | buttons `1`–`10` under `efx_1_chooser`; `1`–`9` under `efx_2_chooser` | Type direct-select → `root:notify("efx_type_select", "N,M")` |
+| `assign_slot_btn.lua` | `assign_xy_mod_btn`, `assign_effect_knob_btn`, `assign_pad_x_btn`, `assign_pad_y_btn` | Assign slot select → `root:notify("assign_slot_select", key)` |
+| `preset_grid.lua` | `preset_grid` group | Receives `refresh_preset_ui` → updates `back_N` slot colors |
+| `preset_grid_slot_btn.lua` | slots `1`–`16` under `preset_grid` | Press/release relay → `root:notify("patch_slot_pressed/released", N)` |
+| `morph_button.lua` | `morph_button` | Mode toggle → `root:notify("patch_mode_set", "morph")` |
+| `delete_button.lua` | `delete_button` | Mode toggle → `root:notify("patch_mode_set", "delete")` |
+| `grab_mode_button.lua` | `grab_mode_button` | Mode toggle → `root:notify("patch_mode_set", "grab")` |
+
+**Orphaned files (not in `toscbuild.json` — do not use or reference):**
+`dist_type_button.lua`, `delete_all_presets_button.lua`, `save_to_library_btn.lua`,
+`morph_amount_fader.lua`, `porta_mode_button.lua`
 
 ---
 
@@ -67,7 +85,7 @@ local grabSnapshot      = nil   -- JSON string; saved when grab press begins
 local morphTargetSlot   = nil   -- slot number of morph target
 local morphBaseSnapshot = nil   -- JSON string of patch at morph-target selection time
 local morphLastBlocks   = nil   -- block hex strings last sent by applyMorph (diff guard)
-local morphAmount       = 0.0   -- 0.0–1.0 float from fader
+local morphAmount       = 0.0   -- 0.0–1.0 float from morph_enc control_fader
 local morphing          = false -- true while applyMorph send loop runs; suppresses BCR1
 ```
 
@@ -115,7 +133,7 @@ in sync.
 
 ```jsonc
 {
-  "1":  {"blocks": ["F041...F7", "F041...F7", ... /* 11 hex strings */]},
+  "1":  {"blocks": ["F041...F7", "F041...F7", ... /* 11 hex strings */], "name": "My Patch"},
   "2":  null,
   ...
   "16": {"blocks": [...]}
@@ -127,7 +145,7 @@ terminator, with a valid checksum. Generated by `blockToHexString(addr, data)`.
 
 ---
 
-## Adding a new encoder script
+## Adding a new encoder
 
 1. Create `lua/<name>.lua`
 2. Add a mapping to `toscbuild.json`:
@@ -140,21 +158,7 @@ terminator, with a valid checksum. Generated by `blockToHexString(addr, data)`.
    ```
 3. Run `python3 tools/toscbuild.py build tb-3`
 
-Encoder scripts typically follow this pattern:
-
-```lua
--- my_enc.lua — injected into <node_name>
-function init()
-  -- optional setup
-end
-
-function onValueChanged(key)
-  if key ~= "x" then return end
-  local raw = math.floor(self.values.x * MAX + 0.5)
-  -- call root helpers via notify or direct SysEx from root.lua functions
-end
-```
-
-Because encoder scripts run in their own node scope (not root), they cannot call
-`tb3Send7bit` directly. Use `self.parent:notify(...)` to reach the root or a
-parent group that has the SysEx helpers.
+Because node scripts run in their own scope (not root), they cannot call `tb3Send7bit`
+directly. Use `self.parent:notify(...)` to reach root or a parent group that has the
+SysEx helpers, or add the parameter to `ENC_SEND_MAP` / `SW_SEND_MAP` in `enc_map.lua`
+and let `control_fader.lua` / `sw_button.lua` handle it automatically.
