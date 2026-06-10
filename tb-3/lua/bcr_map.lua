@@ -75,9 +75,7 @@ local BCR1_MAP = {
 
   -- ---- Dedicated buttons (right-aligned in layout) ----
   [71] = { addr = {0x10,0x00,0x0E,0x00}, bits = 7, max = 1 },     -- DIST ON/OFF
-  -- CC 72: DIST TYPE ↑ — handled in root.lua (increment distType)
   [79] = { addr = {0x10,0x00,0x0E,0x07}, bits = 7, max = 1 },     -- DIST COLOR
-  -- CC 80: DIST TYPE ↓ — handled in root.lua (decrement distType)
 
   -- ---- Fixed encoder row 1: VCA + Distortion character ----
   [81] = { addr = {0x10,0x00,0x0C,0x00}, bits = 7 },              -- VCA ATTACK
@@ -89,15 +87,13 @@ local BCR1_MAP = {
   [87] = { addr = {0x10,0x00,0x0E,0x03}, bits = 7, max = 100 },   -- DIST BOTTOM (0=−50…100=+50)
   [88] = { addr = {0x10,0x00,0x0E,0x04}, bits = 7, max = 100 },   -- DIST TONE
 
-  -- ---- Fixed encoder row 2: VCF (mirroring on-screen order) ----
-  -- CUTOFF and RESONANCE are first in the UI (x=0,110) so they get the first BCR positions.
-  [89] = { addr = {0x10,0x00,0x0A,0x00}, bits = 16, max = 255 },  -- VCF CUTOFF (MSB/LSB)
-  [90] = { addr = {0x10,0x00,0x0A,0x02}, bits = 16, max = 255 },  -- VCF RESONANCE
+  -- ---- Fixed encoder row 2: VCF ADSR + dist efx level + morph ----
+  -- CUTOFF and RESONANCE moved to panel_controls_group (not BCR-controllable).
   [91] = { addr = {0x10,0x00,0x0A,0x06}, bits = 7 },              -- VCF ATTACK
   [92] = { addr = {0x10,0x00,0x0A,0x07}, bits = 7 },              -- VCF DECAY
   [93] = { addr = {0x10,0x00,0x0A,0x08}, bits = 7 },              -- VCF SUSTAIN
   [94] = { addr = {0x10,0x00,0x0A,0x09}, bits = 7 },              -- VCF RELEASE
-  [95] = { addr = {0x10,0x00,0x14,0x0E}, bits = 16, max = 255 },  -- ACCENT LEVEL
+  [95] = { morph = true },                                         -- MORPH AMOUNT (no SysEx addr)
   [96] = { addr = {0x10,0x00,0x0E,0x05}, bits = 7,  max = 100 },  -- DIST EFFECT LEVEL
 
   -- ---- Fixed encoder row 3: Tuning + VCF modulation + dist dry ----

@@ -70,18 +70,21 @@ local ENC_SEND_MAP = {
   ["vco_group,white_enc"]          = { addr={0x10,0x00,0x08,0x05}, bits=7 },
   ["vco_group,pink_enc"]           = { addr={0x10,0x00,0x08,0x06}, bits=7 },
   ["vco_group,ring_enc"]           = { addr={0x10,0x00,0x08,0x07}, bits=7 },
-  ["vco_group,patch_volume_enc"]   = { addr={0x10,0x00,0x0C,0x04}, bits=7 },
+  -- patch_volume_enc moved to vca_group in F1 layout
+  ["vca_group,patch_volume_enc"]   = { addr={0x10,0x00,0x0C,0x04}, bits=7 },
+
+  -- ---- PANEL CONTROLS  (vcf_cutoff, vcf_resonance, accent_level moved here in F1 layout) ----
+  ["panel_controls_group,vcf_cutoff_enc"]    = { addr={0x10,0x00,0x0A,0x00}, bits=16 },
+  ["panel_controls_group,vcf_resonance_enc"] = { addr={0x10,0x00,0x0A,0x02}, bits=16 },
+  ["panel_controls_group,accent_level_enc"]  = { addr={0x10,0x00,0x14,0x0E}, bits=16 },
 
   -- ---- VCF  10 00 0A 00 ----
-  ["vcf_group,vcf_cutoff_enc"]    = { addr={0x10,0x00,0x0A,0x00}, bits=16 },
-  ["vcf_group,vcf_resonance_enc"] = { addr={0x10,0x00,0x0A,0x02}, bits=16 },
   ["vcf_group,vcf_env_depth_enc"] = { addr={0x10,0x00,0x0A,0x04}, bits=16 },
   ["vcf_group,vcf_attack_enc"]    = { addr={0x10,0x00,0x0A,0x06}, bits=7 },
   ["vcf_group,vcf_decay_enc"]     = { addr={0x10,0x00,0x0A,0x07}, bits=7 },
   ["vcf_group,vcf_sustain_enc"]   = { addr={0x10,0x00,0x0A,0x08}, bits=7 },
   ["vcf_group,vcf_release_enc"]   = { addr={0x10,0x00,0x0A,0x09}, bits=7 },
   ["vcf_group,vcf_key_follow_enc"]= { addr={0x10,0x00,0x0A,0x0A}, bits=7 },
-  ["vcf_group,accent_level_enc"]  = { addr={0x10,0x00,0x14,0x0E}, bits=16 },
 
   -- ---- VCA  10 00 0C 00 ----
   ["vca_group,vca_attack_enc"]  = { addr={0x10,0x00,0x0C,0x00}, bits=7 },
@@ -90,6 +93,8 @@ local ENC_SEND_MAP = {
   ["vca_group,vca_release_enc"] = { addr={0x10,0x00,0x0C,0x03}, bits=7 },
 
   -- ---- DISTORTION  10 00 0E 00 ----
+  -- dist_type_enc: populate ADDR_TO_ENC for patch-receive; enc_moved has a special case for the send path.
+  ["dist_group,dist_type_enc"]      = { addr={0x10,0x00,0x0E,0x01}, bits=7, max=24 },
   ["dist_group,dist_drive_enc"]     = { addr={0x10,0x00,0x0E,0x02}, bits=7, max=120 },
   ["dist_group,dist_bottom_enc"]    = { addr={0x10,0x00,0x0E,0x03}, bits=7, max=100, bipolar=true },
   ["dist_group,dist_tone_enc"]      = { addr={0x10,0x00,0x0E,0x04}, bits=7, max=100, bipolar=true },

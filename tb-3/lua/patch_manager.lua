@@ -71,17 +71,19 @@ local PARAM_ID_MAP = {
   ["vco_group,white_enc"]        = {id= 45, name="VCO WHITE LEVEL"},
   ["vco_group,pink_enc"]         = {id= 46, name="VCO PINK LEVEL"},
   ["vco_group,ring_enc"]         = {id= 47, name="VCO RING LEVEL"},
-  ["vco_group,patch_volume_enc"] = {id= 66, name="MASTER VOLUME"},
+  -- patch_volume_enc moved to vca_group in F1 layout
+  ["vca_group,patch_volume_enc"] = {id= 66, name="MASTER VOLUME"},
+  -- ---- PANEL CONTROLS (moved from vcf_group/vco_group in F1 layout) ----
+  ["panel_controls_group,vcf_cutoff_enc"]    = {id= 54, name="VCF CUTOFF"},
+  ["panel_controls_group,vcf_resonance_enc"] = {id= 55, name="VCF RESONANCE"},
+  ["panel_controls_group,accent_level_enc"]  = {id=264, name="ACCENT"},
   -- ---- VCF ----
-  ["vcf_group,vcf_cutoff_enc"]     = {id= 54, name="VCF CUTOFF"},
-  ["vcf_group,vcf_resonance_enc"]  = {id= 55, name="VCF RESONANCE"},
   ["vcf_group,vcf_env_depth_enc"]  = {id= 56, name="VCF ENV DEPTH"},
   ["vcf_group,vcf_attack_enc"]     = {id= 57, name="VCF ATTACK"},
   ["vcf_group,vcf_decay_enc"]      = {id= 58, name="VCF DECAY"},
   ["vcf_group,vcf_sustain_enc"]    = {id= 59, name="VCF SUSTAIN"},
   ["vcf_group,vcf_release_enc"]    = {id= 60, name="VCF RELEASE"},
   ["vcf_group,vcf_key_follow_enc"] = {id= 61, name="VCF KEY FOLLOW"},
-  ["vcf_group,accent_level_enc"]   = {id=264, name="ACCENT"},
   -- ---- VCA ----
   ["vca_group,vca_attack_enc"]  = {id= 62, name="VCA ATTACK"},
   ["vca_group,vca_decay_enc"]   = {id= 63, name="VCA DECAY"},
@@ -511,8 +513,16 @@ local function parseSpecial(sp, raw)
   if sp == "dist_type" then
     distType = raw
     local name = DIST_TYPE_NAMES[raw + 1] or tostring(raw)
-    local lbl = root:findByName("distortion_section_label", true)
-    if lbl then lbl.values.text = "DISTORTION: " .. name end
+    local encGrp = root:findByName("dist_type_enc", true)
+    if encGrp then
+      local fader = encGrp.children["control_fader"]
+      if fader then
+        -- Setting fader.values.x fires enc_moved, but its typeIdx ~= distType guard prevents a redundant SysEx send.
+        fader.values.x = DIST_NUM_TYPES > 1 and (distType / (DIST_NUM_TYPES - 1)) or 0
+      end
+      local lbl = encGrp.children["value_label"]
+      if lbl then lbl.values.text = name end
+    end
     -- Note: does NOT send SysEx (we are receiving, not sending).
     return
   end

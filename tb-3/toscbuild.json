@@ -23,6 +23,10 @@
       "node_name": "receive_button"
     },
     {
+      "lua": "send_button.lua",
+      "node_name": "send_button"
+    },
+    {
       "lua": "control_fader.lua",
       "node_names": [
         "control_fader"
@@ -46,13 +50,6 @@
       "node_names": [
         "dist_on_off",
         "dist_color"
-      ]
-    },
-    {
-      "lua": "dist_type_button.lua",
-      "node_names": [
-        "dist_type_up",
-        "dist_type_dn"
       ]
     },
     {
@@ -137,16 +134,8 @@
       "node_name": "morph_button"
     },
     {
-      "lua": "morph_amount_fader.lua",
-      "node_name": "morph_amount_fader"
-    },
-    {
       "lua": "delete_button.lua",
       "node_name": "delete_button"
-    },
-    {
-      "lua": "delete_all_presets_button.lua",
-      "node_name": "delete_all_presets_button"
     },
     {
       "lua": "grab_mode_button.lua",

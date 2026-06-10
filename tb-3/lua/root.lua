@@ -83,7 +83,8 @@ local patchGridMode   = nil   -- nil | "delete" | "grab" | "morph"
 local grabSnapshot    = nil   -- JSON string saved on grab press
 local morphTargetSlot = nil
 local morphBaseSnapshot = nil -- JSON string of patch at morph-target selection time
-local currentBankName = ""    -- name of the most recently restored bank
+local currentBankName   = ""  -- name of the most recently restored bank
+local currentPresetName = ""  -- name of the most recently recalled preset slot
 local morphLastBlocks   = nil -- block hex strings last sent by applyMorph (for diff)
 local morphAmount     = 0.0  -- 0.0–1.0 float from fader
 local morphing        = false -- true while applyMorph is running; suppresses BCR sends
@@ -338,6 +339,8 @@ local function syncBCR1()
       end
     end
   end
+  -- Morph amount (CC 95, no addr entry, handled manually)
+  sendMIDI({0xB0, 95, math.floor(morphAmount * 127 + 0.5)}, BCR_CONNECTION)
 end
 
 -- ---------------------------------------------------------------------------
@@ -363,17 +366,6 @@ end
 -- ---------------------------------------------------------------------------
 
 local DIST_TYPE_ADDR = {0x10, 0x00, 0x0E, 0x01}
-
-local function sendDistType()
-  local a = DIST_TYPE_ADDR
-  tb3Send7bit(a[1], a[2], a[3], a[4], distType)
-  local blk = rawSysexBlocks[string.format("%02X%02X%02X00", a[1], a[2], a[3])]
-  if blk then blk.data[a[4] + 1] = distType end
-  local lbl = root:findByName("distortion_section_label", true)
-  if lbl then
-    lbl.values.text = "DISTORTION: " .. (DIST_TYPE_NAMES[distType + 1] or tostring(distType))
-  end
-end
 
 -- ---------------------------------------------------------------------------
 -- EXTRAS popup toggle
@@ -406,24 +398,14 @@ end
 -- ---------------------------------------------------------------------------
 
 local function handleBCR1(cc, ccVal)
-  -- DIST TYPE ↑ / ↓ — "Toggle On" auto-reset pattern:
-  -- On 127 (latch on): act, then immediately send 0 back to reset the BCR latch
-  -- so the next press generates another 127 rather than a 0 (which we'd ignore).
-  -- On 0 (latch off, from normal Toggle On second-press): ignore.
-  if cc == 72 then
-    if ccVal == 127 then
-      distType = (distType + 1) % DIST_NUM_TYPES
-      sendDistType()
-      sendMIDI({0xB0, 72, 0}, BCR_CONNECTION)  -- reset BCR latch
-    end
-    return
-  end
-
-  if cc == 80 then
-    if ccVal == 127 then
-      distType = (distType - 1 + DIST_NUM_TYPES) % DIST_NUM_TYPES
-      sendDistType()
-      sendMIDI({0xB0, 80, 0}, BCR_CONNECTION)  -- reset BCR latch
+  -- MORPH AMOUNT (CC 95) — BCR fixed encoder row 2, slot 7
+  if cc == 95 then
+    morphAmount = ccVal / 127
+    applyMorph()
+    local morphEnc = root:findByName("morph_enc", true)
+    if morphEnc then
+      local fader = morphEnc.children["control_fader"]
+      if fader then fader.values.x = morphAmount end
     end
     return
   end
@@ -535,10 +517,11 @@ end
 -- ---------------------------------------------------------------------------
 
 -- Fixed CC → encoder path (always mapped regardless of assign state).
+-- Updated in F1: accent/cutoff/resonance moved to panel_controls_group.
 local TB3_CC_DISPLAY_MAP = {
-  [16] = "vcf_group,accent_level_enc",
-  [71] = "vcf_group,vcf_resonance_enc",
-  [74] = "vcf_group,vcf_cutoff_enc",
+  [16] = "panel_controls_group,accent_level_enc",
+  [71] = "panel_controls_group,vcf_resonance_enc",
+  [74] = "panel_controls_group,vcf_cutoff_enc",
 }
 
 -- TB-3 assign-control CCs → assign slot keys.
@@ -799,6 +782,27 @@ local function snapshotCurrentPatch()
   return '{"name":"' .. nameStr .. '","blocks":[' .. table.concat(parts, ",") .. ']}'
 end
 
+-- Send the current TouchOSC patch state directly to the TB-3 without touching the UI.
+-- Uses the same block data as snapshotCurrentPatch but sends raw SysEx, not JSON.
+local function sendCurrentPatchToDevice()
+  local snapshot = snapshotCurrentPatch()
+  if not snapshot then
+    print("sendCurrentPatchToDevice: snapshot nil — sync from TB-3 first")
+    return
+  end
+  local t = json.toTable(snapshot)
+  if not t or not t.blocks then return end
+  for _, hexStr in ipairs(t.blocks) do
+    local bytes = {}
+    for i = 1, #hexStr - 1, 2 do
+      bytes[#bytes+1] = tonumber(hexStr:sub(i, i+1), 16) or 0
+    end
+    if #bytes >= 14 and bytes[1] == 0xF0 and bytes[2] == 0x41 and bytes[7] == 0x12 then
+      sendMIDI(bytes, TB3_CONNECTION)
+    end
+  end
+end
+
 -- Apply a snapshot (JSON string with "blocks" array) to the TB-3 and UI.
 -- Each block is a contiguous DT1 hex string (no separators).
 -- Sends the SysEx to hardware AND updates the truth cache + UI via handleTB3SysEx.
@@ -927,6 +931,17 @@ local function broadcastPatchMode()
   if morphGrp then morphGrp.visible = (patchGridMode == "morph") end
 end
 
+-- Update the single combined preset_name_label with bank + preset info.
+-- Call whenever currentBankName or currentPresetName changes.
+local function updatePatchInfoLabel()
+  local lbl = root:findByName("preset_name_label", true)
+  if not lbl then return end
+  local parts = {}
+  if currentBankName   ~= "" then parts[#parts+1] = "Bank: "   .. currentBankName   end
+  if currentPresetName ~= "" then parts[#parts+1] = "Preset: " .. currentPresetName end
+  lbl.values.text = table.concat(parts, "  ")
+end
+
 -- ---------------------------------------------------------------------------
 -- Notify entry point — called by child nodes / UI buttons
 -- ---------------------------------------------------------------------------
@@ -943,12 +958,44 @@ function onReceiveNotify(key, value)
     return
   end
 
+  -- Sent by send_button.lua — push current TouchOSC state to TB-3.
+  if key == "send_patch_to_device" then
+    sendCurrentPatchToDevice()
+    return
+  end
+
   -- Sent by control_fader.lua when a fader is moved.
   -- value = "section,enc,x"  (x is a 0–1 float string)
   if key == "enc_moved" then
     local sec, enc, xs = value:match("^([^,]+),([^,]+),(.+)$")
     if sec and enc and xs then
       local x = tonumber(xs) or 0
+
+      -- dist_type_enc special case: guard against redundant SysEx send when
+      -- parseBlock sets the fader (distType is already up to date then).
+      if sec == "dist_group" and enc == "dist_type_enc" then
+        local typeIdx = math.min(math.floor(x * (DIST_NUM_TYPES - 1) + 0.5), DIST_NUM_TYPES - 1)
+        if typeIdx ~= distType then
+          distType = typeIdx
+          local a = DIST_TYPE_ADDR
+          tb3Send7bit(a[1], a[2], a[3], a[4], distType)
+          local blk = rawSysexBlocks[string.format("%02X%02X%02X00", a[1], a[2], a[3])]
+          if blk then blk.data[a[4] + 1] = distType end
+        end
+        local encGrp = root:findByName("dist_type_enc", true)
+        if encGrp then
+          local lbl = encGrp.children["value_label"]
+          if lbl then lbl.values.text = DIST_TYPE_NAMES[distType + 1] or tostring(distType) end
+        end
+        return
+      end
+
+      -- morph_enc special case: replaces old morph_amount_changed path.
+      if sec == "morph_group" and enc == "morph_enc" then
+        morphAmount = x
+        applyMorph()
+        return
+      end
 
       local entry = ENC_SEND_MAP[sec .. "," .. enc]
       if entry then
@@ -1312,7 +1359,8 @@ function onReceiveNotify(key, value)
         morphLastBlocks = (json.toTable(morphBaseSnapshot) or {}).blocks
       end
       morphAmount = 0.0
-      local fader = root:findByName("morph_amount_fader", true)
+      local morphEnc = root:findByName("morph_enc", true)
+      local fader    = morphEnc and morphEnc.children["control_fader"]
       if fader then fader.values.x = 0.0 end
       local lbl = root:findByName("morph_target_label", true)
       if lbl then lbl.values.text = "→ " .. slotNum end
@@ -1333,11 +1381,8 @@ function onReceiveNotify(key, value)
       else
         print("patch_grid: recalling slot " .. slotKey)
         applySnapshotDiff(json.fromTable(slots[slotKey]), snapshotCurrentPatch())
-        local presetName = (type(slots[slotKey]) == "table" and slots[slotKey].name) or ""
-        local bankLbl   = root:findByName("bank_name_label",   true)
-        local presetLbl = root:findByName("preset_name_label", true)
-        if bankLbl   then bankLbl.values.text   = currentBankName end
-        if presetLbl then presetLbl.values.text = presetName end
+        currentPresetName = (type(slots[slotKey]) == "table" and slots[slotKey].name) or ""
+        updatePatchInfoLabel()
       end
     end
     return
@@ -1354,21 +1399,14 @@ function onReceiveNotify(key, value)
     return
   end
 
-  -- Morph amount fader (0–127). Stub: stores the value; blend logic TBD.
-  if key == "morph_amount_changed" then
-    morphAmount = tonumber(value) or 0
-    applyMorph()
-    return
-  end
+  -- (morph_amount_changed removed: morph_enc is now handled via enc_moved special case)
 
-  -- Clear all 16 slots (delete_all_presets_button).
+  -- Clear all 16 slots.
   if key == "patch_clear_all" then
     setPatchGridSlots({})
-    currentBankName = ""
-    local bankLbl   = root:findByName("bank_name_label",   true)
-    local presetLbl = root:findByName("preset_name_label", true)
-    if bankLbl   then bankLbl.values.text   = "" end
-    if presetLbl then presetLbl.values.text = "" end
+    currentBankName   = ""
+    currentPresetName = ""
+    updatePatchInfoLabel()
     return
   end
 
@@ -1420,9 +1458,9 @@ function onReceiveOSC(message, connections)
     local bank = json.toTable(bankStr)
     if bank and bank.slots then
       setPatchGridSlots(bank.slots)
-      currentBankName = bank.name or ""
-      local bankLbl = root:findByName("bank_name_label", true)
-      if bankLbl then bankLbl.values.text = currentBankName end
+      currentBankName   = bank.name or ""
+      currentPresetName = ""
+      updatePatchInfoLabel()
     end
     return
   end
