@@ -130,16 +130,12 @@
       "node_names": ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"]
     },
     {
-      "lua": "morph_button.lua",
-      "node_name": "morph_button"
-    },
-    {
-      "lua": "delete_button.lua",
-      "node_name": "delete_button"
-    },
-    {
-      "lua": "grab_mode_button.lua",
-      "node_name": "grab_mode_button"
+      "lua": "mode_button.lua",
+      "node_names": [
+        "morph_button",
+        "delete_button",
+        "grab_mode_button"
+      ]
     }
   ]
 }

@@ -29,6 +29,8 @@ local MAX_TYPE = (efxNum == 1) and 10 or 9
 
 -- ---------------------------------------------------------------------------
 -- Connection / channel constants
+-- Keep byte-identical with root.lua TB3_CONNECTION / BCR_CONNECTION.
+-- TouchOSC has no shared-library mechanism; this duplication is forced.
 -- ---------------------------------------------------------------------------
 
 local TB3_CONN = {false, false, false, false, false, true}  -- connection 6
@@ -60,7 +62,7 @@ local ON_TXT   = "000000FF"
 local OFF_TXT  = "FFFFFFFF"
 
 -- ---------------------------------------------------------------------------
--- SysEx helpers
+-- SysEx helpers — keep byte-identical with root.lua tb3Checksum / tb3Send7bit.
 -- ---------------------------------------------------------------------------
 
 local function tb3Checksum(addrAndData)

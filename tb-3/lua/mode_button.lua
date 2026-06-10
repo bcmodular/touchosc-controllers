@@ -1,5 +1,7 @@
--- morph_button.lua
-local MODE = "morph"
+-- mode_button.lua
+-- Shared script for delete_button, grab_mode_button, morph_button.
+-- Derives its mode string from self.name: "delete" / "grab" / "morph".
+local MODE = self.name:match("^(%a+)")
 local updating = false
 
 function onValueChanged(key)

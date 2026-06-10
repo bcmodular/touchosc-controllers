@@ -1,8 +1,16 @@
 # TB-3: 16-Slot Patch Grid + Bank Support in Preset Manager
 
-## Status: **COMPLETE**
+## Status: **COMPLETE** (implementation shipped; doc divergences below)
 
 All three parts implemented and shipped. See commit history for details.
+
+> **Doc divergences (2026-06 remediation):** This plan predates several UI changes. When reading implementation details below, prefer the live layout and `tb-3/CLAUDE.md` over this file for:
+>
+> - **Morph amount** — `morph_amount_fader` was replaced by **`morph_enc`** (RADIAL encoder in `morph_group`). Morph is armed via the **MORPH** button inside `morph_group`, not a third mode button beside the grid.
+> - **Mode buttons** — `delete_button`, `grab_mode_button`, and `morph_button` now share **`mode_button.lua`** (mode derived from `self.name`). Only **DEL. MODE** and **GRAB MODE** sit beside the preset grid.
+> - **DELETE ALL** — `delete_all_presets_button` and its `patch_clear_all` handler were removed.
+> - **SAVE TO LIBRARY** — removed from TouchOSC; patch export is app-driven via **Pull Patch** (`/tb3/request_patch_export` → `/tb3/backup`). **SYNC TO TB-3** (`send_button`) pushes TouchOSC state *to* the hardware.
+> - **Bank format** — now **v2**: `{"version": 2, "slots": {"1": {"name": "...", "blocks": [...]}, ...}}` (per-slot `name` field added).
 
 ---
 

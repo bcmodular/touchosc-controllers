@@ -49,54 +49,61 @@ See [`bcr2000/bcr2000-1-tone-dist.md`](bcr2000/bcr2000-1-tone-dist.md) and [`bcr
 
 ---
 
-## Syncing from the TB-3
+## Syncing with the TB-3
 
-Press **SYNC FROM TB-3** at the top-left to request a full patch dump. All parameters on screen (and BCR2000 encoder rings if connected) will update to match the current patch on the TB-3.
+Two buttons at the top of the layout control patch transfer:
 
-> Do this whenever you change a patch on the TB-3 itself, or at the start of a session.
+| Button | Direction | Action |
+|--------|-----------|--------|
+| **SYNC FROM TB-3** | TB-3 → TouchOSC | Requests a full patch dump; all on-screen controls (and BCR2000 LED rings if connected) update to match the current TB-3 patch |
+| **SYNC TO TB-3** | TouchOSC → TB-3 | Sends the current TouchOSC patch state to the TB-3 hardware |
+
+> Press **SYNC FROM TB-3** whenever you change a patch on the TB-3 itself, or at the start of a session.
+
+To export the current patch to the desktop preset manager, use **Pull Patch** in
+the app (not a TouchOSC button) — see [`preset-manager/README.md`](preset-manager/README.md).
 
 ---
 
-## Patch Grid
+## Presets (16-slot grid)
 
-The **Patch Grid** (16 slots) lets you store, recall, and manipulate patches without leaving TouchOSC.
+The **PRESETS** section provides a 16-slot grid for storing, recalling, and
+manipulating patches without leaving TouchOSC.
 
 ### Store & Recall
 
 - **Tap an empty slot** (light grey) → stores the current patch into that slot.
 - **Tap a filled slot** (white) → recalls it, sending only the blocks that differ from the current state.
 
+If blocks are not yet cached (e.g. right after loading the layout), tapping an
+empty slot triggers a sync request — tap again after **SYNC FROM TB-3** completes.
+
 ### Mode Buttons
 
-Three mode buttons appear to the right of the grid. Pressing the active mode again turns it off.
+Two mode buttons sit to the right of the grid. Pressing the active mode again turns it off.
 
 | Button | Behaviour when a slot is tapped |
 |--------|----------------------------------|
-| **DELETE** | Clears the slot (works on empty slots too) |
-| **GRAB** | Previews the slot while held — restores the previous patch when released |
-| **MORPH** | Sets that slot as the morph target; use the **MORPH AMOUNT** fader to blend from current to target |
-
-**DELETE ALL** clears every slot at once.
+| **DEL. MODE** | Clears the slot (works on empty slots too) |
+| **GRAB MODE** | Previews the slot while held — restores the previous patch when released |
 
 ### Morph
 
-1. Press **MORPH** to enter morph mode.
-2. Tap any filled slot — it becomes the morph target (shown in the **→ N** label).
-3. Move the **MORPH AMOUNT** fader from left (0 %) to right (100 %) to blend the current patch towards the target.
+Morph lives in the separate **MORPH** group (not a third grid mode button):
+
+1. Press the **MORPH** button in the MORPH group to arm morph mode. The target
+   label shows `--` and the AMOUNT encoder shows *Pick Preset*.
+2. Tap any filled preset slot — it becomes the morph target (slot number shown
+   in the target label).
+3. Turn the **AMOUNT** encoder from minimum (0 %) to maximum (100 %) to blend
+   from the current patch towards the target.
 4. Press **MORPH** again to exit; the BCR2000 LED rings snap to the final blended position.
 
 ### Bank Backup (desktop app)
 
-The preset manager's **Banks** panel can pull all 16 slots from TouchOSC as a single `.tb3bank.json` file and push saved banks back. See [`preset-manager/README.md`](preset-manager/README.md).
-
----
-
-## Saving & Restoring Patches
-
-Press **SAVE TO LIBRARY** to export the current patch as a SysEx dump to the
-companion desktop app — see [`preset-manager/`](preset-manager/) (run with
-`./run-preset-manager.sh`, [setup + workflow in its README](preset-manager/README.md)).
-Default ports: utility listens on **9000**, sends to TouchOSC on **9001**.
+The preset manager's **Library** tab can pull all 16 slots from TouchOSC as a
+single `.tb3bank.json` file and push saved banks back. See
+[`preset-manager/README.md`](preset-manager/README.md).
 
 ---
 
@@ -114,8 +121,49 @@ The layout is divided into functional colour-coded sections:
 | Purple | Tuning |
 | Magenta | Cross Modulation |
 | Violet | Ring Modulation |
-| Blue-indigo | Portamento + Pitch Bend |
 | Teal / Coral | EFX1 / EFX2 (effects chains) |
+
+---
+
+## Panel Controls
+
+Mirrors the TB-3's front-panel knobs. Values update live when you turn the
+hardware encoders (standard MIDI CC feedback):
+
+| Encoder | CC | Notes |
+|---------|-----|-------|
+| **CUTOFF** | 74 | 16-bit SysEx, 0–255 |
+| **RESONANCE** | 71 | 16-bit SysEx, 0–255 |
+| **ACCENT** | 16 | 16-bit SysEx, 0–255 |
+
+These encoders are not mapped on the BCR2000 — they reflect the physical panel only.
+
+---
+
+## Parameter Assignment
+
+Maps on-screen encoders (or EFX parameters) to the TB-3's assignable control
+destinations. Four slot buttons with status labels:
+
+| Button | Assigns to |
+|--------|------------|
+| **XY PAD MOD** | XY pad Z axis (CC 1) |
+| **EFX KNOB** | Effect knob (CC 17) |
+| **PAD X** | XY pad X axis (CC 12) |
+| **PAD Y** | XY pad Y axis (CC 13) |
+
+**How to assign:** press a slot button (it lights up), then touch any on-screen
+encoder or EFX parameter. The assigned parameter name appears in the status
+label. Press the active button again to cancel.
+
+---
+
+## Other
+
+| Control | Notes |
+|---------|-------|
+| **BEND RANGE** | Pitch-bend range encoder (±1…±24 semitones) |
+| **PORTAMENTO** | TIME encoder + on/off switch; **LEGATO** / **ALWAYS** radio buttons select when portamento applies |
 
 ---
 
@@ -137,21 +185,13 @@ Eight encoders for cross-modulation routing between oscillators (SQR→SAW, SAW�
 
 ---
 
-## Portamento & Pitch Bend
-
-**Portamento:** TIME encoder with SW toggle (activates portamento). MODE is selected via two radio buttons — **LEGATO** or **ALWAYS**.
-
-**Pitch Bend:** RANGE encoder (0–17 semitones).
-
----
-
 ## Distortion
 
 The distortion section shows the current distortion **type name** in the header (e.g. *MILD OD*, *LEAD*). Controls:
 
 - **ON/OFF** — bypass toggle
-- **COLOR** — tone character toggle  
-- **TYPE ↑ / TYPE ↓** — step through distortion types (25 types)
+- **COLOR** — tone character toggle
+- **TYPE** encoder — step through distortion types (25 types; name shown in value label)
 - **Encoders:** DRIVE, BOTTOM, TONE, EFFECT LEVEL, DRY LEVEL
 
 ---
@@ -159,7 +199,7 @@ The distortion section shows the current distortion **type name** in the header 
 ## VCA, VCF, Tuning
 
 - **VCA:** ATTACK, DECAY, SUSTAIN, RELEASE, LFO DEPTH
-- **VCF:** CUTOFF, RESONANCE (16-bit, 0–255), ATTACK, DECAY, SUSTAIN, RELEASE, ENV DEPTH, KEY FOLLOW, VCF LFO DEPTH, ACCENT. CUTOFF and RESONANCE appear first on both screen and BCR2000.
+- **VCF:** ATTACK, DECAY, SUSTAIN, RELEASE, ENV DEPTH, KEY FOLLOW, VCF LFO DEPTH (CUTOFF and RESONANCE are in Panel Controls)
 - **Tuning:** SAW, SQUARE, RING+SINE individual tuning offsets (bipolar, ±128 display), global TUNING (MIDI CC), ENV DEPTH, KEY FOLLOW, VCF LFO DEPTH
 
 ---
@@ -215,7 +255,24 @@ When BCR2000 units are connected, all encoder rings update automatically when a 
 - Top encoder (left): EFX1 type select
 - Top encoder (right): EFX2 type select
 
+Panel controls (Cutoff, Resonance, Accent) are **not** on the BCR2000.
+
 See the `bcr2000/` folder for the full CC assignment tables.
+
+---
+
+## For Contributors
+
+Lua source lives in `lua/` and is injected into `TB3.tosc` at build time:
+
+```bash
+python3 tools/toscbuild.py build tb-3      # inject scripts
+python3 tools/toscbuild.py dev tb-3        # watch mode (macOS)
+```
+
+- **[`lua/README.md`](lua/README.md)** — script table, notify conventions, build manifest
+- **[`CLAUDE.md`](CLAUDE.md)** — architecture reference for AI-assisted development
+- **[`plans/`](plans/)** — design history and review backlog
 
 ---
 
@@ -226,9 +283,9 @@ See the `bcr2000/` folder for the full CC assignment tables.
 | `TB3.tosc` | TouchOSC layout — open this in TouchOSC |
 | `lua/` | Lua source scripts (build-time injected) |
 | `bcr2000/` | BCR2000 BC Manager preset documentation |
-| `preset-manager/` | Desktop app for saving/restoring `.syx` patch dumps |
+| `preset-manager/` | Desktop app for saving/restoring `.syx` patch dumps and banks |
 | `resources/` | TB-3 SysEx reference and Dope Robot panel files |
-| `tools/` | Layout maintenance scripts |
+| `tools/` | Layout maintenance scripts (see `CLAUDE.md` tools index) |
 
 ---
 

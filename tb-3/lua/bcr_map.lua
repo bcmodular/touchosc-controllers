@@ -34,7 +34,7 @@
 --
 -- Encoder Group 1 (CC 1–8 rotate, CC 33–40 push): VCO
 -- Encoder Group 2 (CC 9–16 rotate, CC 41–48 push): LFO
--- Dedicated buttons: CC 71 DIST ON/OFF, 72 DIST COLOR, 79 TYPE↑, 80 TYPE↓
+-- Dedicated buttons: CC 71 DIST ON/OFF, 79 DIST COLOR
 -- Fixed rows: VCA (81–88), VCF (89–96), Tuning (97–104)
 
 local BCR1_MAP = {
@@ -150,11 +150,6 @@ local function efx2BtnIndex(cc)
   if cc >= 69 and cc <= 72 then return cc - 68 end   -- B1–B4
   if cc >= 77 and cc <= 80 then return cc - 72 end   -- B5–B8
 end
-
-local BCR2_MAP = {
-  -- All EFX routing is handled via the helper functions above.
-  -- No fixed-address entries: all EFX params are context-sensitive.
-}
 
 -- ---------------------------------------------------------------------------
 -- ADDR_TO_BCR1_CC — reverse lookup for BCR1 sync after patch receive.

@@ -1,14 +1,9 @@
 # TB-3 Preset Manager
 
 Desktop companion app for the TB-3 TouchOSC layout. Saves full patch dumps
-(`.syx`) from TouchOSC and restores them back through it to the TB-3 hardware.
+(`.syx`) and 16-slot preset banks exchanged with TouchOSC over OSC.
 
 ![TB-3 Preset Manager](../screenshots/preset-manager.png)
-
-> **Note:** the screenshot above reflects the current UI. Some button names and
-> workflow descriptions in this README have not yet been updated to match — e.g.
-> buttons are now **Pull Bank / Send Bank**, **Send Patch**, **Pull Patch**, etc.
-> rather than the names written below. A full sync is pending.
 
 ## Setup (once)
 
@@ -37,74 +32,122 @@ site-packages — it does not modify the Homebrew Python install itself.
 Recommended alias:
 
 ```bash
-alias tb3-preset-manager='/Users/willellis/Documents/Development/Github/touchosc-controllers/tb-3/preset-manager/run-preset-manager.sh'
+alias tb3-preset-manager='/path/to/touchosc-controllers/tb-3/preset-manager/run-preset-manager.sh'
 ```
 
-## Workflow
+## Window layout
 
-1. **First launch** opens with the **Settings** group on the right — confirm
-   the listen/TouchOSC ports match your TouchOSC setup, and pick a patches
-   folder (defaults to `~/tb3_patches/`).
-2. The app listens continuously for `/tb3/backup`.
-3. In TouchOSC: press **SAVE TO LIBRARY** → you'll be prompted for a name →
-   saved as `<name>.syx` in the patches folder.
-4. In TouchOSC: select a patch in the list → **Restore Patch** → the app
-   splits the `.syx` into individual `F0…F7` SysEx messages and sends each to
-   TouchOSC via `/tb3/restore`, which forwards them to the TB-3 hardware and
-   updates its own UI (including BCR2000 LED ring sync).
+The app opens at **900×560** with two tabs:
 
-| Utility | TouchOSC |
-|---------|----------|
-| Listen (`listen_ip`/`listen_port`) | Outgoing → same host:port |
-| Send (`touchosc_ip`/`touchosc_port`) | Incoming ← same port |
+| Tab | Contents |
+|-----|----------|
+| **Library** | Bank list (left) + slot list (right), split by a draggable divider |
+| **Settings** | Network ports, patches folder, listener status |
 
-Defaults: listen `0.0.0.0:9000`, send to TouchOSC at `127.0.0.1:9001`.
+Window size and position are saved to `~/.tb3_preset_manager/settings.json` and
+restored on next launch.
 
-Settings auto-save to `~/.tb3_preset_manager/settings.json` (no Save button
-beyond the Settings group's own save action).
+## Library tab
 
-## Banks
+### Banks (left column)
 
-The **Banks** panel (right column) saves and restores the entire 16-slot patch grid
-as a single named file.
+The first entry, **(individual patches)**, shows standalone `.syx` files in the
+top-level patches folder. Real banks appear below it as named entries.
 
 | Button | Action |
 |--------|--------|
-| **Pull from TouchOSC** | Requests all 16 slots from the layout; prompts for a name; saves as `<name>.tb3bank.json` |
-| **Push to TouchOSC** | Sends the selected bank back to the layout, restoring all slots |
-| **Delete** | Removes the bank file from disk |
-| **Rename** | Renames the bank file |
-| **Import** | Copies a `.tb3bank.json` from anywhere on disk into the banks folder |
-| **Export** | Saves a copy of the selected bank to a location you choose |
+| **Pull Bank** | Requests all 16 preset-grid slots from TouchOSC; prompts for a name; saves as `<name>.tb3bank.json` |
+| **Send Bank** | Sends the selected bank back to TouchOSC, restoring all 16 slots in the layout |
+| **Rename Bank** | Renames the bank file |
+| **Delete Bank** | Removes the bank file from disk |
+| **New Bank** | Creates an empty 16-slot bank file |
+| **Import JSON…** | Copies a `.tb3bank.json` from anywhere on disk into the banks folder |
+| **Export JSON…** | Saves a copy of the selected bank to a location you choose |
 
 Banks are stored in a `banks/` subfolder of your patches folder.
 
-### Bank file format
+### Slots (right column)
+
+When a bank is selected, the right column lists slots **1–16** with their
+stored preset names (empty slots shown in grey). In **(individual patches)**
+mode, the column lists standalone `.syx` files instead.
+
+| Button | Action |
+|--------|--------|
+| **Send Patch** | Reads the selected slot's patch and sends each SysEx block to TouchOSC via `/tb3/restore` (forwards to TB-3 hardware and updates the layout UI) |
+| **Rename Preset** | Edits the display name stored in the slot |
+| **Export .syx…** | Writes the slot's patch to a standalone `.syx` file |
+| **Empty Slot** | Clears the selected bank slot |
+| **Pull Patch** | Requests the current patch from TouchOSC (`/tb3/request_patch_export`) and writes it into the selected slot (bank mode) or the orphan patches folder |
+| **Import .syx…** | Imports a `.syx` file into the selected slot or the orphan folder |
+
+> **Pull Patch** is the desktop-driven equivalent of the old TouchOSC "Save to
+> Library" button. TouchOSC no longer has an on-screen export button — the app
+> initiates the request.
+
+## Settings tab
+
+| Field | Default | Purpose |
+|-------|---------|---------|
+| Listen IP / port | `0.0.0.0:9000` | Where the app receives OSC from TouchOSC |
+| TouchOSC IP / port | `127.0.0.1:9001` | Where the app sends OSC to TouchOSC |
+| Patches folder | `~/tb3_patches/` | Root for `.syx` files and `banks/` subfolder |
+
+Press **Restart listener** after changing network settings. Settings auto-save
+when the window closes.
+
+## OSC protocol
+
+| Path | Direction | Purpose |
+|------|-----------|---------|
+| `/tb3/request_patch_export` | app → TouchOSC | Request current patch snapshot |
+| `/tb3/backup` | TouchOSC → app | Single-patch JSON (`{"blocks": [...], "name": "..."}`) |
+| `/tb3/restore` | app → TouchOSC | One SysEx block as hex CSV; forwarded to TB-3 |
+| `/tb3/patchgrid/request_backup` | app → TouchOSC | Request all 16 grid slots |
+| `/tb3/patchgrid/backup` | TouchOSC → app | Bank JSON snapshot |
+| `/tb3/patchgrid/restore` | app → TouchOSC | Restore all 16 slots (grid only — no TB-3 SysEx) |
+
+## Bank file format (v2)
 
 `.tb3bank.json` files are plain JSON:
 
 ```jsonc
 {
-  "version": 1,
+  "version": 2,
   "name": "Live Set 1",
   "createdAt": "2026-01-01T12:00:00",
   "slots": {
-    "1":  {"blocks": ["F041...F7", "F041...F7", ...]},
+    "1":  {"name": "Bass 1", "blocks": ["F041...F7", "F041...F7", ...]},
     "2":  null,
     ...
-    "16": {"blocks": [...]}
+    "16": {"name": "", "blocks": [...]}
   }
 }
 ```
 
 Each `"blocks"` array contains 11 hex-encoded Roland DT1 SysEx messages (the same
-blocks as a `.syx` file). Empty slots are `null`.
+blocks as a `.syx` file). Empty slots are `null`. The per-slot `"name"` field
+(v2) is shown in the slot list and on the TouchOSC preset name label after
+recall.
 
-## File format
+v1 bank files (slots without `"name"`) are upgraded automatically on import.
+
+## Patch file format
 
 `.syx` files are raw binary SysEx dumps — 11 contiguous `F0…F7` Roland DT1
-messages, exactly as received from the TB-3 (via TouchOSC's `/tb3/backup`
-JSON blob, decoded back to bytes).
+messages, exactly as received from the TB-3 (via TouchOSC's `/tb3/backup` JSON
+blob, decoded back to bytes).
+
+## Workflow example
+
+1. **First launch** — open the **Settings** tab; confirm ports match your
+   TouchOSC OSC configuration and pick a patches folder.
+2. In TouchOSC: press **SYNC FROM TB-3** to load the current hardware patch.
+3. In the app: select a bank slot → **Pull Patch** → the patch is saved into
+   that slot.
+4. To restore later: select the slot → **Send Patch** → TouchOSC sends all
+   blocks to the TB-3 and updates the on-screen controls (including BCR2000 LED
+   rings if connected).
 
 ## Troubleshooting
 
@@ -113,3 +156,6 @@ JSON blob, decoded back to bytes).
 - **"Python quit unexpectedly" on macOS** — use `./run-preset-manager.sh`
   (system `python3`); avoid a broken `.venv` unless you've fixed it (see the
   `TB3_PRESET_MANAGER_USE_VENV` override above).
+- **Pull Patch returns nothing** — confirm TouchOSC is running, OSC ports match
+  Settings, and the TB-3 layout is loaded (root script must be active to handle
+  `/tb3/request_patch_export`).

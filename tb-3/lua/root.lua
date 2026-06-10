@@ -65,7 +65,7 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Raw SysEx block cache — stores the last received DT1 block per address key.
--- Used by "save_to_library" and snapshotCurrentPatch() to export patches.
+-- Used by snapshotCurrentPatch() to export patches.
 -- Key: "%02X%02X%02X%02X" of the 4-byte address.
 -- Kept continuously fresh: every send call site patches the corresponding
 -- byte(s) so the cache reflects current UI state, not just the last sync.
@@ -173,7 +173,7 @@ local function requestPatchDump()
 end
 
 -- Send a 7-bit (single byte) SysEx parameter.
-function tb3Send7bit(a1, a2, a3, a4, value)
+local function tb3Send7bit(a1, a2, a3, a4, value)
   local data = {a1, a2, a3, a4, value}
   local cs = tb3Checksum(data)
   sendMIDI({0xF0, 0x41, 0x10, 0x00, 0x00, 0x7B, 0x12,
@@ -183,7 +183,7 @@ end
 -- Send a 16-bit SysEx parameter (VCF cutoff, resonance, env depth, tuning…).
 -- a1–a4 is the MSB address; LSB address is a4+1 (Roland convention).
 -- value is the full integer (0–255).
-function tb3Send16bit(a1, a2, a3, a4, value)
+local function tb3Send16bit(a1, a2, a3, a4, value)
   local msb = math.floor(value / 16)
   local lsb = value % 16
   local cs = tb3Checksum({a1, a2, a3, a4, msb, lsb})
@@ -658,7 +658,7 @@ local function handleTB3SysEx(message)
     data[#data + 1] = message[i]
   end
 
-  -- Cache raw block for later export (save_to_library).
+  -- Cache raw block for snapshotCurrentPatch() export.
   local addrKey = string.format("%02X%02X%02X%02X",
     addr[1], addr[2], addr[3], addr[4])
   rawSysexBlocks[addrKey] = {addr=addr, data=data}
@@ -1174,18 +1174,6 @@ function onReceiveNotify(key, value)
     return
   end
 
-  -- Sent by dist_type_button.lua (momentary ↑/↓ buttons in the layout).
-  if key == "dist_type_up" then
-    distType = (distType + 1) % DIST_NUM_TYPES
-    sendDistType()
-    return
-  end
-  if key == "dist_type_dn" then
-    distType = (distType - 1 + DIST_NUM_TYPES) % DIST_NUM_TYPES
-    sendDistType()
-    return
-  end
-
   -- Sent by assign_slot_btn.lua when the user presses (or re-presses) an
   -- assign slot button.  value = slot key ("xy_mod"/"effect_knob"/…) or ""
   -- to cancel.  Pressing the active slot again also cancels.
@@ -1321,19 +1309,6 @@ function onReceiveNotify(key, value)
     return
   end
 
-  -- Sent by save_to_library_btn.lua.  Snapshots current patch state and
-  -- sends it to the Python preset manager via OSC.
-  if key == "save_to_library" then
-    local snapshot = snapshotCurrentPatch()
-    if not snapshot then
-      local lbl = root:findByName("assign_status_label", true)
-      if lbl then lbl.values.text = "Sync from TB-3 first!" end
-      return
-    end
-    sendOSC("/tb3/backup", snapshot)
-    return
-  end
-
   -- EFX type direct-select from efx_1_chooser / efx_2_chooser button grids
   -- value = "N,M": N = EFX number (1 or 2), M = button index (1-based)
   if key == "efx_type_select" then
@@ -1448,17 +1423,6 @@ function onReceiveNotify(key, value)
       applySnapshotDiff(grabSnapshot, snapshotCurrentPatch())
       grabSnapshot = nil
     end
-    return
-  end
-
-  -- (morph_amount_changed removed: morph_enc is now handled via enc_moved special case)
-
-  -- Clear all 16 slots.
-  if key == "patch_clear_all" then
-    setPatchGridSlots({})
-    currentBankName   = ""
-    currentPresetName = ""
-    updatePatchInfoLabel()
     return
   end
 

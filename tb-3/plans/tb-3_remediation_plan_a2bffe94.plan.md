@@ -4,7 +4,7 @@ overview: Clean up dead code, sync all documentation with the actual implementat
 todos:
   - id: dead-code
     content: Delete 5 orphaned lua scripts and remove dead handlers/stale comments in root.lua and bcr_map.lua
-    status: pending
+    status: completed
   - id: claude-md
     content: Create tb-3/CLAUDE.md with architecture, include-order contract, notify message table, and tag conventions
     status: completed
@@ -16,19 +16,19 @@ todos:
     status: completed
   - id: user-readme
     content: Sync tb-3/README.md with actual UI per screenshot (SYNC TO TB-3, morph AMOUNT encoder, drop DELETE ALL, TYPE encoder, add missing sections)
-    status: pending
+    status: completed
   - id: pm-readme
     content: Update preset-manager/README.md for tabbed UI, button names, and bank format v2
-    status: in_progress
+    status: completed
   - id: plans-status
     content: Add divergence/status headers to both plans docs and a tools/ script index
-    status: pending
+    status: completed
   - id: code-health
     content: Merge mode-toggle buttons into one script, fix accidental globals, mark forced duplication, comment rot pass
-    status: pending
+    status: completed
   - id: backlog
     content: Write plans/review-backlog.md with behavioral findings and code-health refactor follow-ups
-    status: pending
+    status: completed
   - id: hygiene
     content: Gitignore tb-3/backups and .tosc.bak files; delete TB3.tosc.bak_naming
     status: completed

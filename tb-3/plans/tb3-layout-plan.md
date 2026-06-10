@@ -1,6 +1,15 @@
 # TB-3 TouchOSC Layout — Phased Delivery Plan
 
-> **Status as of 2026-06-08.** Phases 0–5 complete. Phase 5 delivered: parameter assign UI (4 slot buttons + status display), PARAM_ID_MAP covering all on-screen encoders, SysEx block cache + Save to Library + JSON export, /tb3/restore OSC path, and Python Qt preset manager app (now committed and tested).
+> **Status as of 2026-06-10.** Phases 0–5 complete. Phase 5 delivered: parameter assign UI (4 slot buttons + status display), PARAM_ID_MAP covering all on-screen encoders, SysEx block cache + JSON export, /tb3/restore OSC path, and Python Qt preset manager app (now committed and tested).
+>
+> **Doc divergences (2026-06 remediation):** Prefer `tb-3/CLAUDE.md` and the live layout for current behaviour:
+> - **SAVE TO LIBRARY** TouchOSC button → removed; use desktop **Pull Patch** (`/tb3/request_patch_export`).
+> - **SYNC TO TB-3** (`send_button`) pushes current TouchOSC state to the TB-3 hardware.
+> - **Morph** — `morph_amount_fader` replaced by **`morph_enc`** AMOUNT encoder in `morph_group`.
+> - **Distortion TYPE** — `dist_type_button.lua` (↑/↓) replaced by **`dist_type_enc`** encoder (25 types).
+> - **Panel controls** — CUTOFF, RESONANCE, ACCENT moved to **`panel_controls_group`** (live CC feedback from TB-3 panel knobs).
+> - **Preset manager banks** — format **v2** with per-slot `name`; UI is tabbed (900×560), buttons **Pull Bank / Send Bank / Pull Patch / Send Patch**.
+> - **Orphaned scripts removed** — `dist_type_button.lua`, `delete_all_presets_button.lua`, `save_to_library_btn.lua`, `morph_amount_fader.lua`, `porta_mode_button.lua`; mode buttons merged into `mode_button.lua`.
 >
 > **Open items triaged 2026-06-08:** Investigated BENDER RANGE and found (and fixed) a live data-corruption bug — `REGISTRY`/`ENC_SEND_MAP` scaling mismatch caused every "SYNC FROM TB-3" to silently rewrite the hardware value; fixed via a `receivingPatch` echo-suppression guard (synchronous clear + frame-countdown backstop, no `pcall` — TouchOSC Lua doesn't have it). The raw↔display mapping itself is still unconfirmed pending a clean reference reading from the user's hardware. The four mapping-curve approximations (Flanger HPF, RATE, EQ freq/Q, Compressor attack/release) are deferred — no on-device readout exists to verify against; reached out to the Dope Robot panel author for reference data. CC17 feedback was already wired up. CC16 (Accent) is now wired too — turned out `accent_level_enc` already existed in `vcf_group`, so CC16 just needed adding to `TB3_CC_DISPLAY_MAP` as live feedback (mirroring CC74/CC71); a duplicate `accent_enc` group the user had added to `other_group` before this was discovered should be removed via the TouchOSC editor. Also fixed Pitch Bend Range's Lua wiring after its `pitch_bend_group` → `other_group` parent rename broke two hardcoded lookup keys.
 
