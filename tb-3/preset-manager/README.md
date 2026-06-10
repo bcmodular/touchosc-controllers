@@ -3,6 +3,13 @@
 Desktop companion app for the TB-3 TouchOSC layout. Saves full patch dumps
 (`.syx`) from TouchOSC and restores them back through it to the TB-3 hardware.
 
+![TB-3 Preset Manager](../screenshots/preset-manager.png)
+
+> **Note:** the screenshot above reflects the current UI. Some button names and
+> workflow descriptions in this README have not yet been updated to match — e.g.
+> buttons are now **Pull Bank / Send Bank**, **Send Patch**, **Pull Patch**, etc.
+> rather than the names written below. A full sync is pending.
+
 ## Setup (once)
 
 ```bash
