@@ -49,9 +49,7 @@ in `root.lua`. Do not re-declare them.
 | `assign_slot_btn.lua` | `assign_xy_mod_btn`, `assign_effect_knob_btn`, `assign_pad_x_btn`, `assign_pad_y_btn` | Assign slot select → `root:notify("assign_slot_select", key)` |
 | `preset_grid.lua` | `preset_grid` group | Receives `refresh_preset_ui` → updates `back_N` slot colors |
 | `preset_grid_slot_btn.lua` | slots `1`–`16` under `preset_grid` | Press/release relay → `root:notify("patch_slot_pressed/released", N)` |
-| `morph_button.lua` | `morph_button` | Mode toggle → `root:notify("patch_mode_set", "morph")` |
-| `delete_button.lua` | `delete_button` | Mode toggle → `root:notify("patch_mode_set", "delete")` |
-| `grab_mode_button.lua` | `grab_mode_button` | Mode toggle → `root:notify("patch_mode_set", "grab")` |
+| `mode_button.lua` | `morph_button`, `delete_button`, `grab_mode_button` | Mode toggle → `root:notify("patch_mode_set", MODE)` where MODE is derived from `self.name` |
 
 **Orphaned files (not in `toscbuild.json` — do not use or reference):**
 `dist_type_button.lua`, `delete_all_presets_button.lua`, `save_to_library_btn.lua`,

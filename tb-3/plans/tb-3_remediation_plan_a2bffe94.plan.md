@@ -34,7 +34,7 @@ todos:
     status: completed
   - id: verify
     content: Rebuild with toscbuild.py and verify clean diff and doc/manifest consistency
-    status: pending
+    status: completed
 isProject: false
 ---
 
