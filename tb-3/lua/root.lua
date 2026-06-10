@@ -808,8 +808,9 @@ local function snapshotCurrentPatch()
     end
     parts[#parts+1] = '"' .. hexStr .. '"'
   end
-  local presetLbl = root:findByName("preset_name_label", true)
-  local nameStr   = (presetLbl and presetLbl.values.text or ""):gsub('"', '\\"')
+  -- Use currentPresetName directly — preset_name_label now holds the combined
+  -- "Bank: X  Preset: Y" string and must not be used as the preset name.
+  local nameStr = currentPresetName:gsub('"', '\\"')
   return '{"name":"' .. nameStr .. '","blocks":[' .. table.concat(parts, ",") .. ']}'
 end
 
