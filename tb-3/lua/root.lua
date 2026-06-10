@@ -849,6 +849,7 @@ local function applySnapshotDiff(targetJson, baseJson)
     end
   end
   print("patch_grid: diff applied " .. sent .. "/" .. #target.blocks .. " blocks")
+  syncBCR1()  -- push updated fader positions to BCR LED rings
 end
 
 -- Read all 16 slot snapshots from preset_grid's tag.
