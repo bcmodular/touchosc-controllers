@@ -43,7 +43,7 @@ Variables declared `local` at the top level in earlier files are visible to late
 
 | Variable / function | Declared in | Used in |
 |---------------------|-------------|---------|
-| `BCR1_MAP`, `BCR2_MAP`, `efx1SlotIndex` etc. | `bcr_map.lua` | `root.lua` |
+| `BCR1_MAP`, `BCR1_NRPN_MAP`, `ADDR_TO_BCR1_NRPN`, `efx1SlotIndex` etc. | `bcr_map.lua` | `root.lua` |
 | `distType`, `DIST_TYPE_NAMES`, `DIST_NUM_TYPES` | `patch_manager.lua` | `root.lua` |
 | `parseBlock`, `updateAssignDisplay` | `patch_manager.lua` | `root.lua` |
 | `PARAM_ID_MAP`, `SW_PARAM_ID_MAP` | `patch_manager.lua` | `root.lua` |
@@ -63,6 +63,16 @@ Do not re-declare these in `root.lua` — that creates a new shadowing local and
 | `TB3_MIDI_CHANNEL` | `2` | TB-3 receive channel (user-configured) |
 
 `efx_section.lua` duplicates `TB3_CONN` and `BCR_CONN` as local constants — **keep them byte-identical with root.lua**. TouchOSC has no shared-library mechanism; this duplication is forced.
+
+### NRPN on BCR1 (channel 1)
+
+The seven 16-bit params (3× tuning, VCF env depth / cutoff / resonance, accent) are controlled via **NRPN** (param MSB 0, LSB 1–7 — see `BCR1_NRPN_MAP` in `bcr_map.lua`). The four BCR1 fixed-row-3 encoders (pos 1,2,3,5) are programmed as NRPN absolute/14 with Min/Max = the raw SysEx range (0–151 tuning, 0–255 others), so the 14-bit data value IS the raw value. Consequences:
+
+- **CC 6/38/98/99 are reserved** on channel 1 (NRPN status bytes) — never map them as plain CCs, and never send them as plain CCs to `BCR_CONNECTION` (the BCR's receive parser would misread them). VCO RING LEVEL/SW moved to CC 17/49 because of this.
+- CC 96 (DIST TONE) and CC 100 (GLOBAL TUNING) overlap MIDI-spec Data Increment / RPN LSB — intentional; root's parser only consumes 6/38/98/99.
+- Receive path: `nrpnState` machine at the top of `handleBCR1`; dispatches on CC 38, updates `rawSysexBlocks` nibbles (NRPN edits do NOT go stale, unlike `sendFromEntry`) and the on-screen fader.
+- Feedback path: `sendNRPNToBCR()` (4-message packet) used by `syncBCR1()` and the `enc_moved` mirror via `ADDR_TO_BCR1_NRPN`.
+- The BCR preset and the `.tosc` build are coupled: **rebuild/reload the layout before loading the new BCR preset** (old Lua + NRPN preset slams tuning params via the old CC 98/99 map entries).
 
 ## SysEx protocol
 
@@ -110,7 +120,7 @@ These two uses are mutually exclusive in time (the `"prog"` guard is cleared bef
 
 | File | Injected into | Purpose |
 |------|--------------|---------|
-| `bcr_map.lua` | root (include #1) | `BCR1_MAP` / `BCR2_MAP` CC→SysEx tables; EFX slot/button index helpers |
+| `bcr_map.lua` | root (include #1) | `BCR1_MAP` CC→SysEx table; `BCR1_NRPN_MAP` NRPN→SysEx table; EFX slot/button index helpers |
 | `patch_manager.lua` | root (include #2) | `parseBlock`; `PARAM_ID_MAP`; `SW_PARAM_ID_MAP`; `EFX_SLOT_OFFSETS_*`; dist type state |
 | `enc_map.lua` | root (include #3) | `ENC_SEND_MAP` / `SW_SEND_MAP`; reverse `ADDR_TO_ENC` / `ADDR_TO_SW` lookup tables |
 | `root.lua` | root node | MIDI routing; SysEx helpers; BCR handling; patch grid; assign mode |

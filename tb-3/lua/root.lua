@@ -192,6 +192,21 @@ local function tb3Send16bit(a1, a2, a3, a4, value)
             a1, a2, a3, a4, msb, lsb, cs, 0xF7}, TB3_CONNECTION)
 end
 
+-- Send a 14-bit NRPN packet to the BCR connection (channel 1) so the LED
+-- ring of an NRPN-assigned encoder tracks state. Param MSB is always 0
+-- (see BCR1_NRPN_MAP in bcr_map.lua). The BCR ignores NRPN numbers with no
+-- assigned encoder, so mirroring entries 5–7 (no physical encoder) is
+-- harmless — and gives a future external NRPN controller feedback for free.
+-- NEVER send plain CC 6/38/98/99 on this channel: the BCR's own NRPN
+-- receive parser would misread them as status bytes.
+local function sendNRPNToBCR(nrpn, value)
+  local st = 0xB0 + (BCR1_CHANNEL - 1)
+  sendMIDI({st, 99, 0},                          BCR_CONNECTION)  -- param MSB
+  sendMIDI({st, 98, nrpn},                       BCR_CONNECTION)  -- param LSB
+  sendMIDI({st, 6,  math.floor(value / 128)},    BCR_CONNECTION)  -- data MSB
+  sendMIDI({st, 38, value % 128},                BCR_CONNECTION)  -- data LSB
+end
+
 -- ---------------------------------------------------------------------------
 -- Value scaling helper
 -- ---------------------------------------------------------------------------
@@ -339,6 +354,20 @@ local function syncBCR1()
       end
     end
   end
+  -- NRPN-controlled 16-bit params (tunings, VCF env depth, cutoff, etc.).
+  -- Value = raw SysEx value (fader 0–1 × entry max), not a 0–127 CC value.
+  for nrpn, entry in pairs(BCR1_NRPN_MAP) do
+    local key = string.format("%02X%02X%02X%02X",
+      entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+    local hit = ADDR_TO_ENC[key]
+    if hit then
+      local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+      local fader  = encGrp and encGrp.children["control_fader"]
+      if fader then
+        sendNRPNToBCR(nrpn, math.floor(fader.values.x * entry.max + 0.5))
+      end
+    end
+  end
   -- Morph amount (CC 8) and morph on/off (CC 40) — no addr entries, handled manually
   sendMIDI({0xB0, 8,  math.floor(morphAmount * 127 + 0.5)}, BCR_CONNECTION)
   sendMIDI({0xB0, 40, patchGridMode == "morph" and 127 or 0}, BCR_CONNECTION)
@@ -398,7 +427,48 @@ end
 -- CC number alone determines routing; no mode state required.
 -- ---------------------------------------------------------------------------
 
+-- NRPN receive state (BCR1, channel 1). pmsb/plsb = param select (CC 99/98);
+-- dmsb = data entry MSB (CC 6). Dispatch happens on CC 38 (data LSB) —
+-- the BCR's absolute/14 mode always sends the full 4-message packet, so
+-- there is no partial-update edge case.
+local nrpnState = { pmsb = 0, plsb = 0, dmsb = 0 }
+
 local function handleBCR1(cc, ccVal)
+  -- NRPN status bytes — must be consumed before every other branch so they
+  -- can never fall through to the BCR1_MAP lookup or special cases.
+  -- CC 6/38/98/99 are reserved on channel 1 (see bcr_map.lua header).
+  if cc == 99 then nrpnState.pmsb = ccVal; return end
+  if cc == 98 then nrpnState.plsb = ccVal; return end
+  if cc == 6  then nrpnState.dmsb = ccVal; return end
+  if cc == 38 then
+    -- Data Entry LSB completes the 14-bit value → dispatch.
+    local nrpn  = nrpnState.pmsb * 128 + nrpnState.plsb
+    local entry = BCR1_NRPN_MAP[nrpn]
+    if not entry then return end
+    local v = nrpnState.dmsb * 128 + ccVal
+    if v > entry.max then v = entry.max end
+    local a = entry.addr
+    tb3Send16bit(a[1], a[2], a[3], a[4], v)
+    -- Keep the snapshot cache fresh (MSB/LSB nibbles, Roland convention).
+    local blk = rawSysexBlocks[string.format("%02X%02X%02X00", a[1], a[2], a[3])]
+    if blk then
+      blk.data[a[4] + 1] = math.floor(v / 16)
+      blk.data[a[4] + 2] = v % 16
+    end
+    -- Update the on-screen fader. Don't use updateUIForAddr (assumes 0–127
+    -- input); scale by the entry's raw max instead. Setting fader.values.x
+    -- fires control_fader → enc_moved, which re-derives the bipolar/center
+    -- label and echoes the NRPN packet back to the BCR (harmless, no loop).
+    local key = string.format("%02X%02X%02X%02X", a[1], a[2], a[3], a[4])
+    local hit = ADDR_TO_ENC[key]
+    if hit then
+      local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+      local fader  = encGrp and encGrp.children["control_fader"]
+      if fader then fader.values.x = v / entry.max end
+    end
+    return
+  end
+
   -- MORPH AMOUNT (CC 8) — encoder group 1, position 8
   if cc == 8 then
     if patchGridMode ~= "morph" or not morphTargetSlot then return end
@@ -1151,6 +1221,13 @@ function onReceiveNotify(key, value)
             local bcr1cc = ADDR_TO_BCR1_CC[addrKey]
             if bcr1cc then
               sendMIDI({0xB0, bcr1cc, math.floor(x * 127 + 0.5)}, BCR_CONNECTION)
+            else
+              -- 16-bit NRPN-controlled param: mirror as a full NRPN packet
+              -- carrying the raw value (x × max), not a 0–127 CC value.
+              local nh = ADDR_TO_BCR1_NRPN[addrKey]
+              if nh then
+                sendNRPNToBCR(nh.nrpn, math.floor(x * nh.entry.max + 0.5))
+              end
             end
           end
         end
