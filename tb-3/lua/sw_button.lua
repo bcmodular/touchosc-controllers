@@ -13,14 +13,21 @@
 
 local updating = false
 
-local LABEL_NAMES = {"bpm_sync_label1", "bpm_sync_label2", "retrig_label"}
-local LIT_TEXT    = "000000FF"   -- black on yellow button
-local OFF_TEXT    = "FFFFFFFF"   -- white on dark background
+local LIT_TEXT = "000000FF"   -- black on yellow button
+local OFF_TEXT = "FFFFFFFF"   -- white on dark background
+
+-- Only these encoder groups have overlay labels; TouchOSC warns on missing .children[].
+local OVERLAY_LABELS = {
+  lfo_rate_enc      = {"bpm_sync_label1", "bpm_sync_label2"},
+  lfo_cv_offset_enc = {"retrig_label"},
+}
 
 local function refreshOverlayLabels()
+  local names = OVERLAY_LABELS[self.parent.name]
+  if not names then return end
   local lit = (math.floor(self.values.x + 0.5) == 1)
   local clr = Color.fromHexString(lit and LIT_TEXT or OFF_TEXT)
-  for _, name in ipairs(LABEL_NAMES) do
+  for _, name in ipairs(names) do
     local lbl = self.parent.children[name]
     if lbl then lbl.textColor = clr end
   end
