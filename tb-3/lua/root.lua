@@ -1011,11 +1011,30 @@ applyMorph = function()
       for j = 1, #bHex - 1, 2 do bB[#bB+1] = tonumber(bHex:sub(j,j+1),16) or 0 end
       for j = 1, #tHex - 1, 2 do tB[#tB+1] = tonumber(tHex:sub(j,j+1),16) or 0 end
       local addr = {bB[8], bB[9], bB[10], bB[11]}
+      local addrKey = string.format("%02X%02X%02X%02X",
+        bB[8], bB[9], bB[10], bB[11])
+      local u16Offs = U16_OFFSETS[addrKey]
       local newData = {}
+      local skipNext = false
       for j = 12, #bB - 2 do
-        local b  = bB[j] or 0
-        local tb = tB[j] or b
-        newData[#newData+1] = math.floor(b + (tb - b) * t + 0.5)
+        if skipNext then
+          skipNext = false
+        else
+          local dataOff = j - 12  -- 0-based offset into block data
+          if u16Offs and u16Offs[dataOff] then
+            -- nibble-packed 16-bit pair: interpolate as a unit to avoid jumps
+            local rawB = (bB[j] or 0) * 16 + (bB[j+1] or 0)
+            local rawT = (tB[j] or 0) * 16 + (tB[j+1] or 0)
+            local rawOut = math.floor(rawB + (rawT - rawB) * t + 0.5)
+            newData[#newData+1] = math.floor(rawOut / 16)
+            newData[#newData+1] = rawOut % 16
+            skipNext = true
+          else
+            local b  = bB[j] or 0
+            local tb = tB[j] or b
+            newData[#newData+1] = math.floor(b + (tb - b) * t + 0.5)
+          end
+        end
       end
       blended[i] = blockToHexString(addr, newData)
     end

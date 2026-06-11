@@ -422,6 +422,23 @@ local REGISTRY = {
 }
 
 -- ---------------------------------------------------------------------------
+-- U16_OFFSETS — set of 0-based data byte offsets that are the MSB of a u16
+-- nibble pair, keyed by block address string.  Used by applyMorph in root.lua
+-- so nibble-packed params are interpolated as a unit (not byte-by-byte).
+local U16_OFFSETS = {}
+do
+  for addrKey, blockDef in pairs(REGISTRY) do
+    local offs = {}
+    for _, field in ipairs(blockDef) do
+      if field.kind == "u16" or (field.kind == "sp" and field.u16) then
+        offs[field.off] = true
+      end
+    end
+    if next(offs) then U16_OFFSETS[addrKey] = offs end
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- Helpers
 -- ---------------------------------------------------------------------------
 
