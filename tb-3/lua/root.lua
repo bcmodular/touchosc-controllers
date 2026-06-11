@@ -356,20 +356,23 @@ local function syncBCR1()
   end
   -- NRPN-controlled 16-bit params (tunings, VCF env depth, cutoff, etc.).
   -- Value = raw SysEx value (fader 0–1 × entry max), not a 0–127 CC value.
+  -- Address-less entries (morph, NRPN 8) are synced manually below.
   for nrpn, entry in pairs(BCR1_NRPN_MAP) do
-    local key = string.format("%02X%02X%02X%02X",
-      entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
-    local hit = ADDR_TO_ENC[key]
-    if hit then
-      local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
-      local fader  = encGrp and encGrp.children["control_fader"]
-      if fader then
-        sendNRPNToBCR(nrpn, math.floor(fader.values.x * entry.max + 0.5))
+    if entry.addr then
+      local key = string.format("%02X%02X%02X%02X",
+        entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+      local hit = ADDR_TO_ENC[key]
+      if hit then
+        local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+        local fader  = encGrp and encGrp.children["control_fader"]
+        if fader then
+          sendNRPNToBCR(nrpn, math.floor(fader.values.x * entry.max + 0.5))
+        end
       end
     end
   end
-  -- Morph amount (CC 8) and morph on/off (CC 40) — no addr entries, handled manually
-  sendMIDI({0xB0, 8,  math.floor(morphAmount * 127 + 0.5)}, BCR_CONNECTION)
+  -- Morph amount (NRPN 8) and morph on/off (CC 40) — no addr entries, handled manually
+  sendNRPNToBCR(8, math.floor(morphAmount * BCR1_NRPN_MAP[8].max + 0.5))
   sendMIDI({0xB0, 40, patchGridMode == "morph" and 127 or 0}, BCR_CONNECTION)
 end
 
@@ -447,6 +450,20 @@ local function handleBCR1(cc, ccVal)
     if not entry then return end
     local v = nrpnState.dmsb * 128 + ccVal
     if v > entry.max then v = entry.max end
+    if entry.morph then
+      -- MORPH AMOUNT — layout-internal, no SysEx address. Setting the fader
+      -- fires enc_moved → morph_enc special case, which updates the percent
+      -- label; its second applyMorph() is a no-op (morphLastBlocks diff guard).
+      if patchGridMode ~= "morph" or not morphTargetSlot then return end
+      morphAmount = v / entry.max
+      applyMorph()
+      local morphEnc = root:findByName("morph_enc", true)
+      if morphEnc then
+        local fader = morphEnc.children["control_fader"]
+        if fader then fader.values.x = morphAmount end
+      end
+      return
+    end
     local a = entry.addr
     tb3Send16bit(a[1], a[2], a[3], a[4], v)
     -- Keep the snapshot cache fresh (MSB/LSB nibbles, Roland convention).
@@ -469,18 +486,7 @@ local function handleBCR1(cc, ccVal)
     return
   end
 
-  -- MORPH AMOUNT (CC 8) — encoder group 1, position 8
-  if cc == 8 then
-    if patchGridMode ~= "morph" or not morphTargetSlot then return end
-    morphAmount = ccVal / 127
-    applyMorph()
-    local morphEnc = root:findByName("morph_enc", true)
-    if morphEnc then
-      local fader = morphEnc.children["control_fader"]
-      if fader then fader.values.x = morphAmount end
-    end
-    return
-  end
+  -- MORPH AMOUNT: was plain CC 8; now NRPN 8 (handled by the dispatch above).
 
   -- MORPH ON/OFF (CC 40) — encoder group 1 push, position 8
   -- BCR "Toggle On" mode: 127 = latched on, 0 = released.
@@ -1031,8 +1037,13 @@ applyMorph = function()
   end
   morphing = false
   morphLastBlocks = blended
-  -- After all blocks are processed, do a single BCR sync pass for the changes.
-  if anyChanged then syncBCR1() end
+  -- Debounced BCR sync: arm (or re-arm) the countdown instead of syncing
+  -- synchronously. A per-detent syncBCR1() floods the BCR (~60 messages) and
+  -- echoes NRPN 8 back at the morph encoder while it is still moving — the
+  -- stale echoes snap the encoder position backwards (jerky response). The
+  -- timer fires one full sync ~0.3s after the last morph step, when the
+  -- echoed morph amount matches the encoder's resting position.
+  if anyChanged then syncTimer = 20 end
 end
 
 -- Broadcast the current mode to all mode buttons.
@@ -1146,6 +1157,14 @@ function onReceiveNotify(key, value)
         if patchGridMode ~= "morph" or not morphTargetSlot then return end
         morphAmount = x
         applyMorph()
+        -- Show the actual morph amount as a percentage — control_fader's
+        -- fallback label is a meaningless 0–127 value here.
+        local secGrp = root:findByName(sec, true)
+        local encGrp = secGrp and secGrp.children[enc]
+        if encGrp then
+          local lbl = encGrp.children["value_label"]
+          if lbl then lbl.values.text = string.format("%.1f%%", x * 100) end
+        end
         return
       end
 
@@ -1656,9 +1675,11 @@ end
 
 -- ---------------------------------------------------------------------------
 -- update — frame callback. Two independent countdowns:
---   syncTimer            — post-receive BCR sync fallback (see requestPatchDump;
---                          fires after ~3s unless the awaitingBlocks countdown
---                          beats it, catching split-EFX-block edge cases)
+--   syncTimer            — deferred BCR sync. Armed long (~3s) by
+--                          requestPatchDump as a post-receive fallback (the
+--                          awaitingBlocks countdown usually beats it), and
+--                          short (~0.3s) by applyMorph as a debounce so morph
+--                          sweeps don't echo NRPN 8 at a moving encoder
 --   receivingPatchTimer  — receivingPatch backstop (see declaration)
 -- ---------------------------------------------------------------------------
 

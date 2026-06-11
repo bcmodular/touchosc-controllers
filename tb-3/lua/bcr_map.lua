@@ -57,7 +57,8 @@ local BCR1_MAP = {
   [5]  = { addr = {0x10,0x00,0x08,0x06}, bits = 7 },              -- VCO PINK LEVEL
   -- CC 6 (VCO RING LEVEL) moved to CC 17 — CC 6 is NRPN Data Entry MSB.
   [7]  = { addr = {0x10,0x00,0x00,0x08}, bits = 7, signed = true },-- VCO LFO DEPTH
-  [8]  = { morph = true },                                         -- MORPH AMOUNT (no SysEx addr; special-cased in handleBCR1/syncBCR1)
+  -- CC 8 (MORPH AMOUNT) retired — pos 8 rotate is now NRPN 8 (see BCR1_NRPN_MAP).
+  -- Its push remains plain CC 40 (MORPH ON/OFF) below.
 
   -- VCO RING LEVEL — physical encoder group 1 pos 6 rotate, retargeted from
   -- CC 6 to CC 17 (group 3 rotate slot, unused) to free the NRPN data byte.
@@ -208,13 +209,20 @@ local BCR1_NRPN_MAP = {
   [5] = { addr = {0x10,0x00,0x0A,0x00}, max = 255 }, -- VCF CUTOFF       (no BCR encoder)
   [6] = { addr = {0x10,0x00,0x0A,0x02}, max = 255 }, -- VCF RESONANCE    (no BCR encoder)
   [7] = { addr = {0x10,0x00,0x14,0x0E}, max = 255 }, -- ACCENT LEVEL     (no BCR encoder)
+  -- MORPH AMOUNT — layout-internal float, no SysEx address; special-cased in
+  -- the handleBCR1 NRPN dispatch and syncBCR1. 0–500 → morphAmount 0.0–1.0
+  -- (matches the BCR encoder's Min/Max; acceleration levels 96 and 384).
+  [8] = { morph = true, max = 500 },                 -- MORPH AMOUNT     (group 1 pos 8 rotate)
 }
 
 -- Reverse lookup for NRPN feedback (syncBCR1 / enc_moved mirror).
 -- key = addr hex string, value = { nrpn = N, entry = BCR1_NRPN_MAP[N] }.
+-- Address-less entries (morph) are skipped — they have no SysEx identity.
 local ADDR_TO_BCR1_NRPN = {}
 for nrpn, entry in pairs(BCR1_NRPN_MAP) do
-  local k = string.format("%02X%02X%02X%02X",
-    entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
-  ADDR_TO_BCR1_NRPN[k] = { nrpn = nrpn, entry = entry }
+  if entry.addr then
+    local k = string.format("%02X%02X%02X%02X",
+      entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+    ADDR_TO_BCR1_NRPN[k] = { nrpn = nrpn, entry = entry }
+  end
 end

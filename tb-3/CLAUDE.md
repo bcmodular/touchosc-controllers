@@ -66,7 +66,7 @@ Do not re-declare these in `root.lua` — that creates a new shadowing local and
 
 ### NRPN on BCR1 (channel 1)
 
-The seven 16-bit params (3× tuning, VCF env depth / cutoff / resonance, accent) are controlled via **NRPN** (param MSB 0, LSB 1–7 — see `BCR1_NRPN_MAP` in `bcr_map.lua`). The four BCR1 fixed-row-3 encoders (pos 1,2,3,5) are programmed as NRPN absolute/14 with Min/Max = the raw SysEx range (0–151 tuning, 0–255 others), so the 14-bit data value IS the raw value. Consequences:
+The seven 16-bit params (3× tuning, VCF env depth / cutoff / resonance, accent) plus MORPH AMOUNT are controlled via **NRPN** (param MSB 0, LSB 1–8 — see `BCR1_NRPN_MAP` in `bcr_map.lua`). The four BCR1 fixed-row-3 encoders (pos 1,2,3,5) are programmed as NRPN absolute/14 with Min/Max = the raw SysEx range (0–151 tuning, 0–255 others), so the 14-bit data value IS the raw value. NRPN 8 (morph, group-1 pos 8 rotate, 0–1000 → `morphAmount` 0.0–1.0) is address-less and special-cased in the NRPN dispatch and `syncBCR1`; its push stays plain CC 40. Consequences:
 
 - **CC 6/38/98/99 are reserved** on channel 1 (NRPN status bytes) — never map them as plain CCs, and never send them as plain CCs to `BCR_CONNECTION` (the BCR's receive parser would misread them). VCO RING LEVEL/SW moved to CC 17/49 because of this.
 - CC 96 (DIST TONE) and CC 100 (GLOBAL TUNING) overlap MIDI-spec Data Increment / RPN LSB — intentional; root's parser only consumes 6/38/98/99.
@@ -250,7 +250,7 @@ local morphing          = false -- true while applyMorph batch-sends; suppresses
 
 ### Morph encoder gating
 
-`morph_enc` is disabled (`tag = "disabled"`, name label dimmed) until morph mode is on **and** a target preset slot is selected. The value label stays white while showing *Pick Preset*. `pointer.lua` rejects drag input when the parent group tag is `"disabled"`. Root also gates on-screen `enc_moved` and BCR1 CC 8 (morph amount) on the same condition. `morphTargetSlot` is cleared when entering or leaving morph mode (UI mode buttons and BCR CC 40).
+`morph_enc` is disabled (`tag = "disabled"`, name label dimmed) until morph mode is on **and** a target preset slot is selected. The value label stays white while showing *Pick Preset*. `pointer.lua` rejects drag input when the parent group tag is `"disabled"`. Root also gates on-screen `enc_moved` and BCR1 NRPN 8 (morph amount, was CC 8) on the same condition. `morphTargetSlot` is cleared when entering or leaving morph mode (UI mode buttons and BCR CC 40).
 
 ### `receivingPatch` guard
 
