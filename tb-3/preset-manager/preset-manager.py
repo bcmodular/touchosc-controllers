@@ -12,13 +12,17 @@ Library layout:
 OSC paths:
   Python → TouchOSC:
     /tb3/request_patch_export       Request snapshot of current patch → /tb3/backup
-    /tb3/patchgrid/request_backup   Request all 16 grid slots → /tb3/patchgrid/backup
-    /tb3/patchgrid/restore          Load 16 slots into grid (grid only, no TB-3 SysEx)
+    /tb3/patchgrid/request_manifest Request bank manifest → /tb3/patchgrid/manifest
+    /tb3/patchgrid/request_slot     Request one slot (arg=key) → /tb3/patchgrid/slot
+    /tb3/patchgrid/restore_begin    Begin chunked bank push (arg={version,name})
+    /tb3/patchgrid/restore_slot     Push one slot (arg={slot,data})
+    /tb3/patchgrid/restore_end      Commit the pushed bank to the grid
     /tb3/restore                    Restore one SysEx block to UI + TB-3 hardware
 
   TouchOSC → Python:
     /tb3/backup                     Single-patch JSON snapshot
-    /tb3/patchgrid/backup           Bank JSON snapshot
+    /tb3/patchgrid/manifest         Bank manifest: {version,name,slots:[keys]}
+    /tb3/patchgrid/slot             One slot: {slot,data:{blocks,name}}
 
 Bank format (v2):
   {"version": 2, "name": "...", "slots": {"1": {"name": "...", "blocks": [...]}, ...}}
@@ -37,7 +41,7 @@ try:
         QGroupBox, QFormLayout, QFileDialog, QMessageBox, QInputDialog,
         QSplitter, QTabWidget
     )
-    from PyQt5.QtCore import QByteArray, Qt, QThread, pyqtSignal
+    from PyQt5.QtCore import QByteArray, Qt, QThread, QTimer, pyqtSignal
     from PyQt5.QtGui import QFont, QColor
 except ImportError:
     print("PyQt5 not found. Install with: pip install PyQt5")
@@ -140,10 +144,11 @@ ORPHAN_KEY    = "__orphan__"
 # ---------------------------------------------------------------------------
 
 class OSCListenerThread(QThread):
-    backup_received      = pyqtSignal(str, bytes)   # suggested_name, syx_bytes
-    bank_backup_received = pyqtSignal(str)           # raw JSON string
-    status_update        = pyqtSignal(str)
-    listening            = pyqtSignal(bool, str)
+    backup_received   = pyqtSignal(str, bytes)   # suggested_name, syx_bytes
+    manifest_received = pyqtSignal(str)           # bank manifest JSON (chunked pull)
+    slot_received     = pyqtSignal(str)           # one slot's JSON (chunked pull)
+    status_update     = pyqtSignal(str)
+    listening         = pyqtSignal(bool, str)
 
     def __init__(self, ip, port):
         super().__init__()
@@ -165,19 +170,29 @@ class OSCListenerThread(QThread):
         self.status_update.emit(f"Received patch ({len(syx)} bytes).")
         self.backup_received.emit(preset_name, syx)
 
-    def handle_bank_backup(self, addr, *args):
+    def handle_manifest(self, addr, *args):
         if not args:
-            self.status_update.emit("Received /tb3/patchgrid/backup but no arguments.")
+            self.status_update.emit("Received /tb3/patchgrid/manifest but no arguments.")
             return
-        self.status_update.emit("Received bank from TouchOSC.")
-        self.bank_backup_received.emit(str(args[0]))
+        self.manifest_received.emit(str(args[0]))
+
+    def handle_slot(self, addr, *args):
+        if not args:
+            return
+        self.slot_received.emit(str(args[0]))
 
     def run(self):
         d = dispatcher.Dispatcher()
-        d.map("/tb3/backup",           self.handle_backup)
-        d.map("/tb3/patchgrid/backup", self.handle_bank_backup)
+        d.map("/tb3/backup",             self.handle_backup)
+        d.map("/tb3/patchgrid/manifest", self.handle_manifest)
+        d.map("/tb3/patchgrid/slot",     self.handle_slot)
         try:
             self._server = osc_server.BlockingOSCUDPServer((self.ip, self.port), d)
+            # Banks are pulled slot-by-slot so no single datagram is large, but
+            # socketserver.UDPServer defaults max_packet_size to 8192 and silently
+            # truncates anything bigger (truncated OSC → no handler fires). Raise
+            # the receive buffer defensively to the max UDP payload.
+            self._server.max_packet_size = 65535
             addr = f"{self.ip}:{self.port}"
             self.listening.emit(True, addr)
             self.status_update.emit(f"Listening on {addr}")
@@ -205,6 +220,16 @@ class MainWindow(QMainWindow):
         # None → orphan (add new file); int → bank slot number to write into.
         self._pending_pull_slot      = None
         self._pending_pull_bank_path = None
+
+        # Chunked bank-pull state machine (manifest → per-slot requests).
+        self._pull_active    = False
+        self._pull_remaining = []   # slot keys still to fetch
+        self._pull_slots     = {}   # slot key → slot data collected so far
+        self._pull_bank_name = ""
+        self._pull_total     = 0
+        self._pull_timer     = QTimer(self)
+        self._pull_timer.setSingleShot(True)
+        self._pull_timer.timeout.connect(self._pull_timeout)
 
         self.setWindowTitle("TB-3 Preset Manager")
         if not self._restore_window_geometry():
@@ -462,31 +487,117 @@ class MainWindow(QMainWindow):
 
         self._refresh_slot_list()
 
+    # ------------------------------------------------------------------
+    # Chunked bank pull: request a manifest, then fetch each filled slot.
+    # A full bank is ~15 KB — too large for one UDP datagram on macOS
+    # (net.inet.udp.maxdgram ≈ 9 KB) — so we pull it slot by slot.
+    # ------------------------------------------------------------------
+
+    _PULL_TIMEOUT_MS = 4000  # abort if TouchOSC goes quiet mid-pull
+
     def _pull_bank(self):
         client = self._get_client()
         if not client:
             return
+        self._pull_active    = True
+        self._pull_remaining = []
+        self._pull_slots     = {}
+        self._pull_bank_name = ""
+        self._pull_total     = 0
         try:
-            client.send_message("/tb3/patchgrid/request_backup", "")
-            self.statusBar().showMessage("Requested bank from TouchOSC…")
+            client.send_message("/tb3/patchgrid/request_manifest", "")
+            self.statusBar().showMessage("Requesting bank manifest…")
+            self._pull_timer.start(self._PULL_TIMEOUT_MS)
         except Exception as e:
+            self._pull_active = False
             self.statusBar().showMessage(f"Send error: {e}")
 
-    def _handle_bank_backup_received(self, json_str: str):
-        try:
-            bank_data = json.loads(json_str)
-        except Exception as e:
-            self.statusBar().showMessage(f"Bank parse error: {e}")
+    def _on_manifest(self, json_str: str):
+        if not self._pull_active:
             return
-        upgrade_bank_to_v2(bank_data)
+        try:
+            manifest = json.loads(json_str)
+        except Exception as e:
+            self._pull_active = False
+            self._pull_timer.stop()
+            self.statusBar().showMessage(f"Manifest parse error: {e}")
+            return
+        self._pull_bank_name = (manifest.get("name") or "").strip()
+        self._pull_remaining = [str(s) for s in (manifest.get("slots") or [])]
+        self._pull_total     = len(self._pull_remaining)
+        self._pull_slots     = {}
+        if not self._pull_remaining:
+            self._finish_pull()          # empty bank — nothing to fetch
+            return
+        self._request_next_slot()
+
+    def _request_next_slot(self):
+        if not self._pull_remaining:
+            self._finish_pull()
+            return
+        key    = self._pull_remaining[0]
+        client = self._get_client()
+        if not client:
+            self._pull_active = False
+            self._pull_timer.stop()
+            return
+        try:
+            client.send_message("/tb3/patchgrid/request_slot", key)
+            done = self._pull_total - len(self._pull_remaining) + 1
+            self.statusBar().showMessage(f"Fetching slot {key} ({done}/{self._pull_total})…")
+            self._pull_timer.start(self._PULL_TIMEOUT_MS)
+        except Exception as e:
+            self._pull_active = False
+            self._pull_timer.stop()
+            self.statusBar().showMessage(f"Send error: {e}")
+
+    def _on_slot(self, json_str: str):
+        if not self._pull_active:
+            return
+        try:
+            item = json.loads(json_str)
+        except Exception:
+            item = None
+        if item is None:
+            # Couldn't parse the response for the slot we just asked for; drop it
+            # so we don't re-request the same key forever.
+            if self._pull_remaining:
+                self._pull_remaining.pop(0)
+        else:
+            key  = str(item.get("slot"))
+            data = item.get("data")
+            if data is not None:
+                self._pull_slots[key] = data
+            if key in self._pull_remaining:
+                self._pull_remaining.remove(key)
+        self._request_next_slot()
+
+    def _pull_timeout(self):
+        if not self._pull_active:
+            return
+        self._pull_active = False
+        self.statusBar().showMessage(
+            "Bank pull timed out — is TouchOSC running with the layout loaded?"
+        )
+
+    def _finish_pull(self):
+        self._pull_active = False
+        self._pull_timer.stop()
+        slots = self._pull_slots
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default = self._pull_bank_name or f"bank_{ts}"
         name, ok = QInputDialog.getText(
-            self, "Save Bank", "Bank name:", text=f"bank_{ts}"
+            self, "Save Bank", "Bank name:", text=default
         )
         if not (ok and name.strip()):
+            self.statusBar().showMessage("Bank pull cancelled.")
             return
-        bank_data["name"]      = name.strip()
-        bank_data["createdAt"] = datetime.now().isoformat()
+        bank_data = {
+            "version":   2,
+            "name":      name.strip(),
+            "createdAt": datetime.now().isoformat(),
+            "slots":     slots,
+        }
         path = self._banks_dir() / f"{name.strip()}.tb3bank.json"
         with open(path, "w") as f:
             json.dump(bank_data, f, indent=2)
@@ -495,7 +606,7 @@ class MainWindow(QMainWindow):
             if self.bank_list.item(i).data(Qt.UserRole) == str(path):
                 self.bank_list.setCurrentRow(i)
                 break
-        self.statusBar().showMessage(f"Saved bank: {path.name}")
+        self.statusBar().showMessage(f"Saved bank: {path.name} ({len(slots)} presets)")
 
     def _push_bank(self):
         path = self._current_bank_path()
@@ -506,9 +617,23 @@ class MainWindow(QMainWindow):
         client = self._get_client()
         if not client:
             return
+        name  = self._bank_name_from_path(path)
+        slots = bank_data.get("slots") or {}
+        # Chunked push: begin (clears the grid) → one message per filled slot →
+        # end (commits). Mirrors the chunked pull so large banks fit UDP limits.
         try:
-            client.send_message("/tb3/patchgrid/restore", json.dumps(bank_data))
-            self.statusBar().showMessage(f"Pushed bank '{self._bank_name_from_path(path)}' to TouchOSC.")
+            client.send_message("/tb3/patchgrid/restore_begin",
+                                json.dumps({"version": 2, "name": name}))
+            sent = 0
+            for key, data in slots.items():
+                if data is None:
+                    continue
+                client.send_message("/tb3/patchgrid/restore_slot",
+                                    json.dumps({"slot": str(key), "data": data}))
+                sent += 1
+                time.sleep(0.01)  # pace sends so TouchOSC's receive queue keeps up
+            client.send_message("/tb3/patchgrid/restore_end", "")
+            self.statusBar().showMessage(f"Pushed bank '{name}' ({sent} presets) to TouchOSC.")
         except Exception as e:
             self.statusBar().showMessage(f"Send error: {e}")
 
@@ -1037,7 +1162,8 @@ class MainWindow(QMainWindow):
             self.settings["listen_port"]
         )
         self._listener.backup_received.connect(self._handle_backup_received)
-        self._listener.bank_backup_received.connect(self._handle_bank_backup_received)
+        self._listener.manifest_received.connect(self._on_manifest)
+        self._listener.slot_received.connect(self._on_slot)
         self._listener.status_update.connect(self.statusBar().showMessage)
         self._listener.listening.connect(self._on_listener_state)
         self._listener.start()

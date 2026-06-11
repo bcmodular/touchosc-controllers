@@ -39,18 +39,17 @@ python3 tools/toscbuild.py dev tb-3            # watch mode (macOS)
 3. `enc_map.lua`
 4. `root.lua`
 
-Variables declared `local` at the top level in earlier files are visible to later files because they share one chunk scope. **This order is load-bearing.** Key cross-file dependencies:
+Because all four files share one chunk scope, **each of the first three includes exposes exactly one top-level `local` namespace table**, and `root.lua` references only those three. This keeps the cross-file surface to 3 names and stops `local`-redeclaration from silently shadowing a shared symbol. **This order is load-bearing** — each table must be constructed before `root.lua` runs.
 
-| Variable / function | Declared in | Used in |
-|---------------------|-------------|---------|
-| `BCR1_MAP`, `BCR1_NRPN_MAP`, `ADDR_TO_BCR1_NRPN`, `efx1SlotIndex` etc. | `bcr_map.lua` | `root.lua` |
-| `distType`, `DIST_TYPE_NAMES`, `DIST_NUM_TYPES` | `patch_manager.lua` | `root.lua` |
-| `parseBlock`, `updateAssignDisplay` | `patch_manager.lua` | `root.lua` |
-| `PARAM_ID_MAP`, `SW_PARAM_ID_MAP` | `patch_manager.lua` | `root.lua` |
-| `ENC_SEND_MAP`, `SW_SEND_MAP`, `ADDR_TO_ENC`, `ADDR_TO_SW` | `enc_map.lua` | `root.lua` |
-| `EFX_SLOT_OFFSETS_SHARED`, `EFX_SLOT_OFFSETS_SPECIAL`, `EFX_BASE_PARAM` | `patch_manager.lua` | `root.lua` |
+> **Namespace-table exception.** Module-style namespace tables are otherwise banned in this codebase (`sp404-mk2/lua/README.md`, "No Namespace Tables") because TouchOSC isolates each node's script. The root chunk is the *one* place that rationale fails — four files genuinely share scope — and the flat-locals approach was pushing the chunk toward Lua 5.1's 200-local limit. These three tables are the sanctioned exception; do **not** propagate the pattern to other (single-node) scripts.
 
-Do not re-declare these in `root.lua` — that creates a new shadowing local and silently breaks the linkage.
+| Namespace table | Declared in | Key fields (used by `root.lua`) |
+|-----------------|-------------|----------------------------------|
+| `BCR` | `bcr_map.lua` | `MAP`, `NRPN_MAP`, `ADDR_TO_CC`, `ADDR_TO_NRPN`, `efx1SlotIndex`/`efx2SlotIndex`/`efx1BtnIndex`/`efx2BtnIndex` |
+| `PatchManager` | `patch_manager.lua` | `parseBlock`, `updateAssignDisplay`, `distType`, `DIST_TYPE_NAMES`, `DIST_NUM_TYPES`, `PARAM_ID_MAP`, `SW_PARAM_ID_MAP`, `PARAM_ID_TO_PATH`, `assignedParamIds`, `efxCurType`, `EFX_SLOT_OFFSETS_SHARED`, `EFX_SLOT_OFFSETS_SPECIAL`, `EFX_BASE_PARAM`, `U16_OFFSETS` |
+| `EncMap` | `enc_map.lua` | `ENC_SEND_MAP`, `SW_SEND_MAP`, `ADDR_TO_ENC`, `ADDR_TO_SW` |
+
+`distType`, `efxCurType`, and `assignedParamIds` are read **and mutated** from `root.lua`; as table fields they stay shared by reference (a scalar `local` could not). Do not re-declare any of these three tables in `root.lua` — a shadowing `local` silently breaks the linkage. Purely file-local helpers (`REGISTRY`, `applyValue`, `parseSpecial`, the `*_OFF_NAMES` lookups, etc.) are intentionally **not** on the namespace tables.
 
 ## Connection / channel constants
 
@@ -66,12 +65,12 @@ Do not re-declare these in `root.lua` — that creates a new shadowing local and
 
 ### NRPN on BCR1 (channel 1)
 
-The seven 16-bit params (3× tuning, VCF env depth / cutoff / resonance, accent) plus MORPH AMOUNT are controlled via **NRPN** (param MSB 0, LSB 1–8 — see `BCR1_NRPN_MAP` in `bcr_map.lua`). The four BCR1 fixed-row-3 encoders (pos 1,2,3,5) are programmed as NRPN absolute/14 with Min/Max = the raw SysEx range (0–151 tuning, 0–255 others), so the 14-bit data value IS the raw value. NRPN 8 (morph, group-1 pos 8 rotate, 0–1000 → `morphAmount` 0.0–1.0) is address-less and special-cased in the NRPN dispatch and `syncBCR1`; its push stays plain CC 40. Consequences:
+The seven 16-bit params (3× tuning, VCF env depth / cutoff / resonance, accent) plus MORPH AMOUNT are controlled via **NRPN** (param MSB 0, LSB 1–8 — see `BCR.NRPN_MAP` in `bcr_map.lua`). The four BCR1 fixed-row-3 encoders (pos 1,2,3,5) are programmed as NRPN absolute/14 with Min/Max = the raw SysEx range (0–151 tuning, 0–255 others), so the 14-bit data value IS the raw value. NRPN 8 (morph, group-1 pos 8 rotate, 0–1000 → `morphAmount` 0.0–1.0) is address-less and special-cased in the NRPN dispatch and `syncBCR1`; its push stays plain CC 40. Consequences:
 
 - **CC 6/38/98/99 are reserved** on channel 1 (NRPN status bytes) — never map them as plain CCs, and never send them as plain CCs to `BCR_CONNECTION` (the BCR's receive parser would misread them). VCO RING LEVEL/SW moved to CC 17/49 because of this.
 - CC 96 (DIST TONE) and CC 100 (GLOBAL TUNING) overlap MIDI-spec Data Increment / RPN LSB — intentional; root's parser only consumes 6/38/98/99.
 - Receive path: `nrpnState` machine at the top of `handleBCR1`; dispatches on CC 38, updates `rawSysexBlocks` nibbles and the on-screen fader.
-- Feedback path: `sendNRPNToBCR()` (4-message packet) used by `syncBCR1()` and the `enc_moved` mirror via `ADDR_TO_BCR1_NRPN`.
+- Feedback path: `sendNRPNToBCR()` (4-message packet) used by `syncBCR1()` and the `enc_moved` mirror via `BCR.ADDR_TO_NRPN`.
 - The BCR preset and the `.tosc` build are coupled: **rebuild/reload the layout before loading the new BCR preset** (old Lua + NRPN preset slams tuning params via the old CC 98/99 map entries).
 
 ## SysEx protocol
@@ -98,7 +97,7 @@ Signed param: raw 64 = 0; display range −64…+63
 | Semitone range | `semitoneRange=true` | 0–23 | display ±1…±24 st |
 | Global tuning | `sp="global_tuning"` | CC 104 plain MIDI | lookup table |
 
-`sendFromEntry` / `sendFromEntryFloat` in root.lua implement all these paths; `parseBlock` in patch_manager.lua is the mirror receive path.
+`sendFromEntry` / `sendFromEntryFloat` in root.lua implement all these paths; `PatchManager.parseBlock` in patch_manager.lua is the mirror receive path.
 
 ## Dual data model — critical design constraint
 
@@ -120,9 +119,9 @@ These two uses are mutually exclusive in time (the `"prog"` guard is cleared bef
 
 | File | Injected into | Purpose |
 |------|--------------|---------|
-| `bcr_map.lua` | root (include #1) | `BCR1_MAP` CC→SysEx table; `BCR1_NRPN_MAP` NRPN→SysEx table; EFX slot/button index helpers |
-| `patch_manager.lua` | root (include #2) | `parseBlock`; `PARAM_ID_MAP`; `SW_PARAM_ID_MAP`; `EFX_SLOT_OFFSETS_*`; dist type state |
-| `enc_map.lua` | root (include #3) | `ENC_SEND_MAP` / `SW_SEND_MAP`; reverse `ADDR_TO_ENC` / `ADDR_TO_SW` lookup tables |
+| `bcr_map.lua` | root (include #1) | `BCR` namespace: `MAP` (CC→SysEx), `NRPN_MAP` (NRPN→SysEx), EFX slot/button index helpers |
+| `patch_manager.lua` | root (include #2) | `PatchManager` namespace: `parseBlock`; `PARAM_ID_MAP`; `SW_PARAM_ID_MAP`; `EFX_SLOT_OFFSETS_*`; dist type state |
+| `enc_map.lua` | root (include #3) | `EncMap` namespace: `ENC_SEND_MAP` / `SW_SEND_MAP`; reverse `ADDR_TO_ENC` / `ADDR_TO_SW` |
 | `root.lua` | root node | MIDI routing; SysEx helpers; BCR handling; patch grid; assign mode |
 | `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay; sends `enc_touched` |
 | `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_dump", "")` |
@@ -149,10 +148,10 @@ All cross-element IPC uses `node:notify(key, value)`. The table below covers eve
 
 | Key | Payload format | Sender | Action |
 |-----|---------------|--------|--------|
-| `enc_moved` | `"section,enc,x"` — section group name, encoder group name, float 0–1 as string | `control_fader.lua` via parent | Lookup `ENC_SEND_MAP`; send SysEx; update label; mirror to BCR1 |
-| `sw_toggled` | `"section,enc,v"` — v = `"0"` or `"1"` | `sw_button.lua`, `porta_radio_btn.lua` | Lookup `SW_SEND_MAP`; send SysEx; mirror to BCR1 |
+| `enc_moved` | `"section,enc,x"` — section group name, encoder group name, float 0–1 as string | `control_fader.lua` via parent | Lookup `EncMap.ENC_SEND_MAP`; send SysEx; update label; mirror to BCR1 |
+| `sw_toggled` | `"section,enc,v"` — v = `"0"` or `"1"` | `sw_button.lua`, `porta_radio_btn.lua` | Lookup `EncMap.SW_SEND_MAP`; send SysEx; mirror to BCR1 |
 | `sw_touched` | `"section,enc"` | `sw_button.lua`, `dist_toggle_button.lua` | Assign-mode intercept: assigns parameter, sends `assign_revert` back |
-| `enc_touched` | `"section,enc"` | `pointer.lua` on finger-down | Assign-mode intercept: resolves param ID from `PARAM_ID_MAP` or `EFX_SLOT_OFFSETS_*` |
+| `enc_touched` | `"section,enc"` | `pointer.lua` on finger-down | Assign-mode intercept: resolves param ID from `PatchManager.PARAM_ID_MAP` or `PatchManager.EFX_SLOT_OFFSETS_*` |
 | `porta_mode_set` | `"0"` (LEGATO) or `"1"` (ALWAYS) | `porta_radio_btn.lua` | Send SysEx; broadcast `porta_mode_updated` to both radio buttons |
 | `patch_mode_set` | `"delete"` \| `"grab"` \| `"morph"` | mode buttons | Toggle `patchGridMode`; broadcast `patch_mode_changed` |
 | `patch_slot_pressed` | `"N"` (slot 1–16) | `preset_grid_slot_btn.lua` | Store / recall / delete / grab / morph depending on `patchGridMode` |
@@ -163,8 +162,8 @@ All cross-element IPC uses `node:notify(key, value)`. The table below covers eve
 | `efx_type_select` | `"N,M"` — EFX num, button index (1-based) | `efx_chooser_button.lua` | Forward `type_set` to efx section |
 | `efx_type_step` | `"N,D"` — EFX num, direction (+1/-1) | on-screen PREV/NEXT buttons | Forward `type_step` to efx section |
 | `request_dump` | `""` | `receive_button.lua` | Call `requestPatchDump()` |
-| `dist_type_up` / `dist_type_dn` | `""` | *(dead handlers — `dist_type_button.lua` deleted)* | Increments/decrements `distType`; calls undefined `sendDistType()` |
-| `efx_type_changed` | `"N,T"` — EFX num, type index | `efx_section.lua` | Update `efxCurType[N]` for assign-mode EFX slot resolution |
+| `dist_type_up` / `dist_type_dn` | `""` | *(dead handlers — `dist_type_button.lua` deleted)* | Increments/decrements `PatchManager.distType`; calls undefined `sendDistType()` |
+| `efx_type_changed` | `"N,T"` — EFX num, type index | `efx_section.lua` | Update `PatchManager.efxCurType[N]` for assign-mode EFX slot resolution |
 | `efx_sw_touched` | `"efxNum,swOff"` | `efx_section.lua` B1 press handler | Assign-mode: assigns EFX SW parameter to pending slot |
 
 ### Efx section receives (`efx1_section` / `efx2_section` `onReceiveNotify`)
@@ -254,7 +253,7 @@ local morphing          = false -- true while applyMorph batch-sends; suppresses
 
 ### `receivingPatch` guard
 
-Set around `parseBlock()` and the EFX section `patch_data` notify to prevent re-entrant SysEx sends back to the TB-3. `enc_moved`, `sw_toggled`, and `slot_moved` handlers all check this flag and skip their SysEx send (but still update labels / BCR LED rings). Cleared synchronously after all processing. `receivingPatchTimer` provides a frame-count backstop (cleared in `update()`) in case of mid-function errors.
+Set around `PatchManager.parseBlock()` and the EFX section `patch_data` notify to prevent re-entrant SysEx sends back to the TB-3. `enc_moved`, `sw_toggled`, and `slot_moved` handlers all check this flag and skip their SysEx send (but still update labels / BCR LED rings). Cleared synchronously after all processing. `receivingPatchTimer` provides a frame-count backstop (cleared in `update()`) in case of mid-function errors.
 
 ## OSC interface (preset manager ↔ TouchOSC)
 
@@ -264,9 +263,15 @@ Set around `parseBlock()` and the EFX section `patch_data` notify to prevent re-
 | `/tb3/request_patch_export` | → root | Root responds with current patch on `/tb3/backup` |
 | `/tb3/backup` | root → | JSON snapshot of current patch (11 hex blocks) |
 | `/tb3/restore` | → root | Hex CSV SysEx block; root forwards to TB-3 and updates UI |
-| `/tb3/patchgrid/request_backup` | → root | Root responds with bank JSON on `/tb3/patchgrid/backup` |
-| `/tb3/patchgrid/backup` | root → | JSON bank: `{"version":2,"slots":{"1":{...},...}}` |
-| `/tb3/patchgrid/restore` | → root | JSON bank; root restores all 16 slots |
+| `/tb3/patchgrid/request_manifest` | → root | Root responds with bank manifest on `/tb3/patchgrid/manifest` |
+| `/tb3/patchgrid/manifest` | root → | `{"version":2,"name":<bank>,"slots":["1","2",…]}` — filled slot keys only |
+| `/tb3/patchgrid/request_slot` | → root | arg = slot key string; root responds with `/tb3/patchgrid/slot` |
+| `/tb3/patchgrid/slot` | root → | `{"slot":"N","data":{"blocks":[…],"name":"…"}}` — one slot |
+| `/tb3/patchgrid/restore_begin` | → root | arg = `{"version":2,"name":<bank>}`; resets the push staging buffer |
+| `/tb3/patchgrid/restore_slot` | → root | arg = `{"slot":"N","data":{…}}`; stages one slot |
+| `/tb3/patchgrid/restore_end` | → root | Commits the staged bank to the grid (replaces all 16 slots) |
+
+**Why chunked:** a full 16-slot bank is ~15 KB, but macOS caps a single UDP datagram at `net.inet.udp.maxdgram` (~9 KB). Bank pull/push therefore transfer one slot per message (manifest-driven pull, begin/slot/end push) so no datagram approaches the limit. The Python side also raises `socketserver.UDPServer.max_packet_size` to 65535 defensively.
 
 ## Tools index
 
@@ -286,5 +291,5 @@ Set around `parseBlock()` and the EFX section `patch_data` notify to prevent re-
 
 - **No shared library mechanism** in TouchOSC. `tb3Checksum`, `sendParam`, and connection constants are duplicated between root chunk and `efx_section.lua`. Keep them byte-identical.
 - **200-local limit** (Lua 5.1 per-chunk). The concatenated root chunk (~2,500 lines) is approaching this. Avoid adding new top-level locals without removing others.
-- **`root:findByName(name, true)`** does a global depth-first search. The `saw_enc` name exists in both `ring_mod_group` and `vco_group` — the `ENC_SEND_MAP` two-level key (`"section,enc"`) was added specifically to avoid this collision. Prefer `group.children[name]` for section-scoped lookups.
+- **`root:findByName(name, true)`** does a global depth-first search. The `saw_enc` name exists in both `ring_mod_group` and `vco_group` — the `EncMap.ENC_SEND_MAP` two-level key (`"section,enc"`) was added specifically to avoid this collision. Prefer `group.children[name]` for section-scoped lookups.
 - **`.claude/settings.local.json`** contains machine-specific absolute paths — leave it in place, it is local config and not committed.

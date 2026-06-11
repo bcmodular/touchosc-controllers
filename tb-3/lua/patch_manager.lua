@@ -4,17 +4,34 @@
 --   parseBlock(addr, data)      — update faders/labels from one SysEx block
 --   updateAssignDisplay()       — refresh the assign_status_label
 --
--- NOTE ON SCOPING: variables declared as local at the top level here are visible
--- to root.lua (concatenated after) because all includes share one Lua chunk.
--- Do NOT re-declare them in root.lua.
+-- NOTE ON SCOPING: this include exposes a single top-level local table,
+-- PatchManager, to root.lua (concatenated after — all includes share one Lua
+-- chunk). root.lua references PatchManager.* and must NOT re-declare it.
+-- Purely-internal helpers (REGISTRY, applyValue, parseSpecial, the *_OFF_NAMES
+-- lookups, etc.) stay file-local and are not part of the namespace.
 
 -- ---------------------------------------------------------------------------
--- Distortion type state — shared with root.lua
+-- PatchManager namespace table. Fields used cross-file by root.lua:
+--   distType, DIST_TYPE_NAMES, DIST_NUM_TYPES   distortion type state
+--   parseBlock(addr, data)                      update faders/labels from a block
+--   updateAssignDisplay()                       refresh the assign status labels
+--   PARAM_ID_MAP / SW_PARAM_ID_MAP              "section,enc" → {id, name}
+--   PARAM_ID_TO_PATH                            reverse: id → "section,enc"
+--   assignedParamIds                            per-slot assigned param IDs
+--   efxCurType                                  current EFX type per section
+--   EFX_SLOT_OFFSETS_SHARED / _SPECIAL          slot → block byte offset
+--   EFX_BASE_PARAM                              EFX param ID base per section
+--   U16_OFFSETS                                 nibble-pair offsets for morph
+-- ---------------------------------------------------------------------------
+local PatchManager = {}
+
+-- ---------------------------------------------------------------------------
+-- Distortion type state — shared with root.lua via PatchManager.distType
 -- ---------------------------------------------------------------------------
 
-local distType = 0
+PatchManager.distType = 0
 
-local DIST_TYPE_NAMES = {
+PatchManager.DIST_TYPE_NAMES = {
   "Mid Boost", "Clean Boost", "Treble Bst", "Blues OD",  "Crunch",
   "Natural OD","OD-1",        "T-Scream",   "Turbo OD",  "Warm OD",
   "Distortion","Mild DS",     "Mid DS",     "RAT",        "GUV DS",
@@ -22,7 +39,7 @@ local DIST_TYPE_NAMES = {
   "Metal Zone","Lead",        "'60s FUZZ",  "Oct FUZZ",   "MUFF FUZZ",
 }
 
-local DIST_NUM_TYPES = 25
+PatchManager.DIST_NUM_TYPES = 25
 
 -- ---------------------------------------------------------------------------
 -- PARAM_ID_MAP — maps "section,enc" paths to hardware parameter IDs.
@@ -31,7 +48,7 @@ local DIST_NUM_TYPES = 25
 -- Value = high_nibble * 16 + low_nibble (from the HH LL columns in the spec).
 -- ---------------------------------------------------------------------------
 
-local PARAM_ID_MAP = {
+PatchManager.PARAM_ID_MAP = {
   -- ---- LFO ----
   ["lfo_group,lfo_rate_enc"]      = {id=  0, name="LFO RATE"},
   ["lfo_group,lfo_delay_enc"]     = {id=  1, name="LFO DELAY"},
@@ -103,7 +120,7 @@ local PARAM_ID_MAP = {
 -- SW_PARAM_ID_MAP — switch/button parameter IDs, keyed by "section,enc" path.
 -- Same path format as PARAM_ID_MAP but for sw_button and toggle-button controls.
 -- Populated by root.lua's "sw_touched" handler.
-local SW_PARAM_ID_MAP = {
+PatchManager.SW_PARAM_ID_MAP = {
   -- ---- VCO source switches ----
   ["vco_group,saw_enc"]   = {id= 48, name="VCO SAW SW"},
   ["vco_group,sqr_enc"]   = {id= 49, name="VCO SQR SW"},
@@ -122,11 +139,12 @@ local SW_PARAM_ID_MAP = {
 }
 
 -- Reverse lookup: ID → display name (built from PARAM_ID_MAP + SW_PARAM_ID_MAP + EFX tables).
+-- File-local: only consumed by updateAssignDisplay() below.
 local PARAM_ID_NAMES = {}
-for _, info in pairs(PARAM_ID_MAP) do
+for _, info in pairs(PatchManager.PARAM_ID_MAP) do
   PARAM_ID_NAMES[info.id] = info.name
 end
-for _, info in pairs(SW_PARAM_ID_MAP) do
+for _, info in pairs(PatchManager.SW_PARAM_ID_MAP) do
   PARAM_ID_NAMES[info.id] = info.name
 end
 
@@ -189,7 +207,7 @@ local EFX2_PARAM_OFF_NAMES = {
 
 -- EFX1 base param ID = 76 (0x04 0C); EFX2 base = 171 (0x0A 0B).
 -- Param ID = base + block-relative offset.
-local EFX_BASE_PARAM = {[1]=76, [2]=171}
+PatchManager.EFX_BASE_PARAM = {[1]=76, [2]=171}
 
 -- Populate PARAM_ID_NAMES for all EFX params.
 for off, name in pairs(EFX_PARAM_OFF_NAMES) do
@@ -206,16 +224,16 @@ end
 -- ---------------------------------------------------------------------------
 -- Reverse lookup: param ID → "section,enc" path (regular encoders only).
 -- Used by root.lua to find the on-screen fader when an assign CC arrives.
-local PARAM_ID_TO_PATH = {}
-for path, info in pairs(PARAM_ID_MAP) do
-  PARAM_ID_TO_PATH[info.id] = path
+PatchManager.PARAM_ID_TO_PATH = {}
+for path, info in pairs(PatchManager.PARAM_ID_MAP) do
+  PatchManager.PARAM_ID_TO_PATH[info.id] = path
 end
 
 -- EFX current type tracking — updated by efx_section via "efx_type_changed".
--- Must be a local table so root.lua can mutate it by reference.
+-- A table field so root.lua can mutate it by reference.
 -- ---------------------------------------------------------------------------
 
-local efxCurType = {[1]=0, [2]=0}
+PatchManager.efxCurType = {[1]=0, [2]=0}
 
 -- ---------------------------------------------------------------------------
 -- EFX slot → block-relative byte offset, by [typeIdx][slotIdx].
@@ -224,7 +242,7 @@ local efxCurType = {[1]=0, [2]=0}
 -- Types 0–8 are shared between EFX1 and EFX2.
 -- ---------------------------------------------------------------------------
 
-local EFX_SLOT_OFFSETS_SHARED = {
+PatchManager.EFX_SLOT_OFFSETS_SHARED = {
   [0] = {},   -- BYPASS
   [1] = {0x04, 0x05, 0x02, 0x03, 0x06, 0x07, 0x08},                            -- COMP
   [2] = {0x0A, 0x0B, 0x0F, 0x10, 0x0D, 0x0E},                                  -- RING MOD
@@ -236,7 +254,7 @@ local EFX_SLOT_OFFSETS_SHARED = {
   [8] = {0x42, 0x40, nil,  nil,  0x41, 0x43, 0x44, 0x45, 0x46},              -- DELAY
 }
 -- Type 9 and 10 differ between EFX1 and EFX2.
-local EFX_SLOT_OFFSETS_SPECIAL = {
+PatchManager.EFX_SLOT_OFFSETS_SPECIAL = {
   [1] = {
     [9]  = {0x49, 0x4A, 0x4C, 0x4B, 0x4D, 0x4E, 0x50, 0x51},                 -- PITCH SHIFT
     [10] = {0x54, 0x55, 0x5C, 0x5D, 0x56, 0x57, 0x58, nil, 0x59, 0x5A, 0x5B, 0x5E}, -- EQ
@@ -252,7 +270,7 @@ local EFX_SLOT_OFFSETS_SPECIAL = {
 -- updated by root.lua when the user makes a manual assignment.
 -- ---------------------------------------------------------------------------
 
-local assignedParamIds = {
+PatchManager.assignedParamIds = {
   xy_mod      = nil,
   effect_knob = nil,
   pad_x       = nil,
@@ -261,6 +279,7 @@ local assignedParamIds = {
 
 -- Per-slot label node names: "assign_<key>_status"
 -- Each label sits beneath its corresponding slot button in the assign_group.
+-- File-local: only consumed by updateAssignDisplay() below.
 local ASSIGN_STATUS_LABELS = {
   xy_mod      = "assign_xy_mod_status",
   effect_knob = "assign_effect_knob_status",
@@ -271,11 +290,11 @@ local ASSIGN_STATUS_LABELS = {
 -- Refresh the four individual assign status labels with the current
 -- slot→param-name mapping.  Called from parseSpecial (after dump) and
 -- from root.lua's refreshAssignLabel (after a manual assign or mode change).
-function updateAssignDisplay()
+function PatchManager.updateAssignDisplay()
   for key, lblName in pairs(ASSIGN_STATUS_LABELS) do
     local lbl = root:findByName(lblName, true)
     if lbl then
-      local pid  = assignedParamIds[key]
+      local pid  = PatchManager.assignedParamIds[key]
       lbl.values.text = pid and (PARAM_ID_NAMES[pid] or ("ID " .. pid)) or "\226\128\148"
     end
   end
@@ -425,7 +444,7 @@ local REGISTRY = {
 -- U16_OFFSETS — set of 0-based data byte offsets that are the MSB of a u16
 -- nibble pair, keyed by block address string.  Used by applyMorph in root.lua
 -- so nibble-packed params are interpolated as a unit (not byte-by-byte).
-local U16_OFFSETS = {}
+PatchManager.U16_OFFSETS = {}
 do
   for addrKey, blockDef in pairs(REGISTRY) do
     local offs = {}
@@ -434,7 +453,7 @@ do
         offs[field.off] = true
       end
     end
-    if next(offs) then U16_OFFSETS[addrKey] = offs end
+    if next(offs) then PatchManager.U16_OFFSETS[addrKey] = offs end
   end
 end
 
@@ -528,14 +547,15 @@ end
 -- Special-case handler (DIST TYPE, PORTA MODE etc.)
 local function parseSpecial(sp, raw)
   if sp == "dist_type" then
-    distType = raw
-    local name = DIST_TYPE_NAMES[raw + 1] or tostring(raw)
+    PatchManager.distType = raw
+    local name = PatchManager.DIST_TYPE_NAMES[raw + 1] or tostring(raw)
     local encGrp = root:findByName("dist_type_enc", true)
     if encGrp then
       local fader = encGrp.children["control_fader"]
       if fader then
         -- Setting fader.values.x fires enc_moved, but its typeIdx ~= distType guard prevents a redundant SysEx send.
-        fader.values.x = DIST_NUM_TYPES > 1 and (distType / (DIST_NUM_TYPES - 1)) or 0
+        local n = PatchManager.DIST_NUM_TYPES
+        fader.values.x = n > 1 and (PatchManager.distType / (n - 1)) or 0
       end
       local lbl = encGrp.children["value_label"]
       if lbl then lbl.values.text = name end
@@ -554,23 +574,23 @@ local function parseSpecial(sp, raw)
   end
 
   if sp == "assign_xy_mod" then
-    assignedParamIds.xy_mod = raw
-    updateAssignDisplay()
+    PatchManager.assignedParamIds.xy_mod = raw
+    PatchManager.updateAssignDisplay()
     return
   end
   if sp == "assign_effect_knob" then
-    assignedParamIds.effect_knob = raw
-    updateAssignDisplay()
+    PatchManager.assignedParamIds.effect_knob = raw
+    PatchManager.updateAssignDisplay()
     return
   end
   if sp == "assign_pad_x" then
-    assignedParamIds.pad_x = raw
-    updateAssignDisplay()
+    PatchManager.assignedParamIds.pad_x = raw
+    PatchManager.updateAssignDisplay()
     return
   end
   if sp == "assign_pad_y" then
-    assignedParamIds.pad_y = raw
-    updateAssignDisplay()
+    PatchManager.assignedParamIds.pad_y = raw
+    PatchManager.updateAssignDisplay()
     return
   end
 end
@@ -581,7 +601,7 @@ end
 -- data : {d1, d2, ...}     (payload bytes, excluding checksum and F7)
 -- ---------------------------------------------------------------------------
 
-function parseBlock(addr, data)
+function PatchManager.parseBlock(addr, data)
   local key = string.format("%02X%02X%02X%02X",
     addr[1], addr[2], addr[3], addr[4])
   local blockDef = REGISTRY[key]

@@ -14,10 +14,21 @@
 --   sp   : "global_tuning" — plain MIDI CC 104 (not SysEx)
 
 -- ---------------------------------------------------------------------------
--- ENC_SEND_MAP — control_fader nodes
+-- EncMap namespace table — the single top-level local this include exposes to
+-- the shared root chunk (see tb-3/CLAUDE.md "Root chunk — include order
+-- contract"). Fields:
+--   EncMap.ENC_SEND_MAP  control_fader send-side: "section,enc" → addr/encoding
+--   EncMap.SW_SEND_MAP   sw_button / toggle send-side: "section,enc" → addr
+--   EncMap.ADDR_TO_ENC   reverse: addr hex → {path, entry} (built below)
+--   EncMap.ADDR_TO_SW    reverse: addr hex → {path, entry} (built below)
+-- ---------------------------------------------------------------------------
+local EncMap = {}
+
+-- ---------------------------------------------------------------------------
+-- EncMap.ENC_SEND_MAP — control_fader nodes
 -- ---------------------------------------------------------------------------
 
-local ENC_SEND_MAP = {
+EncMap.ENC_SEND_MAP = {
 
   -- ---- LFO  10 00 00 00 ----
   ["lfo_group,lfo_rate_enc"]      = { addr={0x10,0x00,0x00,0x00}, bits=7 },
@@ -113,12 +124,12 @@ local ENC_SEND_MAP = {
 }
 
 -- ---------------------------------------------------------------------------
--- SW_SEND_MAP — sw_button and standalone toggle button nodes
+-- EncMap.SW_SEND_MAP — sw_button and standalone toggle button nodes
 -- ---------------------------------------------------------------------------
 -- Key: "section_group,enc_group_name" for sw_buttons inside encoder groups.
 --      "section_group,button_name"    for standalone toggle buttons.
 
-local SW_SEND_MAP = {
+EncMap.SW_SEND_MAP = {
 
   -- ---- VCO source switches ----
   ["vco_group,saw_enc"]   = { addr={0x10,0x00,0x08,0x08}, bits=7 },
@@ -148,20 +159,20 @@ local SW_SEND_MAP = {
 -- key format: string.format("%02X%02X%02X%02X", a1,a2,a3,a4)
 -- ---------------------------------------------------------------------------
 
-local ADDR_TO_ENC = {}
-for path, entry in pairs(ENC_SEND_MAP) do
+EncMap.ADDR_TO_ENC = {}
+for path, entry in pairs(EncMap.ENC_SEND_MAP) do
   if entry.addr then
     local k = string.format("%02X%02X%02X%02X",
       entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
-    ADDR_TO_ENC[k] = { path=path, entry=entry }
+    EncMap.ADDR_TO_ENC[k] = { path=path, entry=entry }
   end
 end
 
-local ADDR_TO_SW = {}
-for path, entry in pairs(SW_SEND_MAP) do
+EncMap.ADDR_TO_SW = {}
+for path, entry in pairs(EncMap.SW_SEND_MAP) do
   if entry.addr then
     local k = string.format("%02X%02X%02X%02X",
       entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
-    ADDR_TO_SW[k] = { path=path, entry=entry }
+    EncMap.ADDR_TO_SW[k] = { path=path, entry=entry }
   end
 end

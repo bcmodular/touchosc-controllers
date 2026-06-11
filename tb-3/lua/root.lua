@@ -13,8 +13,13 @@
 -- Routing is by CC number alone within each channel — no mode state needed.
 -- Both units use the same BC Manager preset template (different channel only).
 --
--- Included files (concatenated at build time):
---   bcr_map.lua — CC→SysEx lookup tables + EFX slot/button index helpers
+-- Included files (concatenated into ONE shared chunk at build time, in order):
+--   bcr_map.lua       → BCR          (CC/NRPN→SysEx tables, EFX slot/btn helpers)
+--   patch_manager.lua → PatchManager (parseBlock, param-ID maps, EFX offsets, …)
+--   enc_map.lua       → EncMap       (ENC_SEND_MAP/SW_SEND_MAP + reverse lookups)
+-- Each include exposes exactly one top-level local namespace table; root.lua
+-- references only BCR.*, PatchManager.*, EncMap.*.  Include order is load-bearing
+-- (see tb-3/CLAUDE.md "Root chunk — include order contract").
 
 -- ---------------------------------------------------------------------------
 -- Connection / channel constants
@@ -55,7 +60,7 @@ end
 -- currently assigned parameter name or "—".
 local function refreshAssignLabel()
   -- Update all labels to their current param-name values first.
-  updateAssignDisplay()
+  PatchManager.updateAssignDisplay()
   -- Override the active slot's label with the assign-mode prompt.
   if assignActiveSlot then
     local lbl = root:findByName("assign_" .. assignActiveSlot .. "_status", true)
@@ -86,6 +91,8 @@ local pendingStoreSlot  = nil   -- slot key awaiting auto-store after a triggere
 local morphBaseSnapshot = nil -- JSON string of patch at morph-target selection time
 local currentBankName   = ""  -- name of the most recently restored bank
 local currentPresetName = ""  -- name of the most recently recalled preset slot
+local bankRestoreStaging = nil -- accumulates slots during a chunked /patchgrid/restore_* push
+local bankRestoreName    = ""  -- bank name carried by /patchgrid/restore_begin
 local morphLastBlocks   = nil -- block hex strings last sent by applyMorph (for diff)
 local morphAmount     = 0.0  -- 0.0–1.0 float from fader
 local morphing        = false -- true while applyMorph is running; suppresses BCR sends
@@ -196,7 +203,7 @@ end
 
 -- Send a 14-bit NRPN packet to the BCR connection (channel 1) so the LED
 -- ring of an NRPN-assigned encoder tracks state. Param MSB is always 0
--- (see BCR1_NRPN_MAP in bcr_map.lua). The BCR ignores NRPN numbers with no
+-- (see BCR.NRPN_MAP in bcr_map.lua). The BCR ignores NRPN numbers with no
 -- assigned encoder, so mirroring entries 5–7 (no physical encoder) is
 -- harmless — and gives a future external NRPN controller feedback for free.
 -- NEVER send plain CC 6/38/98/99 on this channel: the BCR's own NRPN
@@ -256,14 +263,14 @@ end
 local function updateUIForAddr(addr, ccVal, srcEntry)
   local key = string.format("%02X%02X%02X%02X",
     addr[1], addr[2], addr[3], addr[4])
-  local hit = ADDR_TO_ENC[key]
+  local hit = EncMap.ADDR_TO_ENC[key]
   if not hit then return end
   local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
   if not encGrp then return end
   local x = ccVal / 127
   local fader = encGrp.children["control_fader"]
   -- Setting fader.values.x fires control_fader → enc_moved, which re-derives
-  -- the correct label from ENC_SEND_MAP (handles bipolar, signed, semitoneRange,
+  -- the correct label from EncMap.ENC_SEND_MAP (handles bipolar, signed, semitoneRange,
   -- custom max, etc.).  Do NOT set the label here — that would overwrite the
   -- enc_moved result with a flat 0–max value that ignores display encoding.
   if fader then fader.values.x = x end
@@ -274,7 +281,7 @@ end
 local function updateSwUIForAddr(addr, v)
   local key = string.format("%02X%02X%02X%02X",
     addr[1], addr[2], addr[3], addr[4])
-  local hit = ADDR_TO_SW[key]
+  local hit = EncMap.ADDR_TO_SW[key]
   if not hit then return end
   local node = root:findByName(hit.path:match(",(.+)$"), true)
   if not node then return end
@@ -297,33 +304,33 @@ local awaitingBlocks = 0   -- counts DT1 blocks expected after requestPatchDump
 local pushToggleState = {} -- BCR push-encoder toggle state; key = channel*1000+cc
 local syncTimer = 0        -- frame countdown; fires syncBCR1() as a fallback
 
--- Set around every parseBlock() call (patch dump / OSC patch / restore).
+-- Set around every PatchManager.parseBlock() call (patch dump / OSC patch / restore).
 -- applyValue() sets fader/switch values directly, which synchronously
 -- triggers control_fader/sw_button → enc_moved/sw_toggled → SysEx back to
 -- the TB-3. That round trip is pointless when we're just mirroring received
 -- data into the UI — and actively harmful for any parameter whose
--- ENC_SEND_MAP scaling differs from its REGISTRY scaling (e.g. BENDER RANGE:
+-- EncMap.ENC_SEND_MAP scaling differs from its REGISTRY scaling (e.g. BENDER RANGE:
 -- max 17 vs 23), which silently rewrites the hardware value on every sync.
 -- The enc_moved/sw_toggled handlers check this flag and skip the SysEx send
 -- (but still update labels / mirror to the BCR LED rings).
 --
--- Cleared synchronously right after parseBlock() returns (the normal path —
--- parseBlock and everything it triggers run synchronously, so this is exact
+-- Cleared synchronously right after PatchManager.parseBlock() returns (the normal path —
+-- PatchManager.parseBlock and everything it triggers run synchronously, so this is exact
 -- and never swallows real user input). receivingPatchTimer is a frame-based
--- backstop that force-clears the flag a few frames later in case parseBlock
+-- backstop that force-clears the flag a few frames later in case PatchManager.parseBlock
 -- errors partway through — TouchOSC's sandboxed Lua has no pcall, so we
 -- can't wrap-and-restore directly.
 local receivingPatch = false
 local receivingPatchTimer = 0
 
 local function syncBCR1()
-  for cc, entry in pairs(BCR1_MAP) do
+  for cc, entry in pairs(BCR.MAP) do
     if entry.addr then
       local key = string.format("%02X%02X%02X%02X",
         entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
       if entry.max == 1 then
         -- Toggle switch: read sw_button / standalone button state
-        local hit = ADDR_TO_SW[key]
+        local hit = EncMap.ADDR_TO_SW[key]
         if hit then
           local node = root:findByName(hit.path:match(",(.+)$"), true)
           if node then
@@ -343,7 +350,7 @@ local function syncBCR1()
         end
       else
         -- Regular encoder: read fader position
-        local hit = ADDR_TO_ENC[key]
+        local hit = EncMap.ADDR_TO_ENC[key]
         if hit then
           local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
           if encGrp then
@@ -359,11 +366,11 @@ local function syncBCR1()
   -- NRPN-controlled 16-bit params (tunings, VCF env depth, cutoff, etc.).
   -- Value = raw SysEx value (fader 0–1 × entry max), not a 0–127 CC value.
   -- Address-less entries (morph, NRPN 8) are synced manually below.
-  for nrpn, entry in pairs(BCR1_NRPN_MAP) do
+  for nrpn, entry in pairs(BCR.NRPN_MAP) do
     if entry.addr then
       local key = string.format("%02X%02X%02X%02X",
         entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
-      local hit = ADDR_TO_ENC[key]
+      local hit = EncMap.ADDR_TO_ENC[key]
       if hit then
         local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
         local fader  = encGrp and encGrp.children["control_fader"]
@@ -374,7 +381,7 @@ local function syncBCR1()
     end
   end
   -- Morph amount (NRPN 8) and morph on/off (CC 40) — no addr entries, handled manually
-  sendNRPNToBCR(8, math.floor(morphAmount * BCR1_NRPN_MAP[8].max + 0.5))
+  sendNRPNToBCR(8, math.floor(morphAmount * BCR.NRPN_MAP[8].max + 0.5))
   sendMIDI({0xB0, 40, patchGridMode == "morph" and 127 or 0}, BCR_CONNECTION)
 end
 
@@ -403,9 +410,10 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Distortion type state
--- NOTE: distType, DIST_TYPE_NAMES and DIST_NUM_TYPES are declared in
--- patch_manager.lua (included before this file) so that parseBlock can
--- share the same variables.  Do NOT re-declare them here.
+-- NOTE: distType, DIST_TYPE_NAMES and DIST_NUM_TYPES live on the PatchManager
+-- namespace table (patch_manager.lua, included before this file) so parseBlock
+-- and root share one source of truth.  Read/write via PatchManager.* — do NOT
+-- shadow them with a new local here.
 -- ---------------------------------------------------------------------------
 
 local DIST_TYPE_ADDR = {0x10, 0x00, 0x0E, 0x01}
@@ -448,7 +456,7 @@ local nrpnState = { pmsb = 0, plsb = 0, dmsb = 0 }
 
 local function handleBCR1(cc, ccVal)
   -- NRPN status bytes — must be consumed before every other branch so they
-  -- can never fall through to the BCR1_MAP lookup or special cases.
+  -- can never fall through to the BCR.MAP lookup or special cases.
   -- CC 6/38/98/99 are reserved on channel 1 (see bcr_map.lua header).
   if cc == 99 then nrpnState.pmsb = ccVal; return end
   if cc == 98 then nrpnState.plsb = ccVal; return end
@@ -456,7 +464,7 @@ local function handleBCR1(cc, ccVal)
   if cc == 38 then
     -- Data Entry LSB completes the 14-bit value → dispatch.
     local nrpn  = nrpnState.pmsb * 128 + nrpnState.plsb
-    local entry = BCR1_NRPN_MAP[nrpn]
+    local entry = BCR.NRPN_MAP[nrpn]
     if not entry then return end
     local v = nrpnState.dmsb * 128 + ccVal
     if v > entry.max then v = entry.max end
@@ -487,7 +495,7 @@ local function handleBCR1(cc, ccVal)
     -- fires control_fader → enc_moved, which re-derives the bipolar/center
     -- label and echoes the NRPN packet back to the BCR (harmless, no loop).
     local key = string.format("%02X%02X%02X%02X", a[1], a[2], a[3], a[4])
-    local hit = ADDR_TO_ENC[key]
+    local hit = EncMap.ADDR_TO_ENC[key]
     if hit then
       local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
       local fader  = encGrp and encGrp.children["control_fader"]
@@ -518,21 +526,21 @@ local function handleBCR1(cc, ccVal)
     return
   end
 
-  -- DIST TYPE (CC 88) — update distType state BEFORE setting fader so that the
-  -- enc_moved special case guard (typeIdx ~= distType) sees them equal and skips
+  -- DIST TYPE (CC 88) — update PatchManager.distType state BEFORE setting fader so that the
+  -- enc_moved special case guard (typeIdx ~= PatchManager.distType) sees them equal and skips
   -- the redundant SysEx send.
   if cc == 88 then
-    local typeIdx = math.min(math.floor(ccVal * (DIST_NUM_TYPES - 1) / 127 + 0.5), DIST_NUM_TYPES - 1)
-    distType = typeIdx
+    local typeIdx = math.min(math.floor(ccVal * (PatchManager.DIST_NUM_TYPES - 1) / 127 + 0.5), PatchManager.DIST_NUM_TYPES - 1)
+    PatchManager.distType = typeIdx
     local a = DIST_TYPE_ADDR
-    tb3Send7bit(a[1], a[2], a[3], a[4], distType)
+    tb3Send7bit(a[1], a[2], a[3], a[4], PatchManager.distType)
     local blk = rawSysexBlocks[string.format("%02X%02X%02X00", a[1], a[2], a[3])]
-    if blk then blk.data[a[4]+1] = distType end
+    if blk then blk.data[a[4]+1] = PatchManager.distType end
     local encGrp = root:findByName("dist_type_enc", true)
     if encGrp then
       local fader = encGrp.children["control_fader"]
       -- enc_moved fires but guard prevents double-send; it updates value_label.
-      if fader then fader.values.x = DIST_NUM_TYPES > 1 and (distType / (DIST_NUM_TYPES - 1)) or 0 end
+      if fader then fader.values.x = PatchManager.DIST_NUM_TYPES > 1 and (PatchManager.distType / (PatchManager.DIST_NUM_TYPES - 1)) or 0 end
     end
     return
   end
@@ -558,8 +566,8 @@ local function handleBCR1(cc, ccVal)
     return
   end
 
-  -- All other BCR1 CCs: flat lookup in BCR1_MAP
-  local entry = BCR1_MAP[cc]
+  -- All other BCR1 CCs: flat lookup in BCR.MAP
+  local entry = BCR.MAP[cc]
   if not entry then return end
 
   if entry.max == 1 then
@@ -599,7 +607,7 @@ local function handleBCR2(cc, ccVal)
   -- B1 (CC 65) = EFX1 SW — handled by efx_section receiving btn_press=1
   -- BCR Toggle On mode: CC=127 = latch-on press, CC=0 = latch-off press.
   -- Both are distinct physical presses. `,bcr` flag suppresses re-echo feedback.
-  local b1 = efx1BtnIndex(cc)
+  local b1 = BCR.efx1BtnIndex(cc)
   if b1 then
     local efx1 = root:findByName("efx1_section", true)
     if efx1 then efx1:notify("btn_press", b1 .. ",bcr") end
@@ -608,7 +616,7 @@ local function handleBCR2(cc, ccVal)
 
   -- EFX2 dedicated buttons (CC 69–72 = B1–B4, CC 77–80 = B5–B8)
   -- B1 (CC 69) = EFX2 SW
-  local b2 = efx2BtnIndex(cc)
+  local b2 = BCR.efx2BtnIndex(cc)
   if b2 then
     local efx2 = root:findByName("efx2_section", true)
     if efx2 then efx2:notify("btn_press", b2 .. ",bcr") end
@@ -616,7 +624,7 @@ local function handleBCR2(cc, ccVal)
   end
 
   -- EFX1 param slots (CC 81–84 → S01–S04, 89–92 → S05–S08, 97–100 → S09–S12)
-  local s1 = efx1SlotIndex(cc)
+  local s1 = BCR.efx1SlotIndex(cc)
   if s1 then
     local efx1 = root:findByName("efx1_section", true)
     if efx1 then efx1:notify("slot_cc", s1 .. "," .. ccVal) end
@@ -624,7 +632,7 @@ local function handleBCR2(cc, ccVal)
   end
 
   -- EFX2 param slots (CC 85–88 → S01–S04, 93–96 → S05–S08, 101–104 → S09–S12)
-  local s2 = efx2SlotIndex(cc)
+  local s2 = BCR.efx2SlotIndex(cc)
   if s2 then
     local efx2 = root:findByName("efx2_section", true)
     if efx2 then efx2:notify("slot_cc", s2 .. "," .. ccVal) end
@@ -665,8 +673,8 @@ local ASSIGN_CC_SLOTS = {
 local function updateUIForParamId(paramId, ccVal)
   local x = ccVal / 127
 
-  -- 1. Regular encoder (from PARAM_ID_MAP)
-  local path = PARAM_ID_TO_PATH[paramId]
+  -- 1. Regular encoder (from PatchManager.PARAM_ID_MAP)
+  local path = PatchManager.PARAM_ID_TO_PATH[paramId]
   if path then
     local sec, enc = path:match("^([^,]+),([^,]+)$")
     -- Section-scoped lookup avoids ring_mod/vco name collisions.
@@ -688,10 +696,10 @@ local function updateUIForParamId(paramId, ccVal)
     efxNum = 2; off = paramId - 171
   end
   if efxNum and off then
-    local typeIdx = efxCurType[efxNum] or 0
-    local offs = EFX_SLOT_OFFSETS_SHARED[typeIdx]
+    local typeIdx = PatchManager.efxCurType[efxNum] or 0
+    local offs = PatchManager.EFX_SLOT_OFFSETS_SHARED[typeIdx]
     if not offs then
-      local sp = EFX_SLOT_OFFSETS_SPECIAL[efxNum]
+      local sp = PatchManager.EFX_SLOT_OFFSETS_SPECIAL[efxNum]
       offs = sp and sp[typeIdx]
     end
     if offs then
@@ -733,13 +741,13 @@ local function handleTB3CC(cc, ccVal)
   -- Parameter assign controls: update whichever fader is currently assigned.
   local slotKey = ASSIGN_CC_SLOTS[cc]
   if slotKey then
-    local paramId = assignedParamIds[slotKey]
+    local paramId = PatchManager.assignedParamIds[slotKey]
     if paramId then updateUIForParamId(paramId, ccVal) end
   end
 end
 
 -- ---------------------------------------------------------------------------
--- TB-3 SysEx receive (patch dump) — calls parseBlock from patch_manager.lua
+-- TB-3 SysEx receive (patch dump) — calls PatchManager.parseBlock from patch_manager.lua
 -- ---------------------------------------------------------------------------
 
 local function handleTB3SysEx(message)
@@ -759,7 +767,7 @@ local function handleTB3SysEx(message)
     addr[1], addr[2], addr[3], addr[4])
   rawSysexBlocks[addrKey] = {addr=addr, data=data}
 
-  -- Decrement BEFORE parseBlock so a Lua error inside parseBlock cannot
+  -- Decrement BEFORE PatchManager.parseBlock so a Lua error inside PatchManager.parseBlock cannot
   -- prevent the countdown from completing and syncBCR1() from firing.
   local triggerSync = false
   if awaitingBlocks > 0 then
@@ -767,7 +775,7 @@ local function handleTB3SysEx(message)
     if awaitingBlocks == 0 then triggerSync = true end
   end
 
-  -- Guard against parseBlock() and efx_section patch_data processing echoing
+  -- Guard against PatchManager.parseBlock() and efx_section patch_data processing echoing
   -- values back to the TB-3 (see receivingPatch declaration above).
   -- The flag is kept active through the EFX section notify so that slot fader
   -- updates triggered by applyType() don't fire slot_moved → sendSlotFromFloat
@@ -775,7 +783,7 @@ local function handleTB3SysEx(message)
   -- receivingPatchTimer force-clears the flag in update() as a backstop.
   receivingPatch = true
   receivingPatchTimer = 5
-  parseBlock(addr, data)
+  PatchManager.parseBlock(addr, data)
 
   -- Forward EFX blocks to their section nodes as hex CSV strings.
   -- efx_section.lua stores the raw bytes and remaps slots when it receives them.
@@ -793,7 +801,7 @@ local function handleTB3SysEx(message)
     end
   end
 
-  -- Clear only after both parseBlock and EFX section processing are done.
+  -- Clear only after both PatchManager.parseBlock and EFX section processing are done.
   receivingPatch = false
   receivingPatchTimer = 0
 
@@ -1041,7 +1049,7 @@ applyMorph = function()
       local addr = {bB[8], bB[9], bB[10], bB[11]}
       local addrKey = string.format("%02X%02X%02X%02X",
         bB[8], bB[9], bB[10], bB[11])
-      local u16Offs = U16_OFFSETS[addrKey]
+      local u16Offs = PatchManager.U16_OFFSETS[addrKey]
       local newData = {}
       local skipNext = false
       for j = 12, #bB - 2 do
@@ -1181,20 +1189,20 @@ function onReceiveNotify(key, value)
       local x = tonumber(xs) or 0
 
       -- dist_type_enc special case: guard against redundant SysEx send when
-      -- parseBlock sets the fader (distType is already up to date then).
+      -- PatchManager.parseBlock sets the fader (PatchManager.distType is already up to date then).
       if sec == "dist_group" and enc == "dist_type_enc" then
-        local typeIdx = math.min(math.floor(x * (DIST_NUM_TYPES - 1) + 0.5), DIST_NUM_TYPES - 1)
-        if typeIdx ~= distType then
-          distType = typeIdx
+        local typeIdx = math.min(math.floor(x * (PatchManager.DIST_NUM_TYPES - 1) + 0.5), PatchManager.DIST_NUM_TYPES - 1)
+        if typeIdx ~= PatchManager.distType then
+          PatchManager.distType = typeIdx
           local a = DIST_TYPE_ADDR
-          tb3Send7bit(a[1], a[2], a[3], a[4], distType)
+          tb3Send7bit(a[1], a[2], a[3], a[4], PatchManager.distType)
           local blk = rawSysexBlocks[string.format("%02X%02X%02X00", a[1], a[2], a[3])]
-          if blk then blk.data[a[4] + 1] = distType end
+          if blk then blk.data[a[4] + 1] = PatchManager.distType end
         end
         local encGrp = root:findByName("dist_type_enc", true)
         if encGrp then
           local lbl = encGrp.children["value_label"]
-          if lbl then lbl.values.text = DIST_TYPE_NAMES[distType + 1] or tostring(distType) end
+          if lbl then lbl.values.text = PatchManager.DIST_TYPE_NAMES[PatchManager.distType + 1] or tostring(PatchManager.distType) end
         end
         return
       end
@@ -1215,7 +1223,7 @@ function onReceiveNotify(key, value)
         return
       end
 
-      local entry = ENC_SEND_MAP[sec .. "," .. enc]
+      local entry = EncMap.ENC_SEND_MAP[sec .. "," .. enc]
       if entry then
         -- Skip the SysEx echo while applying a received patch — see
         -- receivingPatch declaration. Label/BCR mirroring below still runs
@@ -1284,13 +1292,13 @@ function onReceiveNotify(key, value)
           elseif entry.addr then
             local addrKey = string.format("%02X%02X%02X%02X",
               entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
-            local bcr1cc = ADDR_TO_BCR1_CC[addrKey]
+            local bcr1cc = BCR.ADDR_TO_CC[addrKey]
             if bcr1cc then
               sendMIDI({0xB0, bcr1cc, math.floor(x * 127 + 0.5)}, BCR_CONNECTION)
             else
               -- 16-bit NRPN-controlled param: mirror as a full NRPN packet
               -- carrying the raw value (x × max), not a 0–127 CC value.
-              local nh = ADDR_TO_BCR1_NRPN[addrKey]
+              local nh = BCR.ADDR_TO_NRPN[addrKey]
               if nh then
                 sendNRPNToBCR(nh.nrpn, math.floor(x * nh.entry.max + 0.5))
               end
@@ -1298,7 +1306,7 @@ function onReceiveNotify(key, value)
           end
         end
       else
-        -- Not in ENC_SEND_MAP — route EFX slot faders to their section.
+        -- Not in EncMap.ENC_SEND_MAP — route EFX slot faders to their section.
         -- sec = "efx1_section" or "efx2_section"; enc = "efx1_s03" etc.
         -- Skip during patch receive: applyType() sets slot faders from rawData,
         -- and we must not echo them back via sendSlotFromFloat → sendParam.
@@ -1316,7 +1324,7 @@ function onReceiveNotify(key, value)
   if key == "sw_toggled" then
     local sec, enc, vs = value:match("^([^,]+),([^,]+),(%d+)$")
     if sec and enc and vs then
-      local entry = SW_SEND_MAP[sec .. "," .. enc]
+      local entry = EncMap.SW_SEND_MAP[sec .. "," .. enc]
       if entry then
         local a = entry.addr
         local v = tonumber(vs) or 0
@@ -1329,7 +1337,7 @@ function onReceiveNotify(key, value)
         end
         -- Mirror to BCR2000 #1 if this switch has a BCR mapping.
         local addrKey = string.format("%02X%02X%02X%02X", a[1],a[2],a[3],a[4])
-        local bcr1cc = ADDR_TO_BCR1_CC[addrKey]
+        local bcr1cc = BCR.ADDR_TO_CC[addrKey]
         if bcr1cc then
           sendMIDI({0xB0, bcr1cc, v * 127}, BCR_CONNECTION)
         end
@@ -1378,13 +1386,13 @@ function onReceiveNotify(key, value)
     local sec, enc = value:match("^([^,]+),([^,]+)$")
     if sec and enc then
       -- 1. Check regular encoder map.
-      local paramInfo = PARAM_ID_MAP[sec .. "," .. enc]
+      local paramInfo = PatchManager.PARAM_ID_MAP[sec .. "," .. enc]
       if paramInfo then
         local slotEntry = ASSIGN_SLOTS[assignActiveSlot]
         if slotEntry then
           local a = slotEntry.addr
           tb3Send16bit(a[1], a[2], a[3], a[4], paramInfo.id)
-          assignedParamIds[assignActiveSlot] = paramInfo.id
+          PatchManager.assignedParamIds[assignActiveSlot] = paramInfo.id
         end
         assignActiveSlot = nil
         broadcastAssignMode(nil)
@@ -1395,21 +1403,21 @@ function onReceiveNotify(key, value)
         if efxNum then
           local slotIdx = tonumber(enc:match("_s(%d+)$"))
           if slotIdx then
-            local typeIdx = efxCurType[efxNum] or 0
+            local typeIdx = PatchManager.efxCurType[efxNum] or 0
             -- Try shared types first, then EFX-specific.
-            local offs = EFX_SLOT_OFFSETS_SHARED[typeIdx]
+            local offs = PatchManager.EFX_SLOT_OFFSETS_SHARED[typeIdx]
             if not offs then
-              local sp = EFX_SLOT_OFFSETS_SPECIAL[efxNum]
+              local sp = PatchManager.EFX_SLOT_OFFSETS_SPECIAL[efxNum]
               offs = sp and sp[typeIdx]
             end
             local off = offs and offs[slotIdx]
             if off then
-              local paramId = EFX_BASE_PARAM[efxNum] + off
+              local paramId = PatchManager.EFX_BASE_PARAM[efxNum] + off
               local slotEntry = ASSIGN_SLOTS[assignActiveSlot]
               if slotEntry then
                 local a = slotEntry.addr
                 tb3Send16bit(a[1], a[2], a[3], a[4], paramId)
-                assignedParamIds[assignActiveSlot] = paramId
+                PatchManager.assignedParamIds[assignActiveSlot] = paramId
               end
               assignActiveSlot = nil
               broadcastAssignMode(nil)
@@ -1429,13 +1437,13 @@ function onReceiveNotify(key, value)
     if not assignActiveSlot then return end
     local sec, enc = value:match("^([^,]+),([^,]+)$")
     if sec and enc then
-      local swInfo = SW_PARAM_ID_MAP[sec .. "," .. enc]
+      local swInfo = PatchManager.SW_PARAM_ID_MAP[sec .. "," .. enc]
       if swInfo then
         local slotEntry = ASSIGN_SLOTS[assignActiveSlot]
         if slotEntry then
           local a = slotEntry.addr
           tb3Send16bit(a[1], a[2], a[3], a[4], swInfo.id)
-          assignedParamIds[assignActiveSlot] = swInfo.id
+          PatchManager.assignedParamIds[assignActiveSlot] = swInfo.id
         end
         -- Revert the button's visual state so the tap doesn't actually toggle it.
         if swInfo.btn then
@@ -1459,19 +1467,19 @@ function onReceiveNotify(key, value)
   end
 
   -- Sent by efx_section.lua B1 handler when the EFX SW button is pressed.
-  -- value = "efxNum,swOff"; paramId = EFX_BASE_PARAM[efxNum] + swOff.
+  -- value = "efxNum,swOff"; paramId = PatchManager.EFX_BASE_PARAM[efxNum] + swOff.
   if key == "efx_sw_touched" then
     if not assignActiveSlot then return end
     local efxNum, offStr = value:match("^(%d+),(%d+)$")
     efxNum = tonumber(efxNum)
     local off = tonumber(offStr)
     if efxNum and off then
-      local paramId = EFX_BASE_PARAM[efxNum] + off
+      local paramId = PatchManager.EFX_BASE_PARAM[efxNum] + off
       local slotEntry = ASSIGN_SLOTS[assignActiveSlot]
       if slotEntry then
         local a = slotEntry.addr
         tb3Send16bit(a[1], a[2], a[3], a[4], paramId)
-        assignedParamIds[assignActiveSlot] = paramId
+        PatchManager.assignedParamIds[assignActiveSlot] = paramId
       end
       assignActiveSlot = nil
       broadcastAssignMode(nil)
@@ -1481,10 +1489,10 @@ function onReceiveNotify(key, value)
   end
 
   -- Sent by efx_section.lua's applyType() whenever the EFX type changes.
-  -- Keeps efxCurType in sync so enc_touched can resolve EFX slot param IDs.
+  -- Keeps PatchManager.efxCurType in sync so enc_touched can resolve EFX slot param IDs.
   if key == "efx_type_changed" then
     local n, t = value:match("^(%d+),(%d+)$")
-    if n then efxCurType[tonumber(n)] = tonumber(t) or 0 end
+    if n then PatchManager.efxCurType[tonumber(n)] = tonumber(t) or 0 end
     return
   end
 
@@ -1645,30 +1653,67 @@ function onReceiveOSC(message, connections)
     return
   end
 
-  -- Python app requests a backup of all 16 patch grid slots.
-  if address == "/tb3/patchgrid/request_backup" then
+  -- ---- Chunked bank PULL (root → Python) -------------------------------------
+  -- A full 16-slot bank serialises to ~15 KB, but macOS caps a UDP datagram at
+  -- net.inet.udp.maxdgram (~9 KB). So instead of one big /backup message we send
+  -- a small manifest of filled slots, then one message per slot on request.
+
+  -- Step 1: Python requests the manifest → list of filled slot keys + bank name.
+  if address == "/tb3/patchgrid/request_manifest" then
     local slots = getPatchGridSlots()
-    for _, slot in pairs(slots) do
-      if type(slot) == "table" and slot.name == nil then slot.name = "" end
+    local keys = {}
+    for k, v in pairs(slots) do
+      if type(v) == "table" then keys[#keys + 1] = k end
     end
-    local bankJson = json.fromTable({version=2, slots=slots})
-    sendOSC("/tb3/patchgrid/backup", bankJson)
+    sendOSC("/tb3/patchgrid/manifest",
+            json.fromTable({version = 2, name = currentBankName, slots = keys}))
     return
   end
 
-  -- Python app sends a previously backed-up bank to restore all 16 slots.
-  if address == "/tb3/patchgrid/restore" then
+  -- Step 2: Python requests one slot (arg = slot key string) → its full data.
+  if address == "/tb3/patchgrid/request_slot" then
     local arg = arguments and arguments[1]
     if arg == nil then return end
-    local bankStr = (type(arg) == "table") and arg.value or arg
-    if type(bankStr) ~= "string" then return end
-    local bank = json.toTable(bankStr)
-    if bank and bank.slots then
-      setPatchGridSlots(bank.slots)
-      currentBankName   = bank.name or ""
-      currentPresetName = ""
-      updatePatchInfoLabel()
+    local key = (type(arg) == "table") and arg.value or arg
+    key = tostring(key)
+    local data = getPatchGridSlots()[key]
+    if type(data) ~= "table" then return end  -- emptied since manifest; skip
+    sendOSC("/tb3/patchgrid/slot", json.fromTable({slot = key, data = data}))
+    return
+  end
+
+  -- ---- Chunked bank PUSH (Python → root) -------------------------------------
+  -- restore_begin resets a staging buffer, each restore_slot adds one slot, and
+  -- restore_end commits the whole staged bank to the grid. Same size rationale.
+  if address == "/tb3/patchgrid/restore_begin" then
+    bankRestoreStaging = {}
+    local arg = arguments and arguments[1]
+    local s = (type(arg) == "table") and arg.value or arg
+    local hdr = (type(s) == "string") and json.toTable(s)
+    bankRestoreName = (hdr and hdr.name) or ""
+    return
+  end
+
+  if address == "/tb3/patchgrid/restore_slot" then
+    if not bankRestoreStaging then return end  -- stray slot with no begin; ignore
+    local arg = arguments and arguments[1]
+    local s = (type(arg) == "table") and arg.value or arg
+    if type(s) ~= "string" then return end
+    local item = json.toTable(s)
+    if item and item.slot and item.data then
+      bankRestoreStaging[tostring(item.slot)] = item.data
     end
+    return
+  end
+
+  if address == "/tb3/patchgrid/restore_end" then
+    if not bankRestoreStaging then return end
+    setPatchGridSlots(bankRestoreStaging)
+    currentBankName    = bankRestoreName
+    currentPresetName  = ""
+    updatePatchInfoLabel()
+    bankRestoreStaging = nil
+    bankRestoreName    = ""
     return
   end
 
@@ -1698,13 +1743,13 @@ function onReceiveOSC(message, connections)
   local data = {}
   for i = 12, #bytes - 2 do data[#data + 1] = bytes[i] end
 
-  -- Same parseBlock() echo guard as handleTB3SysEx (see receivingPatch
+  -- Same PatchManager.parseBlock() echo guard as handleTB3SysEx (see receivingPatch
   -- declaration). The raw SysEx forward above already restores the patch;
   -- we don't also want applyValue()'s UI updates re-deriving and re-sending
   -- (potentially mismatched) values for each field on top of that.
   receivingPatch = true
   receivingPatchTimer = 5
-  parseBlock(addr, data)
+  PatchManager.parseBlock(addr, data)
   receivingPatch = false
   receivingPatchTimer = 0
 
@@ -1741,8 +1786,8 @@ function update()
   end
 
   -- Backstop for receivingPatch (see declaration) — normally cleared
-  -- synchronously right after parseBlock() returns; this only fires if
-  -- parseBlock errored before reaching that explicit clear.
+  -- synchronously right after PatchManager.parseBlock() returns; this only fires if
+  -- PatchManager.parseBlock errored before reaching that explicit clear.
   if receivingPatchTimer > 0 then
     receivingPatchTimer = receivingPatchTimer - 1
     if receivingPatchTimer == 0 then receivingPatch = false end

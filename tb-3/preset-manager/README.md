@@ -103,9 +103,15 @@ when the window closes.
 | `/tb3/request_patch_export` | app → TouchOSC | Request current patch snapshot |
 | `/tb3/backup` | TouchOSC → app | Single-patch JSON (`{"blocks": [...], "name": "..."}`) |
 | `/tb3/restore` | app → TouchOSC | One SysEx block as hex CSV; forwarded to TB-3 |
-| `/tb3/patchgrid/request_backup` | app → TouchOSC | Request all 16 grid slots |
-| `/tb3/patchgrid/backup` | TouchOSC → app | Bank JSON snapshot |
-| `/tb3/patchgrid/restore` | app → TouchOSC | Restore all 16 slots (grid only — no TB-3 SysEx) |
+| `/tb3/patchgrid/request_manifest` | app → TouchOSC | Request bank manifest (filled slot keys) |
+| `/tb3/patchgrid/manifest` | TouchOSC → app | `{"version":2,"name":…,"slots":["1",…]}` |
+| `/tb3/patchgrid/request_slot` | app → TouchOSC | Request one slot (arg = slot key) |
+| `/tb3/patchgrid/slot` | TouchOSC → app | `{"slot":"N","data":{"blocks":[…],"name":…}}` |
+| `/tb3/patchgrid/restore_begin` | app → TouchOSC | Begin chunked bank push (`{"version":2,"name":…}`) |
+| `/tb3/patchgrid/restore_slot` | app → TouchOSC | Push one slot (`{"slot":"N","data":{…}}`) |
+| `/tb3/patchgrid/restore_end` | app → TouchOSC | Commit the pushed bank (replaces all 16 slots) |
+
+Bank pull/push transfer **one slot per OSC message** (manifest-driven pull; begin/slot/end push). A full 16-slot bank is ~15 KB, but macOS caps a single UDP datagram at ~9 KB (`net.inet.udp.maxdgram`), so a one-shot transfer silently truncates and drops.
 
 ## Bank file format (v2)
 

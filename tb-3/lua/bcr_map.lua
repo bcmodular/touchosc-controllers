@@ -9,7 +9,7 @@
 --   max    : SysEx full-scale value (default 127 if omitted)
 --   signed : offset-encoded (raw 64 = 0); display-only hint for UI scripts
 --
--- NRPN (channel 1 only — see BCR1_NRPN_MAP below):
+-- NRPN (channel 1 only — see BCR.NRPN_MAP below):
 --   The four 16-bit params formerly on CC 97/98/99/101 are NRPN encoders
 --   (BCR mode "absolute/14"). CC 6/38 (Data Entry MSB/LSB) and CC 98/99
 --   (NRPN param LSB/MSB) are RESERVED on channel 1 — never map them as
@@ -37,7 +37,7 @@
 --   CC 81–88  Fixed encoder row 1 (bottom-most rows, always active)
 --   CC 89–96  Fixed encoder row 2
 --   CC 97–104 Fixed encoder row 3
---             (BCR1: pos 1,2,3,5 are NRPN encoders — see BCR1_NRPN_MAP)
+--             (BCR1: pos 1,2,3,5 are NRPN encoders — see BCR.NRPN_MAP)
 
 -- ---------------------------------------------------------------------------
 -- BCR2000 #1  (MIDI channel 1) — Tone + Distortion
@@ -48,7 +48,19 @@
 -- Dedicated buttons: CC 71 DIST ON/OFF, 79 DIST COLOR
 -- Fixed rows: VCA (81–88), VCF (89–96), Tuning (97–104)
 
-local BCR1_MAP = {
+-- ---------------------------------------------------------------------------
+-- BCR namespace table — the single top-level local this include exposes to the
+-- shared root chunk (see tb-3/CLAUDE.md "Root chunk — include order contract").
+-- Fields:
+--   BCR.MAP            BCR2000 #1 CC → SysEx address table (was BCR1_MAP)
+--   BCR.NRPN_MAP       BCR2000 #1 NRPN → SysEx address table (was BCR1_NRPN_MAP)
+--   BCR.ADDR_TO_CC     reverse: addr hex → BCR1 CC (was ADDR_TO_BCR1_CC)
+--   BCR.ADDR_TO_NRPN   reverse: addr hex → {nrpn, entry} (was ADDR_TO_BCR1_NRPN)
+--   BCR.efx{1,2}SlotIndex / efx{1,2}BtnIndex  BCR2000 #2 CC → slot/button index
+-- ---------------------------------------------------------------------------
+local BCR = {}
+
+BCR.MAP = {
   -- ---- Encoder Group 1 rotate: VCO source levels + LFO depth + patch vol ----
   [1]  = { addr = {0x10,0x00,0x08,0x00}, bits = 7 },              -- VCO SAW LEVEL
   [2]  = { addr = {0x10,0x00,0x08,0x01}, bits = 7 },              -- VCO SQR LEVEL
@@ -57,7 +69,7 @@ local BCR1_MAP = {
   [5]  = { addr = {0x10,0x00,0x08,0x06}, bits = 7 },              -- VCO PINK LEVEL
   -- CC 6 (VCO RING LEVEL) moved to CC 17 — CC 6 is NRPN Data Entry MSB.
   [7]  = { addr = {0x10,0x00,0x00,0x08}, bits = 7, signed = true },-- VCO LFO DEPTH
-  -- CC 8 (MORPH AMOUNT) retired — pos 8 rotate is now NRPN 8 (see BCR1_NRPN_MAP).
+  -- CC 8 (MORPH AMOUNT) retired — pos 8 rotate is now NRPN 8 (see BCR.NRPN_MAP).
   -- Its push remains plain CC 40 (MORPH ON/OFF) below.
 
   -- VCO RING LEVEL — physical encoder group 1 pos 6 rotate, retargeted from
@@ -120,7 +132,7 @@ local BCR1_MAP = {
 
   -- ---- Fixed encoder row 3: Tuning + VCF ENV/KEY + Dist levels ----
   -- Positions 1,2,3,5 (SAW/SQR/RING+SIN TUNING, VCF ENV DEPTH) are NRPN
-  -- encoders — see BCR1_NRPN_MAP below. Their old plain CCs (97/98/99/101)
+  -- encoders — see BCR.NRPN_MAP below. Their old plain CCs (97/98/99/101)
   -- are retired: 98/99 are NRPN param-select bytes; 97 (Data Decrement) and
   -- 101 (RPN MSB) are left unassigned to keep the channel spec-clean.
   -- CC 100: GLOBAL TUNING — sends plain MIDI CC 104 to TB-3 (handled in root.lua)
@@ -144,48 +156,48 @@ local BCR1_MAP = {
 
 -- Helper functions (used by root.lua handleBCR2 — defined here for locality)
 
-local function efx1SlotIndex(cc)
+function BCR.efx1SlotIndex(cc)
   -- Returns 1–12 for EFX1 param slots, nil otherwise
   if cc >= 81 and cc <= 84  then return cc - 80 end  -- S01–S04
   if cc >= 89 and cc <= 92  then return cc - 84 end  -- S05–S08
   if cc >= 97 and cc <= 100 then return cc - 88 end  -- S09–S12
 end
 
-local function efx2SlotIndex(cc)
+function BCR.efx2SlotIndex(cc)
   -- Returns 1–12 for EFX2 param slots, nil otherwise
   if cc >= 85  and cc <= 88  then return cc - 84  end -- S01–S04
   if cc >= 93  and cc <= 96  then return cc - 88  end -- S05–S08
   if cc >= 101 and cc <= 104 then return cc - 92  end -- S09–S12
 end
 
-local function efx1BtnIndex(cc)
+function BCR.efx1BtnIndex(cc)
   -- Returns 1–8 for EFX1 dedicated buttons, nil otherwise
   if cc >= 65 and cc <= 68 then return cc - 64 end   -- B1–B4
   if cc >= 73 and cc <= 76 then return cc - 68 end   -- B5–B8
 end
 
-local function efx2BtnIndex(cc)
+function BCR.efx2BtnIndex(cc)
   -- Returns 1–8 for EFX2 dedicated buttons, nil otherwise
   if cc >= 69 and cc <= 72 then return cc - 68 end   -- B1–B4
   if cc >= 77 and cc <= 80 then return cc - 72 end   -- B5–B8
 end
 
 -- ---------------------------------------------------------------------------
--- ADDR_TO_BCR1_CC — reverse lookup for BCR1 sync after patch receive.
+-- BCR.ADDR_TO_CC — reverse lookup for BCR1 sync after patch receive.
 -- key = "%02X%02X%02X%02X" of the SysEx address, value = BCR1 CC number.
 -- ---------------------------------------------------------------------------
 
-local ADDR_TO_BCR1_CC = {}
-for cc, entry in pairs(BCR1_MAP) do
+BCR.ADDR_TO_CC = {}
+for cc, entry in pairs(BCR.MAP) do
   if entry.addr then
     local k = string.format("%02X%02X%02X%02X",
       entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
-    ADDR_TO_BCR1_CC[k] = cc
+    BCR.ADDR_TO_CC[k] = cc
   end
 end
 
 -- ---------------------------------------------------------------------------
--- BCR1_NRPN_MAP — 16-bit (nibble-packed) parameters controlled via NRPN on
+-- BCR.NRPN_MAP — 16-bit (nibble-packed) parameters controlled via NRPN on
 -- channel 1. The BCR encoders are programmed in BC Manager as type NRPN,
 -- mode absolute/14, Min 0 / Max = entry max, so the 14-bit data entry value
 -- (CC 6 MSB ×128 + CC 38 LSB) IS the raw SysEx value — no scaling.
@@ -199,7 +211,7 @@ end
 -- (must match the corresponding ENC_SEND_MAP entries in enc_map.lua).
 -- ---------------------------------------------------------------------------
 
-local BCR1_NRPN_MAP = {
+BCR.NRPN_MAP = {
   -- Tuning: usable hardware range is raw 0–151 (centre 127 = 0, +24 max);
   -- no audible effect above 151 — same cap as enc_map.lua.
   [1] = { addr = {0x10,0x00,0x02,0x00}, max = 151 }, -- SAW TUNING       (row 3 pos 1)
@@ -216,13 +228,13 @@ local BCR1_NRPN_MAP = {
 }
 
 -- Reverse lookup for NRPN feedback (syncBCR1 / enc_moved mirror).
--- key = addr hex string, value = { nrpn = N, entry = BCR1_NRPN_MAP[N] }.
+-- key = addr hex string, value = { nrpn = N, entry = BCR.NRPN_MAP[N] }.
 -- Address-less entries (morph) are skipped — they have no SysEx identity.
-local ADDR_TO_BCR1_NRPN = {}
-for nrpn, entry in pairs(BCR1_NRPN_MAP) do
+BCR.ADDR_TO_NRPN = {}
+for nrpn, entry in pairs(BCR.NRPN_MAP) do
   if entry.addr then
     local k = string.format("%02X%02X%02X%02X",
       entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
-    ADDR_TO_BCR1_NRPN[k] = { nrpn = nrpn, entry = entry }
+    BCR.ADDR_TO_NRPN[k] = { nrpn = nrpn, entry = entry }
   end
 end
