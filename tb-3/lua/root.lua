@@ -79,9 +79,10 @@ local rawSysexBlocks = {}
 -- Patch grid state
 -- ---------------------------------------------------------------------------
 
-local patchGridMode   = nil   -- nil | "delete" | "grab" | "morph"
-local grabSnapshot    = nil   -- JSON string saved on grab press
-local morphTargetSlot = nil
+local patchGridMode     = nil   -- nil | "delete" | "grab" | "morph"
+local grabSnapshot      = nil   -- JSON string saved on grab press
+local morphTargetSlot   = nil
+local pendingStoreSlot  = nil   -- slot key awaiting auto-store after a triggered dump
 local morphBaseSnapshot = nil -- JSON string of patch at morph-target selection time
 local currentBankName   = ""  -- name of the most recently restored bank
 local currentPresetName = ""  -- name of the most recently recalled preset slot
@@ -91,6 +92,7 @@ local morphing        = false -- true while applyMorph is running; suppresses BC
 local applyMorph              -- forward declaration; defined below after getPatchGridSlots
 local broadcastPatchMode      -- forward declaration; defined below after applyMorph
 local updateMorphEncState     -- forward declaration; defined below after broadcastPatchMode
+local tryCompletePendingStore -- forward declaration; defined below after setPatchGridSlots
 
 local EXPORT_BLOCK_ORDER = {
   "10000000", "10000200", "10000400", "10000600",
@@ -382,12 +384,20 @@ end
 
 local function sendFromEntry(entry, ccVal)
   local a = entry.addr
+  local blockKey = string.format("%02X%02X%02X00", a[1], a[2], a[3])
   if entry.bits == 16 then
     local val16 = math.floor(ccVal / 127 * (entry.max or 255) + 0.5)
     tb3Send16bit(a[1], a[2], a[3], a[4], val16)
+    local blk = rawSysexBlocks[blockKey]
+    if blk then
+      blk.data[a[4] + 1] = math.floor(val16 / 16)
+      blk.data[a[4] + 2] = val16 % 16
+    end
   else
     local scaled = ccScale(ccVal, entry.max or 127)
     tb3Send7bit(a[1], a[2], a[3], a[4], scaled)
+    local blk = rawSysexBlocks[blockKey]
+    if blk then blk.data[a[4] + 1] = scaled end
   end
 end
 
@@ -791,6 +801,10 @@ local function handleTB3SysEx(message)
     syncTimer = 0  -- cancel fallback timer; awaitingBlocks beat it
     syncBCR1()
   end
+
+  -- Attempt pending store after every block: succeeds as soon as all required
+  -- blocks are present, regardless of awaitingBlocks counter state.
+  tryCompletePendingStore()
 end
 
 -- ---------------------------------------------------------------------------
@@ -983,6 +997,20 @@ local function setPatchGridSlots(slots)
   if not pgNode then return end
   pgNode.tag = json.fromTable(slots)
   pgNode:notify("refresh_preset_ui", "")
+end
+
+-- Complete an auto-store that was deferred because blocks weren't cached yet.
+-- Called after a full dump (awaitingBlocks countdown and syncTimer fallback).
+tryCompletePendingStore = function()
+  if not pendingStoreSlot then return end
+  local snapshot = snapshotCurrentPatch()
+  if not snapshot then return end  -- blocks still arriving; retry on next block
+  local key = pendingStoreSlot
+  pendingStoreSlot = nil
+  local slots = getPatchGridSlots()
+  slots[key] = json.toTable(snapshot)
+  setPatchGridSlots(slots)
+  print("patch_grid: pending store completed for slot " .. key)
 end
 
 -- Interpolate every data byte between morphBaseSnapshot and the morph target
@@ -1503,6 +1531,7 @@ function onReceiveNotify(key, value)
       morphBaseSnapshot = nil
       morphLastBlocks = nil
     end
+    pendingStoreSlot = nil
     broadcastPatchMode()
     -- When leaving morph mode, sync BCR1 to the final blended state.
     if wasInMorph then syncBCR1() end
@@ -1517,6 +1546,8 @@ function onReceiveNotify(key, value)
     print("patch_grid: slot pressed " .. tostring(value) .. " mode=" .. tostring(patchGridMode))
     local slotNum = tonumber(value)
     if not slotNum then return end
+    -- Any new slot press cancels a pending auto-store from a previous tap.
+    pendingStoreSlot = nil
     local slots = getPatchGridSlots()
     local slotKey = tostring(slotNum)
 
@@ -1562,6 +1593,7 @@ function onReceiveNotify(key, value)
           setPatchGridSlots(slots)
         else
           print("patch_grid: snapshot nil - blocks missing, triggering sync")
+          pendingStoreSlot = slotKey
           requestPatchDump()
         end
       else
@@ -1705,7 +1737,7 @@ end
 function update()
   if syncTimer > 0 then
     syncTimer = syncTimer - 1
-    if syncTimer == 0 then syncBCR1() end
+    if syncTimer == 0 then syncBCR1(); tryCompletePendingStore() end
   end
 
   -- Backstop for receivingPatch (see declaration) — normally cleared

@@ -264,8 +264,8 @@ local TYPE_DEFS = {
       {off=0x02, name="ATTACK",    max=124, display=dispCsAttack},
       {off=0x03, name="RELEASE",   max=124, display=dispCsRelease},
       {off=0x06, name="KNEE",      max=9,   display=dispKnee},
-      {off=0x07, name="GAIN",      max=80,  display=dispDb40},
-      {off=0x08, name="BALANCE",   max=100, display=dispBipolar50},
+      {off=0x07, name="GAIN",      max=80,  display=dispDb40,      default=0.5},
+      {off=0x08, name="BALANCE",   max=100, display=dispBipolar50, default=0.5},
     },
     btns = {},
   },
@@ -278,10 +278,10 @@ local TYPE_DEFS = {
     slots = {
       {off=0x0A, name="FREQ",    max=127},
       {off=0x0B, name="SENS",    max=127},
-      {off=0x0F, name="BALANCE", max=100, display=dispBipolar50},
+      {off=0x0F, name="BALANCE", max=100, display=dispBipolar50, default=0.5},
       {off=0x10, name="LEVEL",   max=127},
-      {off=0x0D, name="EQ LOW",  max=30,  display=dispDb15},
-      {off=0x0E, name="EQ HIGH", max=30,  display=dispDb15},
+      {off=0x0D, name="EQ LOW",  max=30,  display=dispDb15,      default=0.5},
+      {off=0x0E, name="EQ HIGH", max=30,  display=dispDb15,      default=0.5},
     },
     btns = {
       nil, nil, nil,
@@ -299,8 +299,8 @@ local TYPE_DEFS = {
       {off=0x13, name="SAMP RATE", max=127},
       {off=0x17, name="LEVEL",     max=127},
       nil,
-      {off=0x15, name="EQ LOW",    max=30, display=dispDb15},
-      {off=0x16, name="EQ HIGH",   max=30, display=dispDb15},
+      {off=0x15, name="EQ LOW",    max=30, display=dispDb15, default=0.5},
+      {off=0x16, name="EQ HIGH",   max=30, display=dispDb15, default=0.5},
     },
     btns = {},
   },
@@ -342,7 +342,7 @@ local TYPE_DEFS = {
       {off=0x26, name="PRE DLY",  max=80,  display=dispMs},
       {off=0x29, name="LEVEL",    max=100},
       {off=0x27, name="HPF",      max=17,  display=dispHPF},
-      {off=0x28, name="LPF",      max=14,  display=dispLPF},
+      {off=0x28, name="LPF",      max=14,  display=dispLPF, default=1.0},
     },
     btns = {
       nil, nil, nil,
@@ -363,7 +363,7 @@ local TYPE_DEFS = {
       {off=0x2B, name="RATE",       max=100, display=dispRate, disabledBy={0x2C}},
       nil, nil,
       {off=0x2D, name="DEPTH",      max=100},
-      {off=0x2E, name="MANUAL",     max=100, display=dispBipolar50},
+      {off=0x2E, name="MANUAL",     max=100, display=dispBipolar50, default=0.5},
       {off=0x2F, name="RESONANCE",  max=100},
       {off=0x30, name="SEPARATION",  max=100},
       {off=0x31, name="HPF",        max=10,  display=dispFLHPF},
@@ -385,7 +385,7 @@ local TYPE_DEFS = {
       {off=0x3B, name="STEP RATE",  max=20,  display=dispBpmDiv},
       nil,
       {off=0x38, name="DEPTH",      max=100},
-      {off=0x39, name="MANUAL",     max=100, display=dispBipolar50},
+      {off=0x39, name="MANUAL",     max=100, display=dispBipolar50, default=0.5},
       {off=0x3A, name="RESONANCE",  max=127},
       {off=0x3C, name="EFX LVL",    max=100},
       {off=0x3D, name="DIRECT LVL", max=100},
@@ -412,7 +412,7 @@ local TYPE_DEFS = {
       nil, nil,
       {off=0x41, name="TAP TIME",   max=100, display=dispPct},
       {off=0x43, name="FEEDBACK",   max=100},
-      {off=0x44, name="LPF",        max=14,  display=dispLPF},
+      {off=0x44, name="LPF",        max=14,  display=dispLPF, default=1.0},
       {off=0x45, name="EFX LVL",    max=100},
       {off=0x46, name="DIRECT LVL", max=100},
     },
@@ -437,11 +437,11 @@ if efxNum == 1 then
   TYPE_DEFS[9] = { name="PITCH SHIFT",
     swOff = 0x47,
     slots = {
-      {off=0x49, name="PITCH 1",    max=48,  display=dispPitchSt},
+      {off=0x49, name="PITCH 1",    max=48,  display=dispPitchSt, default=0.5},
       {off=0x4A, name="PRE DLY 1",  max=100, display=dispMs},
       {off=0x4C, name="EFX LVL 1",  max=100},
       {off=0x4B, name="FEEDBACK",   max=100},
-      {off=0x4D, name="PITCH 2",    max=48,  display=dispPitchSt},
+      {off=0x4D, name="PITCH 2",    max=48,  display=dispPitchSt, default=0.5},
       {off=0x4E, name="PRE DLY 2",  max=100, display=dispMs},
       {off=0x50, name="EFX LVL 2",  max=100},
       {off=0x51, name="DIRECT LVL", max=100},
@@ -462,17 +462,17 @@ if efxNum == 1 then
     swOff = 0x53,
     slots = {
       {off=0x54, name="LOW CUT",  max=17, display=dispHPF},
-      {off=0x55, name="LOW GAIN", max=40, display=dispDb20},
-      {off=0x5C, name="HI CUT",   max=14, display=dispLPF},
-      {off=0x5D, name="HI GAIN",  max=40, display=dispDb20},
+      {off=0x55, name="LOW GAIN", max=40, display=dispDb20,  default=0.5},
+      {off=0x5C, name="HI CUT",   max=14, display=dispLPF,   default=1.0},
+      {off=0x5D, name="HI GAIN",  max=40, display=dispDb20,  default=0.5},
       {off=0x56, name="LM FREQ",  max=27, display=dispEQFreq},
       {off=0x57, name="LM Q",     max=5,  display=dispEQQ},
-      {off=0x58, name="LM GAIN",  max=40, display=dispDb20},
+      {off=0x58, name="LM GAIN",  max=40, display=dispDb20,  default=0.5},
       nil,
       {off=0x59, name="HM FREQ",  max=27, display=dispEQFreq},
       {off=0x5A, name="HM Q",     max=5,  display=dispEQQ},
-      {off=0x5B, name="HM GAIN",  max=40, display=dispDb20},
-      {off=0x5E, name="LEVEL",    max=40, display=dispDb20},
+      {off=0x5B, name="HM GAIN",  max=40, display=dispDb20,  default=0.5},
+      {off=0x5E, name="LEVEL",    max=40, display=dispDb20,  default=0.5},
     },
     btns = {},
   }
@@ -495,7 +495,7 @@ else
       {off=0x4D, name="DENSITY",    max=10},
       {off=0x50, name="SPRING SNS", max=100},
       {off=0x4B, name="HPF",        max=17,  display=dispHPF},
-      {off=0x4C, name="LPF",        max=14,  display=dispLPF},
+      {off=0x4C, name="LPF",        max=14,  display=dispLPF, default=1.0},
       {off=0x4E, name="EFX LVL",    max=100},
       {off=0x4F, name="DIRECT LVL", max=100},
     },
@@ -629,7 +629,9 @@ local function applyType(typeIdx, syncBCR)
         local fader   = slotGrp.children["control_fader"]
         local nameLbl = slotGrp.children["name_label"]
         local valLbl  = slotGrp.children["value_label"]
+        local slotDefault = slotDef.default or 0
         if nameLbl then nameLbl.values.text = slotDef.name end
+        if fader then fader:setValueField("x", ValueField.DEFAULT, slotDefault) end
         if #rawData > 0 then
           local raw = rawData[slotDef.off + 1] or 0
           local x   = math.max(0, math.min(1, raw / slotDef.max))
@@ -638,7 +640,7 @@ local function applyType(typeIdx, syncBCR)
           if valLbl then valLbl.values.text = txt end
           sendBCRcc(SLOT_CC[i], math.floor(x * 127 + 0.5))
         else
-          if fader  then fader.values.x    = 0 end
+          if fader  then fader.values.x    = slotDefault end
           if valLbl then valLbl.values.text = "--" end
           sendBCRcc(SLOT_CC[i], 0)
         end
@@ -767,7 +769,7 @@ function onReceiveNotify(key, value)
 
   if key == "type_cc" then
     local ccVal   = tonumber(value) or 0
-    local typeIdx = math.min(math.floor(ccVal / 10), MAX_TYPE)
+    local typeIdx = math.min(math.floor(ccVal / 127 * MAX_TYPE + 0.5), MAX_TYPE)
     sendParam(0x00, typeIdx)
     rawData[1] = typeIdx
     applyType(typeIdx, false)

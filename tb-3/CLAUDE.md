@@ -70,7 +70,7 @@ The seven 16-bit params (3× tuning, VCF env depth / cutoff / resonance, accent)
 
 - **CC 6/38/98/99 are reserved** on channel 1 (NRPN status bytes) — never map them as plain CCs, and never send them as plain CCs to `BCR_CONNECTION` (the BCR's receive parser would misread them). VCO RING LEVEL/SW moved to CC 17/49 because of this.
 - CC 96 (DIST TONE) and CC 100 (GLOBAL TUNING) overlap MIDI-spec Data Increment / RPN LSB — intentional; root's parser only consumes 6/38/98/99.
-- Receive path: `nrpnState` machine at the top of `handleBCR1`; dispatches on CC 38, updates `rawSysexBlocks` nibbles (NRPN edits do NOT go stale, unlike `sendFromEntry`) and the on-screen fader.
+- Receive path: `nrpnState` machine at the top of `handleBCR1`; dispatches on CC 38, updates `rawSysexBlocks` nibbles and the on-screen fader.
 - Feedback path: `sendNRPNToBCR()` (4-message packet) used by `syncBCR1()` and the `enc_moved` mirror via `ADDR_TO_BCR1_NRPN`.
 - The BCR preset and the `.tosc` build are coupled: **rebuild/reload the layout before loading the new BCR preset** (old Lua + NRPN preset slams tuning params via the old CC 98/99 map entries).
 
@@ -106,7 +106,7 @@ Root's `rawSysexBlocks` cache stores the last received DT1 block per 8-hex addre
 
 EFX state lives in each section's `self.tag` as a JSON byte array (see `efx_section.lua`). `snapshotCurrentPatch()` assembles the full 11-block snapshot by combining `rawSysexBlocks` (9 blocks) with the two EFX section tags.
 
-This split means: BCR-only edits via `sendFromEntry()` update the synthesis blocks but do **not** update `rawSysexBlocks` — BCR-only edits leave patch snapshots/exports stale until the next full sync.
+Both `sendFromEntry()` and `sendFromEntryFloat()` write back to `rawSysexBlocks` after sending SysEx, so BCR-only edits keep patch snapshots and exports up to date (write-back is guarded by `if blk then` — no effect before the first full sync).
 
 ## `self.tag` conventions
 
