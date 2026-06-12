@@ -302,7 +302,7 @@ Set around `PatchManager.parseBlock()` and the EFX section `patch_data` notify t
 
 ## Known design constraints
 
-- **No shared library mechanism** in TouchOSC. `tb3Checksum`, `sendParam`, and connection constants are duplicated between root chunk and `efx_section.lua`. Keep them byte-identical.
+- **No shared library mechanism *in use*.** `tb3Checksum`, `sendParam`, and connection constants are duplicated between the root chunk and `efx_section.lua`; keep them byte-identical. NOTE: TouchOSC *does* now ship a native shared-library primitive — Shared Scripts, included via the global `require("name")` (since ~v1.5.1.255). We don't use it yet. It is independent-chunk semantics (no shared `local`s, no nested `require`, cross-chunk sharing only via globals or the script's return value), so it does **not** fit the root chunk's shared-`local` model — but it is the natural fix for this forced duplication and is slated for evaluation in **Task 2.2b** (`plans/review-backlog.md`). Open question pending a spike: whether a Shared Script is a `toscbuild`-injectable XML node (preserves code-first source-of-truth) or editor-only state.
 - **200-local limit** (Lua 5.1 per-chunk). The concatenated root chunk (~2,500 lines) is approaching this. Avoid adding new top-level locals without removing others.
 - **`root:findByName(name, true)`** does a global depth-first search. The `saw_enc` name exists in both `ring_mod_group` and `vco_group` — the `EncMap.ENC_SEND_MAP` two-level key (`"section,enc"`) was added specifically to avoid this collision. Prefer `group.children[name]` for section-scoped lookups.
 - **`.claude/settings.local.json`** contains machine-specific absolute paths — leave it in place, it is local config and not committed.

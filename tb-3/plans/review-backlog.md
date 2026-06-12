@@ -182,6 +182,28 @@ Deliberate architectural improvements. **Sequential — one task per session**, 
 
 > **✅ Done (2026-06-12).** `param_defs.lua` added as include #4 (runs first). `bcr_map.lua`, `enc_map.lua`, and `patch_manager.lua` derive their 7 primary tables (`BCR.MAP`, `BCR.NRPN_MAP`, `EncMap.ENC_SEND_MAP`, `EncMap.SW_SEND_MAP`, `PatchManager.PARAM_ID_MAP`, `PatchManager.SW_PARAM_ID_MAP`, and the file-local `REGISTRY`) from `Params.LIST` in `do…end` blocks. All reverse lookups cascade from those. Value-identity harness: PASS (zero diffs across all 15 tables). `luac -p` PASS. Build clean (241/241, -6,576 bytes). `tb-3/CLAUDE.md` include-order contract rewritten. Hardware regression pending.
 
+---
+
+### Task 2.2b — EFX shared defs (try TouchOSC Shared Scripts first)
+
+**Problem.** `PatchManager.EFX_SLOT_OFFSETS_SHARED` / `_SPECIAL` (in `patch_manager.lua`, root chunk) manually mirror the slot layouts in `TYPE_DEFS` (in `efx_section.lua`, a separate per-node chunk). The same EFX data lives in two chunks that cannot see each other; any edit to one without the other causes silent assign-mode or BCR-routing bugs. This is the same class of forced duplication as `tb3Checksum` / `sendParam` / connection constants, which are kept byte-identical between root and `efx_section.lua` only by discipline and "keep in sync" comments.
+
+**New option — TouchOSC Shared Scripts (`require`).** As of ~v1.5.1.255 (well-established by v1.9.x), TouchOSC ships a native shared-library mechanism: a Shared Script included into a control script via the global `require("name")`. This is *exactly* the primitive the old "no shared library mechanism" constraint said didn't exist. **We want to try this first** for 2.2b — a shared `efx_defs` (and potentially a shared `tb3_sysex` for the checksum/sendParam/connection helpers) `require`d by `root`, `efx1_section`, and `efx2_section` would eliminate the duplication at its source rather than mitigating it.
+
+**Scoping caveats (decide the design):** Shared Scripts are *independent chunks* — they **cannot** read the requiring control's `local`s, **cannot** `require` each other, and `require` takes no arguments. The only cross-chunk channels are **globals** and the script's **return value**. So a shared `efx_defs` that other scripts must read either returns its table (`local EfxDefs = require("efx_defs")`) or sets a global. Per-node globals are acceptable here (each node has its own global env), unlike the root chunk where 2.2a deliberately uses shared `local`s — **do not** retrofit 2.2a onto `require`; the no-nested-require rule would force `Params`/`BCR`/`PatchManager`/`EncMap` to become globals for no gain. (The one orthogonal upside of `require` everywhere — each chunk gets its own Lua 200-local budget — is a "when we hit the wall" tool, not a reason to refactor now.)
+
+**Two experiments to run before committing (cheap, decisive):**
+1. **Is a Shared Script a `toscbuild`-injectable XML node?** Create one in the TouchOSC editor, save, and run `python3 tools/toscbuild.py tree tb-3/TB3.tosc` / `extract`. *(User is adding a comment-only Shared Script so we can locate where it lands in the `.tosc`.)* If it's an injectable node, we keep code-first source-of-truth and add a `toscbuild.json` mapping for it. **If it's editor-only state, that's a dealbreaker** — abandoning git-as-source-of-truth — and we fall back to the include approach below.
+2. **Does a node that `require`s it still load on the deployment device?** Confirm the TouchOSC install on the actual TB-3/BCR rig is ≥ the version that ships `require`.
+
+**Fallback (if Shared Scripts fail either experiment) — shared `efx_defs.lua` via the existing `include:` mechanism.** Confirmed reachable with no `toscbuild.py` change: the `include:` handler (toscbuild.py:501-507) works for any mapping kind, so `efx_defs.lua` can be injected into *both* the root node and the `efx_section` nodes. Root derives `EFX_SLOT_OFFSETS_SHARED/_SPECIAL` (offsets only — keeps root lean); `efx_section.lua` rebuilds `TYPE_DEFS` from it, resolving display functions by **string key** via a local dispatch table (display fns stay local to `efx_section`; the sp404 `controls_info.lua` pattern).
+
+**Acceptance.** Build succeeds; value-identity-harness discipline for both `EFX_SLOT_OFFSETS_*` and the reconstructed `TYPE_DEFS` (same as 2.2a). Hardware regression: EFX type changes, EFX slots, BCR2 round-trips, assign-mode EFX slots, EFX patch receive.
+
+**Model:** high-reasoning with extended thinking (Opus / GPT-Codex class). Cross-chunk data model + the new Shared Scripts evaluation; subtle display-fn dispatch.
+
+---
+
 ### Task 2.2 — Single source of truth for parameter data (original entry, superseded by 2.2a/2.2b)
 
 **Problem.** SysEx address, range, and scaling facts are hand-maintained in at least four places:
