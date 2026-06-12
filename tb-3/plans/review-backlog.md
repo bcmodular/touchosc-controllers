@@ -5,7 +5,7 @@
 > **Progress (2026-06-11):**
 > - Phase 1 (Tasks 1.1–1.5) — ✅ committed `b380a9f`.
 > - Task 2.1 (namespace the root chunk) — ✅ done and hardware-verified, committed `1bf2298`.
-> - Task 2.2a (canonical synth-param table) — ✅ done (2026-06-12). `param_defs.lua` added; `bcr_map.lua`, `enc_map.lua`, `patch_manager.lua` now derive their 7 primary tables from it. Value-identity harness PASS (zero diffs), `luac -p` PASS, build clean (241/241). Hardware regression pending.
+> - Task 2.2a (canonical synth-param table) — ✅ **done and hardware-verified (2026-06-12)**. `param_defs.lua` added; `bcr_map.lua`, `enc_map.lua`, `patch_manager.lua` now derive their 7 primary tables from it. Value-identity harness PASS (zero diffs), `luac -p` PASS, build clean (241/241), hardware regression PASS.
 > - Task 2.2b (shared EFX defs) — open. Scope: new `efx_defs.lua` included into root AND both EFX sections; `EFX_SLOT_OFFSETS_*` derived in root, `TYPE_DEFS` rebuilt in `efx_section.lua` via string-key dispatch table.
 > - Task 2.3 — open.
 > - Out-of-plan fix shipped in `1bf2298`: chunked the preset-manager bank pull/push OSC transfer (was hanging on banks >~8 KB due to macOS's ~9 KB UDP datagram cap + python-osc's 8192-byte recv buffer). See the new entry under [Out-of-plan fixes](#out-of-plan-fixes).
@@ -180,7 +180,7 @@ Deliberate architectural improvements. **Sequential — one task per session**, 
 
 ### Task 2.2a — Single source of truth for synthesis parameter data
 
-> **✅ Done (2026-06-12).** `param_defs.lua` added as include #4 (runs first). `bcr_map.lua`, `enc_map.lua`, and `patch_manager.lua` derive their 7 primary tables (`BCR.MAP`, `BCR.NRPN_MAP`, `EncMap.ENC_SEND_MAP`, `EncMap.SW_SEND_MAP`, `PatchManager.PARAM_ID_MAP`, `PatchManager.SW_PARAM_ID_MAP`, and the file-local `REGISTRY`) from `Params.LIST` in `do…end` blocks. All reverse lookups cascade from those. Value-identity harness: PASS (zero diffs across all 15 tables). `luac -p` PASS. Build clean (241/241, -6,576 bytes). `tb-3/CLAUDE.md` include-order contract rewritten. Hardware regression pending.
+> **✅ Done (2026-06-12).** `param_defs.lua` added as include #4 (runs first). `bcr_map.lua`, `enc_map.lua`, and `patch_manager.lua` derive their 7 primary tables (`BCR.MAP`, `BCR.NRPN_MAP`, `EncMap.ENC_SEND_MAP`, `EncMap.SW_SEND_MAP`, `PatchManager.PARAM_ID_MAP`, `PatchManager.SW_PARAM_ID_MAP`, and the file-local `REGISTRY`) from `Params.LIST` in `do…end` blocks. All reverse lookups cascade from those. Value-identity harness: PASS (zero diffs across all 15 tables). `luac -p` PASS. Build clean (241/241, -6,576 bytes). `tb-3/CLAUDE.md` include-order contract rewritten. Hardware regression PASS (2026-06-12).
 
 ---
 
@@ -195,7 +195,7 @@ Deliberate architectural improvements. **Sequential — one task per session**, 
 **Two experiments to run before committing (cheap, decisive):**
 1. **Is a Shared Script a `toscbuild`-injectable XML node?** — ✅ **ANSWERED YES (2026-06-12).** A comment-only Shared Script saved from the editor lands in the `.tosc` XML as: `lexml > node[ROOT] > includes > include[]`, each `<include>` = `<name>` CDATA + `<source>` CDATA — *identical encoding to the control scripts we already inject.* It is a single document-level collection attached to the **root node** (first child, before `<properties>`), **not** per-control. The `require("name")` call lives separately in each consumer's `<property script>` value; `<includes>` is just the library storage. Rebuild-safe: toscbuild's injection regex (toscbuild.py:70) targets only `<property type='s'>`/key `script`, so `build` preserves `<includes>` byte-for-byte. **Code-first source-of-truth is preserved** → no dealbreaker.
    **toscbuild enhancement needed (small):** a new injection path writing `lua/shared/<name>.lua` into the `<source>` CDATA of the matching `<include>` (keyed by `<name>`), plus an `extract` counterpart (today's `extract` walks only `<property script>` and would not round-trip shared scripts).
-2. **Does a node that `require`s it still load on the deployment device?** — OPEN. Confirm the TouchOSC install on the actual TB-3/BCR rig is ≥ the version that ships `require` (~v1.5.1.255). Hardware check.
+2. **Does a node that `require`s it still load on the deployment device?** — ✅ **CONFIRMED (2026-06-12).** The TouchOSC install on the TB-3/BCR rig supports `require`. Both experiments pass → the Shared Scripts route is cleared for implementation.
 
 **Fallback (if Shared Scripts fail either experiment) — shared `efx_defs.lua` via the existing `include:` mechanism.** Confirmed reachable with no `toscbuild.py` change: the `include:` handler (toscbuild.py:501-507) works for any mapping kind, so `efx_defs.lua` can be injected into *both* the root node and the `efx_section` nodes. Root derives `EFX_SLOT_OFFSETS_SHARED/_SPECIAL` (offsets only — keeps root lean); `efx_section.lua` rebuilds `TYPE_DEFS` from it, resolving display functions by **string key** via a local dispatch table (display fns stay local to `efx_section`; the sp404 `controls_info.lua` pattern).
 
