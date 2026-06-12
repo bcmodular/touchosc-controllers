@@ -1,6 +1,12 @@
 # TB-3 Implementation Plan — Review Remediation
 
 > **Status:** Implementation plan — upgraded from the 2026 remediation-review triage list. Each in-scope task below has a defined scope, acceptance criteria, and a recommended model class (see [Model choice guidance](#model-choice-guidance)). Work Phase 1 before Phase 2.
+>
+> **Progress (2026-06-11):**
+> - Phase 1 (Tasks 1.1–1.5) — ✅ committed `b380a9f`.
+> - Task 2.1 (namespace the root chunk) — ✅ done and hardware-verified, committed `1bf2298`.
+> - Tasks 2.2, 2.3 — open. Next up: 2.2.
+> - Out-of-plan fix shipped in `1bf2298`: chunked the preset-manager bank pull/push OSC transfer (was hanging on banks >~8 KB due to macOS's ~9 KB UDP datagram cap + python-osc's 8192-byte recv buffer). See the new entry under [Out-of-plan fixes](#out-of-plan-fixes).
 
 ---
 
@@ -8,17 +14,17 @@
 
 | Original finding | Decision |
 |------------------|----------|
-| BCR cache staleness | **In scope** — Task 1.1 |
+| BCR cache staleness | **Done** — Task 1.1 (`b380a9f`) |
 | BCR tuning range mismatch | **Already fixed** — resolved by the NRPN migration. The seven 16-bit params now travel as NRPN absolute/14 with Min/Max = the raw SysEx range (0–151 tuning, 0–255 others), so the BCR and on-screen UI share one range by construction. No task. |
-| EFX type encoder asymmetry | **In scope** — Task 1.2 |
+| EFX type encoder asymmetry | **Done** — Task 1.2 (`b380a9f`) |
 | Morph interpolates everything | **Known issue (won't fix)** — see below |
-| Store-to-empty-slot double press | **In scope** — Task 1.3 |
+| Store-to-empty-slot double press | **Done** — Task 1.3 (`b380a9f`) |
 | Panel CC labels | **Known issue (open risk)** — see below |
-| Double-tap reset defaults | **In scope** — Task 1.4 (defaults audit) |
-| Duplicate `assign_xy_mod_status` labels | **In scope** — Task 1.5 |
+| Double-tap reset defaults | **Done** — Task 1.4 defaults audit (`b380a9f`) |
+| Duplicate `assign_xy_mod_status` labels | **Done** — Task 1.5 (`b380a9f`) |
 | Unverified display curves | **Known issue (open)** — see below |
-| Namespace the root chunk | **In scope** — Task 2.1 |
-| Single source of truth for parameter data | **In scope** — Task 2.2 |
+| Namespace the root chunk | **Done** — Task 2.1 (`1bf2298`) |
+| Single source of truth for parameter data | **In scope** — Task 2.2 (next) |
 | Standardize lookup and messaging idioms | **In scope** — Task 2.3 |
 
 ### Known issues (documented, no task)
@@ -144,6 +150,10 @@ Deliberate architectural improvements. **Sequential — one task per session**, 
 
 ### Task 2.1 — Namespace the root chunk
 
+> **✅ Done (2026-06-11, `1bf2298`).** Implemented as specified: `bcr_map.lua` → `BCR`, `patch_manager.lua` → `PatchManager`, `enc_map.lua` → `EncMap`; `root.lua` references only those three (87 references rewritten). Cross-file surface cut from ~20 shared upvalues to 3; ~21 local slots freed. Purely file-local helpers (`REGISTRY`, `applyValue`, `parseSpecial`, the `*_OFF_NAMES` lookups) kept local. The include-order contract in `tb-3/CLAUDE.md` was rewritten to describe the three tables. Build clean (241/241), full hardware regression passed.
+>
+> **Decision — namespace-table exception.** Namespace tables are otherwise banned in this repo (`sp404-mk2/lua/README.md`, "No Namespace Tables"). The user explicitly approved this single exception: the root chunk is the only place four files genuinely share scope, and the flat-locals approach was pushing the chunk toward Lua 5.1's 200-local limit (a constraint not known when the general ban was stated). Recorded in agent memory (`feedback-lua-no-namespace`); do **not** propagate the pattern to single-node scripts.
+
 **Problem.** The concatenated root chunk (`bcr_map.lua` + `patch_manager.lua` + `enc_map.lua` + `root.lua`, ~2,500 lines) shares top-level locals with no declared ownership and approaches Lua 5.1's 200-local-per-chunk limit. Cross-file linkage is by shared upvalue: re-declaring a name in a later file silently shadows the earlier one.
 
 **Fix.** Each include exposes exactly one top-level local table:
@@ -204,6 +214,23 @@ Deliberate architectural improvements. **Sequential — one task per session**, 
 **Model:** mid-tier (Sonnet class). Do last.
 
 ---
+
+## Out-of-plan fixes
+
+Issues found and fixed during this work that were not part of the original triage.
+
+### Bank pull/push OSC transfer hung on larger banks — ✅ Fixed (2026-06-11, `1bf2298`)
+
+**Symptom.** Pulling a bank from the PyQt5 preset manager stalled at "Requested bank from TouchOSC…", or returned a bank missing some presets.
+
+**Cause.** Two stacked UDP limits. A full 16-slot bank serialises to ~15 KB, but macOS caps a single UDP datagram at `net.inet.udp.maxdgram` (~9 KB), and `python-osc`'s `BlockingOSCUDPServer` inherits `socketserver.UDPServer.max_packet_size = 8192`, so `recvfrom(8192)` truncated even ~8.5 KB banks → the OSC packet failed to parse → no handler fired → the app hung. The single-datagram design had a hard ~9 KB ceiling. (TouchOSC's send side was correct — the full JSON appeared in its OSC log.)
+
+**Fix.** Chunked, one slot per OSC message so no datagram approaches the limit:
+- **Pull (manifest-driven):** app → `/tb3/patchgrid/request_manifest`; root returns `/tb3/patchgrid/manifest` (`{version,name,slots:[keys]}`); app then requests each slot via `/tb3/patchgrid/request_slot` → root replies `/tb3/patchgrid/slot` (`{slot,data}`). Python side is a Qt state machine with a 4 s timeout.
+- **Push:** app sends `/tb3/patchgrid/restore_begin` → one `/tb3/patchgrid/restore_slot` per preset → `/tb3/patchgrid/restore_end` (root stages then commits).
+- Receive buffer also raised to 65535 defensively.
+
+Replaces the old `/tb3/patchgrid/{request_backup,backup,restore}` addresses. Docs updated in `tb-3/CLAUDE.md` (OSC interface table), the preset-manager README, and the module docstring. Verified end-to-end (wire-level round-trip simulation + hardware).
 
 ## Model choice guidance
 
