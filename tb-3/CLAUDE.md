@@ -32,24 +32,36 @@ python3 tools/toscbuild.py dev tb-3            # watch mode (macOS)
 
 ## Root chunk — include order contract
 
-`toscbuild.json` injects four files into the root node as a single concatenated Lua chunk, **in this exact order**:
+`toscbuild.json` injects **five** files into the root node as a single concatenated Lua chunk. `_inject_mapping` **prepends** each include (toscbuild.py:507), so the runtime execution order is the **reverse** of the JSON `include` list. The JSON list is:
 
-1. `bcr_map.lua`
-2. `patch_manager.lua`
-3. `enc_map.lua`
-4. `root.lua`
+```
+["bcr_map.lua", "patch_manager.lua", "enc_map.lua", "param_defs.lua"]  → root.lua
+```
 
-Because all four files share one chunk scope, **each of the first three includes exposes exactly one top-level `local` namespace table**, and `root.lua` references only those three. This keeps the cross-file surface to 3 names and stops `local`-redeclaration from silently shadowing a shared symbol. **This order is load-bearing** — each table must be constructed before `root.lua` runs.
+Actual runtime execution order (first to last):
 
-> **Namespace-table exception.** Module-style namespace tables are otherwise banned in this codebase (`sp404-mk2/lua/README.md`, "No Namespace Tables") because TouchOSC isolates each node's script. The root chunk is the *one* place that rationale fails — four files genuinely share scope — and the flat-locals approach was pushing the chunk toward Lua 5.1's 200-local limit. These three tables are the sanctioned exception; do **not** propagate the pattern to other (single-node) scripts.
+1. `param_defs.lua` — canonical parameter table (`Params.LIST`)
+2. `enc_map.lua`
+3. `patch_manager.lua`
+4. `bcr_map.lua`
+5. `root.lua`
 
-| Namespace table | Declared in | Key fields (used by `root.lua`) |
-|-----------------|-------------|----------------------------------|
-| `BCR` | `bcr_map.lua` | `MAP`, `NRPN_MAP`, `ADDR_TO_CC`, `ADDR_TO_NRPN`, `efx1SlotIndex`/`efx2SlotIndex`/`efx1BtnIndex`/`efx2BtnIndex` |
-| `PatchManager` | `patch_manager.lua` | `parseBlock`, `updateAssignDisplay`, `distType`, `DIST_TYPE_NAMES`, `DIST_NUM_TYPES`, `PARAM_ID_MAP`, `SW_PARAM_ID_MAP`, `PARAM_ID_TO_PATH`, `assignedParamIds`, `efxCurType`, `EFX_SLOT_OFFSETS_SHARED`, `EFX_SLOT_OFFSETS_SPECIAL`, `EFX_BASE_PARAM`, `U16_OFFSETS` |
-| `EncMap` | `enc_map.lua` | `ENC_SEND_MAP`, `SW_SEND_MAP`, `ADDR_TO_ENC`, `ADDR_TO_SW` |
+**`param_defs.lua` must run first** — all three namespace tables derive their primary tables from `Params.LIST` at load time. **`root.lua` must run last** — it references the three namespace tables. This order is load-bearing; do not reorder.
 
-`distType`, `efxCurType`, and `assignedParamIds` are read **and mutated** from `root.lua`; as table fields they stay shared by reference (a scalar `local` could not). Do not re-declare any of these three tables in `root.lua` — a shadowing `local` silently breaks the linkage. Purely file-local helpers (`REGISTRY`, `applyValue`, `parseSpecial`, the `*_OFF_NAMES` lookups, etc.) are intentionally **not** on the namespace tables.
+Because all five files share one chunk scope, **each of the four includes exposes exactly one top-level `local` namespace table**, and `root.lua` references only those four. This keeps the cross-file surface to 4 names and stops `local`-redeclaration from silently shadowing a shared symbol.
+
+> **Namespace-table exception.** Module-style namespace tables are otherwise banned in this codebase (`sp404-mk2/lua/README.md`, "No Namespace Tables") because TouchOSC isolates each node's script. The root chunk is the *one* place that rationale fails — five files genuinely share scope — and the flat-locals approach was pushing the chunk toward Lua 5.1's 200-local limit. These four tables are the sanctioned exception; do **not** propagate the pattern to other (single-node) scripts.
+
+| Namespace table | Declared in | Role |
+|-----------------|-------------|------|
+| `Params` | `param_defs.lua` | **Canonical source of truth** — one row per synthesis param; load-only (not read at runtime after derivation) |
+| `BCR` | `bcr_map.lua` | `MAP`, `NRPN_MAP` derived from `Params.LIST`; `ADDR_TO_CC`, `ADDR_TO_NRPN` derived from those; EFX slot/btn helpers |
+| `PatchManager` | `patch_manager.lua` | `PARAM_ID_MAP`, `SW_PARAM_ID_MAP`, `REGISTRY` (file-local) derived from `Params.LIST`; EFX tables (unchanged, 2.2b); mutable state fields |
+| `EncMap` | `enc_map.lua` | `ENC_SEND_MAP`, `SW_SEND_MAP` derived from `Params.LIST`; `ADDR_TO_ENC`, `ADDR_TO_SW` derived from those |
+
+**Single source of truth:** SysEx address, range, scaling, BCR CC/NRPN, and param-assign-ID facts for all ~50 synthesis parameters live in `Params.LIST` only. `bcr_map.lua`, `enc_map.lua`, and `patch_manager.lua` derive their primary tables from it in `do…end` blocks (loop locals are block-scoped, no top-level local cost). Edit a parameter's facts in `Params.LIST`; the three tables update automatically on the next build.
+
+`distType`, `efxCurType`, and `assignedParamIds` are read **and mutated** from `root.lua`; as table fields they stay shared by reference (a scalar `local` could not). Do not re-declare any of these four tables in `root.lua` — a shadowing `local` silently breaks the linkage. Purely file-local helpers (`REGISTRY`, `applyValue`, `parseSpecial`, the `*_OFF_NAMES` lookups, etc.) are intentionally **not** on the namespace tables.
 
 ## Connection / channel constants
 
@@ -119,9 +131,10 @@ These two uses are mutually exclusive in time (the `"prog"` guard is cleared bef
 
 | File | Injected into | Purpose |
 |------|--------------|---------|
-| `bcr_map.lua` | root (include #1) | `BCR` namespace: `MAP` (CC→SysEx), `NRPN_MAP` (NRPN→SysEx), EFX slot/button index helpers |
-| `patch_manager.lua` | root (include #2) | `PatchManager` namespace: `parseBlock`; `PARAM_ID_MAP`; `SW_PARAM_ID_MAP`; `EFX_SLOT_OFFSETS_*`; dist type state |
-| `enc_map.lua` | root (include #3) | `EncMap` namespace: `ENC_SEND_MAP` / `SW_SEND_MAP`; reverse `ADDR_TO_ENC` / `ADDR_TO_SW` |
+| `param_defs.lua` | root (include #4, runs first) | `Params` namespace: `Params.LIST` — canonical one-row-per-parameter source of truth for all synthesis params |
+| `bcr_map.lua` | root (include #1) | `BCR` namespace: `MAP` (CC→SysEx), `NRPN_MAP` (NRPN→SysEx) — both derived from `Params.LIST`; EFX slot/button index helpers |
+| `patch_manager.lua` | root (include #2) | `PatchManager` namespace: `parseBlock`; `PARAM_ID_MAP`; `SW_PARAM_ID_MAP` — derived from `Params.LIST`; `EFX_SLOT_OFFSETS_*`; dist type state |
+| `enc_map.lua` | root (include #3) | `EncMap` namespace: `ENC_SEND_MAP` / `SW_SEND_MAP` — derived from `Params.LIST`; reverse `ADDR_TO_ENC` / `ADDR_TO_SW` |
 | `root.lua` | root node | MIDI routing; SysEx helpers; BCR handling; patch grid; assign mode |
 | `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay; sends `enc_touched` |
 | `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_dump", "")` |

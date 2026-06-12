@@ -5,7 +5,9 @@
 > **Progress (2026-06-11):**
 > - Phase 1 (Tasks 1.1–1.5) — ✅ committed `b380a9f`.
 > - Task 2.1 (namespace the root chunk) — ✅ done and hardware-verified, committed `1bf2298`.
-> - Tasks 2.2, 2.3 — open. Next up: 2.2.
+> - Task 2.2a (canonical synth-param table) — ✅ done (2026-06-12). `param_defs.lua` added; `bcr_map.lua`, `enc_map.lua`, `patch_manager.lua` now derive their 7 primary tables from it. Value-identity harness PASS (zero diffs), `luac -p` PASS, build clean (241/241). Hardware regression pending.
+> - Task 2.2b (shared EFX defs) — open. Scope: new `efx_defs.lua` included into root AND both EFX sections; `EFX_SLOT_OFFSETS_*` derived in root, `TYPE_DEFS` rebuilt in `efx_section.lua` via string-key dispatch table.
+> - Task 2.3 — open.
 > - Out-of-plan fix shipped in `1bf2298`: chunked the preset-manager bank pull/push OSC transfer (was hanging on banks >~8 KB due to macOS's ~9 KB UDP datagram cap + python-osc's 8192-byte recv buffer). See the new entry under [Out-of-plan fixes](#out-of-plan-fixes).
 
 ---
@@ -24,7 +26,7 @@
 | Duplicate `assign_xy_mod_status` labels | **Done** — Task 1.5 (`b380a9f`) |
 | Unverified display curves | **Known issue (open)** — see below |
 | Namespace the root chunk | **Done** — Task 2.1 (`1bf2298`) |
-| Single source of truth for parameter data | **In scope** — Task 2.2 (next) |
+| Single source of truth for parameter data | **2.2a done** (`param_defs.lua`, 2026-06-12) — 2.2b (EFX defs) open |
 | Standardize lookup and messaging idioms | **In scope** — Task 2.3 |
 
 ### Known issues (documented, no task)
@@ -176,7 +178,11 @@ Deliberate architectural improvements. **Sequential — one task per session**, 
 
 ---
 
-### Task 2.2 — Single source of truth for parameter data
+### Task 2.2a — Single source of truth for synthesis parameter data
+
+> **✅ Done (2026-06-12).** `param_defs.lua` added as include #4 (runs first). `bcr_map.lua`, `enc_map.lua`, and `patch_manager.lua` derive their 7 primary tables (`BCR.MAP`, `BCR.NRPN_MAP`, `EncMap.ENC_SEND_MAP`, `EncMap.SW_SEND_MAP`, `PatchManager.PARAM_ID_MAP`, `PatchManager.SW_PARAM_ID_MAP`, and the file-local `REGISTRY`) from `Params.LIST` in `do…end` blocks. All reverse lookups cascade from those. Value-identity harness: PASS (zero diffs across all 15 tables). `luac -p` PASS. Build clean (241/241, -6,576 bytes). `tb-3/CLAUDE.md` include-order contract rewritten. Hardware regression pending.
+
+### Task 2.2 — Single source of truth for parameter data (original entry, superseded by 2.2a/2.2b)
 
 **Problem.** SysEx address, range, and scaling facts are hand-maintained in at least four places:
 
@@ -242,7 +248,8 @@ Replaces the old `/tb3/patchgrid/{request_backup,backup,restore}` addresses. Doc
 | 1.4 Defaults audit | Fast (Composer) for tooling; human review of the report | Mechanical script; judgment calls are per-parameter |
 | 1.5 Duplicate labels | Fast/mid (Composer, Sonnet) | Investigation + one-shot layout edit |
 | 2.1 Namespacing | **High-reasoning with thinking (Opus, GPT-Codex)** | Shared-upvalue contract, 200-local limit, silent shadowing — riskiest change in the repo |
-| 2.2 Single source of truth | **High-reasoning with thinking (Opus, GPT-Codex)** | Large surface, subtle per-row exceptions; depends on 2.1 |
+| 2.2a Canonical synth-param table | ✅ **Done** | Value-identical derivers, zero harness diffs |
+| 2.2b Shared EFX defs | **High-reasoning with thinking (Opus, GPT-Codex)** | Cross-chunk data model; efx_section isolation; display-fn dispatch |
 | 2.3 Idiom standardization | Mid (Sonnet) | Mechanical after 2.1/2.2 |
 
 General rules:

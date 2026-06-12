@@ -48,95 +48,30 @@ PatchManager.DIST_NUM_TYPES = 25
 -- Value = high_nibble * 16 + low_nibble (from the HH LL columns in the spec).
 -- ---------------------------------------------------------------------------
 
-PatchManager.PARAM_ID_MAP = {
-  -- ---- LFO ----
-  ["lfo_group,lfo_rate_enc"]      = {id=  0, name="LFO RATE"},
-  ["lfo_group,lfo_delay_enc"]     = {id=  1, name="LFO DELAY"},
-  ["lfo_group,lfo_wave_saw_enc"]  = {id=  2, name="LFO SAW"},
-  ["lfo_group,lfo_wave_sqr_enc"]  = {id=  3, name="LFO SQR"},
-  ["lfo_group,lfo_wave_tri_enc"]  = {id=  4, name="LFO TRI"},
-  ["lfo_group,lfo_wave_sin_enc"]  = {id=  5, name="LFO SIN"},
-  ["lfo_group,lfo_cv_offset_enc"] = {id=  6, name="LFO CV OFFSET"},
-  ["lfo_group,lfo_wave_sh_enc"]   = {id=  7, name="LFO S&H"},
-  ["vco_group,vco_lfo_depth_enc"] = {id=  8, name="VCO LFO DEPTH"},
-  ["vcf_group,vcf_lfo_depth_enc"] = {id=  9, name="VCF LFO DEPTH"},
-  ["vca_group,vca_lfo_depth_enc"] = {id= 10, name="VCA LFO DEPTH"},
-  -- ---- Tuning (CV offset) ----
-  ["tuning_group,sqr_tuning_enc"]      = {id= 13, name="SQR TUNING"},
-  ["tuning_group,saw_tuning_enc"]      = {id= 14, name="SAW TUNING"},
-  ["tuning_group,ring_sin_tuning_enc"] = {id= 15, name="RING+SIN TUNING"},
-  -- ---- Cross Modulation ----
-  ["cross_mod_group,sqr_saw_enc"]   = {id= 16, name="CM SQR>SAW"},
-  ["cross_mod_group,saw_saw_enc"]   = {id= 18, name="CM SAW>SAW"},
-  ["cross_mod_group,white_saw_enc"] = {id= 19, name="CM WHITE>SAW"},
-  ["cross_mod_group,pink_saw_enc"]  = {id= 20, name="CM PINK>SAW"},
-  ["cross_mod_group,sqr_sqr_enc"]   = {id= 21, name="CM SQR>SQR"},
-  ["cross_mod_group,saw_sqr_enc"]   = {id= 23, name="CM SAW>SQR"},
-  ["cross_mod_group,white_sqr_enc"] = {id= 24, name="CM WHITE>SQR"},
-  ["cross_mod_group,pink_sqr_enc"]  = {id= 25, name="CM PINK>SQR"},
-  -- ---- Ring Modulation ----
-  ["ring_mod_group,saw_enc"]   = {id= 26, name="RM SAW DEPTH"},
-  ["ring_mod_group,sqr_enc"]   = {id= 27, name="RM SQR DEPTH"},
-  ["ring_mod_group,ring_enc"]  = {id= 30, name="RM RING DEPTH"},
-  ["ring_mod_group,white_enc"] = {id= 31, name="RM WHITE DEPTH"},
-  ["ring_mod_group,pink_enc"]  = {id= 32, name="RM PINK DEPTH"},
-  ["ring_mod_group,depth_enc"] = {id= 37, name="RM DEPTH"},
-  -- ---- VCO ----
-  ["vco_group,saw_enc"]          = {id= 40, name="VCO SAW LEVEL"},
-  ["vco_group,sqr_enc"]          = {id= 41, name="VCO SQR LEVEL"},
-  ["vco_group,sin_enc"]          = {id= 44, name="VCO SIN LEVEL"},
-  ["vco_group,white_enc"]        = {id= 45, name="VCO WHITE LEVEL"},
-  ["vco_group,pink_enc"]         = {id= 46, name="VCO PINK LEVEL"},
-  ["vco_group,ring_enc"]         = {id= 47, name="VCO RING LEVEL"},
-  -- patch_volume_enc moved to patch_group in F1 layout
-  ["patch_group,patch_volume_enc"] = {id= 66, name="MASTER VOLUME"},
-  -- ---- PANEL CONTROLS (moved from vcf_group/vco_group in F1 layout) ----
-  ["panel_controls_group,vcf_cutoff_enc"]    = {id= 54, name="VCF CUTOFF"},
-  ["panel_controls_group,vcf_resonance_enc"] = {id= 55, name="VCF RESONANCE"},
-  ["panel_controls_group,accent_level_enc"]  = {id=264, name="ACCENT"},
-  -- ---- VCF ----
-  ["vcf_group,vcf_env_depth_enc"]  = {id= 56, name="VCF ENV DEPTH"},
-  ["vcf_group,vcf_attack_enc"]     = {id= 57, name="VCF ATTACK"},
-  ["vcf_group,vcf_decay_enc"]      = {id= 58, name="VCF DECAY"},
-  ["vcf_group,vcf_sustain_enc"]    = {id= 59, name="VCF SUSTAIN"},
-  ["vcf_group,vcf_release_enc"]    = {id= 60, name="VCF RELEASE"},
-  ["vcf_group,vcf_key_follow_enc"] = {id= 61, name="VCF KEY FOLLOW"},
-  -- ---- VCA ----
-  ["vca_group,vca_attack_enc"]  = {id= 62, name="VCA ATTACK"},
-  ["vca_group,vca_decay_enc"]   = {id= 63, name="VCA DECAY"},
-  ["vca_group,vca_sustain_enc"] = {id= 64, name="VCA SUSTAIN"},
-  ["vca_group,vca_release_enc"] = {id= 65, name="VCA RELEASE"},
-  -- ---- Distortion ----
-  ["dist_group,dist_drive_enc"]     = {id= 69, name="DIST DRIVE"},
-  ["dist_group,dist_bottom_enc"]    = {id= 70, name="DIST BOTTOM"},
-  ["dist_group,dist_tone_enc"]      = {id= 71, name="DIST TONE"},
-  ["dist_group,dist_efx_level_enc"] = {id= 72, name="DIST EFX LEVEL"},
-  ["dist_group,dist_dry_level_enc"] = {id= 73, name="DIST DRY LEVEL"},
-  -- ---- Portamento / Pitch Bend ----
-  ["portamento_group,porta_time_enc"]       = {id=255, name="PORTA TIME"},
-  ["other_group,pitch_bend_range_enc"]      = {id=257, name="BENDER RANGE"},
-}
+-- ---------------------------------------------------------------------------
+-- PARAM_ID_MAP and SW_PARAM_ID_MAP — derived from Params.LIST
+-- (param_defs.lua, loaded first in the concatenated root chunk)
+-- ---------------------------------------------------------------------------
+-- Derivation rules:
+--   PARAM_ID_MAP:    rows with id set, path set, not sw, not btn → {id, name}
+--   SW_PARAM_ID_MAP: rows with id set, path set, sw or btn → {id, name, [btn=true]}
 
--- SW_PARAM_ID_MAP — switch/button parameter IDs, keyed by "section,enc" path.
--- Same path format as PARAM_ID_MAP but for sw_button and toggle-button controls.
--- Populated by root.lua's "sw_touched" handler.
-PatchManager.SW_PARAM_ID_MAP = {
-  -- ---- VCO source switches ----
-  ["vco_group,saw_enc"]   = {id= 48, name="VCO SAW SW"},
-  ["vco_group,sqr_enc"]   = {id= 49, name="VCO SQR SW"},
-  ["vco_group,sin_enc"]   = {id= 50, name="VCO SIN SW"},
-  ["vco_group,white_enc"] = {id= 51, name="VCO WH NOISE SW"},
-  ["vco_group,pink_enc"]  = {id= 52, name="VCO PK NOISE SW"},
-  ["vco_group,ring_enc"]  = {id= 53, name="VCO RING SW"},
-  -- ---- LFO push functions ----
-  ["lfo_group,lfo_rate_enc"]      = {id= 11, name="LFO BPM SYNC"},
-  ["lfo_group,lfo_cv_offset_enc"] = {id= 12, name="LFO RETRIGGER"},
-  -- ---- Portamento switch ----
-  ["portamento_group,porta_time_enc"] = {id=254, name="PORTA SW"},
-  -- ---- Distortion toggles (standalone BUTTON nodes, not sw_button children) ----
-  ["dist_group,dist_on_off"] = {id= 67, name="DIST SW",    btn=true},
-  ["dist_group,dist_color"]  = {id= 74, name="DIST COLOR", btn=true},
-}
+PatchManager.PARAM_ID_MAP    = {}
+PatchManager.SW_PARAM_ID_MAP = {}
+
+do
+  for _, p in ipairs(Params.LIST) do
+    if p.id and p.path then
+      if p.sw or p.btn then
+        local e = {id = p.id, name = p.name}
+        if p.btn then e.btn = true end
+        PatchManager.SW_PARAM_ID_MAP[p.path] = e
+      else
+        PatchManager.PARAM_ID_MAP[p.path] = {id = p.id, name = p.name}
+      end
+    end
+  end
+end
 
 -- Reverse lookup: ID → display name (built from PARAM_ID_MAP + SW_PARAM_ID_MAP + EFX tables).
 -- File-local: only consumed by updateAssignDisplay() below.
@@ -320,125 +255,54 @@ end
 --   sp   : string key for parseSpecial() dispatch
 -- ---------------------------------------------------------------------------
 
-local REGISTRY = {
+-- ---------------------------------------------------------------------------
+-- REGISTRY — derived from Params.LIST
+-- ---------------------------------------------------------------------------
+-- Block key = string.format("%02X%02X%02X00", addr[1], addr[2], addr[3])
+-- Each row with addr contributes one field entry, in Params.LIST order
+-- (which matches HEAD entry order within each block).
+--
+-- Derivation rules for kind:
+--   regSp set  → kind="sp", sp=regSp, [u16=regU16]; no enc
+--   btn        → kind="sw", btn=true, enc=<name-after-comma>
+--   sw         → kind="sw", sw=true,  enc=<name-after-comma>
+--   bits==16   → kind="u16", max=(p.max or 255); carry bipolar/center
+--   signed     → kind="s7", enc=<name-after-comma>
+--   default    → kind="u7",  enc=<name-after-comma>; max if ≠127; carry bipolar/center/semitoneRange
+-- par carried through when set (ring_mod_group name-collision guard).
 
-  -- ---- LFO  10 00 00 00 ----
-  ["10000000"] = {
-    {off= 0, enc="lfo_rate_enc",      kind="u7"},
-    {off= 1, enc="lfo_delay_enc",     kind="u7"},
-    {off= 2, enc="lfo_wave_saw_enc",  kind="u7"},
-    {off= 3, enc="lfo_wave_sqr_enc",  kind="u7"},
-    {off= 4, enc="lfo_wave_tri_enc",  kind="u7"},
-    {off= 5, enc="lfo_wave_sin_enc",  kind="u7"},
-    {off= 6, enc="lfo_cv_offset_enc", kind="u7"},
-    {off= 7, enc="lfo_wave_sh_enc",   kind="u7"},
-    {off= 8, enc="vco_lfo_depth_enc", kind="s7"},
-    {off= 9, enc="vcf_lfo_depth_enc", kind="s7"},
-    {off=10, enc="vca_lfo_depth_enc", kind="s7"},
-    {off=11, enc="lfo_rate_enc",      kind="sw", sw=true},   -- BPM SYNC
-    {off=12, enc="lfo_cv_offset_enc", kind="sw", sw=true},   -- RETRIGGER
-  },
-
-  -- ---- CV OFFSET / TUNING  10 00 02 00 ----
-  -- Bipolar: raw 0–255, centre 128 = 0, display raw−128 (−128…+127).
-  -- NOTE: spec labels off=0 as SQR and off=2 as SAW, but hardware is reversed.
-  ["10000200"] = {
-    {off=0, enc="saw_tuning_enc",      kind="u16", max=151, center=127, bipolar=true},  -- spec says SQR here; hardware is SAW
-    {off=2, enc="sqr_tuning_enc",      kind="u16", max=151, center=127, bipolar=true},  -- spec says SAW here; hardware is SQR
-    {off=4, enc="ring_sin_tuning_enc", kind="u16", max=151, center=127, bipolar=true},
-  },
-
-  -- ---- CROSS MODULATION  10 00 04 00 ----
-  ["10000400"] = {
-    {off=0, enc="sqr_saw_enc",   kind="s7"},
-    {off=2, enc="saw_saw_enc",   kind="s7"},
-    {off=3, enc="white_saw_enc", kind="s7"},
-    {off=4, enc="pink_saw_enc",  kind="s7"},
-    {off=5, enc="sqr_sqr_enc",   kind="s7"},
-    {off=7, enc="saw_sqr_enc",   kind="s7"},
-    {off=8, enc="white_sqr_enc", kind="s7"},
-    {off=9, enc="pink_sqr_enc",  kind="s7"},
-  },
-
-  -- ---- RING MODULATION  10 00 06 00 ----
-  -- Uses par="ring_mod_group" because enc names collide with vco_group.
-  ["10000600"] = {
-    {off= 0, par="ring_mod_group", enc="saw_enc",   kind="u7"},
-    {off= 1, par="ring_mod_group", enc="sqr_enc",   kind="u7"},
-    {off= 4, par="ring_mod_group", enc="ring_enc",  kind="u7"},
-    {off= 5, par="ring_mod_group", enc="white_enc", kind="u7"},
-    {off= 6, par="ring_mod_group", enc="pink_enc",  kind="u7"},
-    {off=11, par="ring_mod_group", enc="depth_enc", kind="u7"},
-  },
-
-  -- ---- VCO  10 00 08 00 ----
-  ["10000800"] = {
-    -- levels
-    {off=0, enc="saw_enc",   kind="u7"},
-    {off=1, enc="sqr_enc",   kind="u7"},
-    {off=4, enc="sin_enc",   kind="u7"},
-    {off=5, enc="white_enc", kind="u7"},
-    {off=6, enc="pink_enc",  kind="u7"},
-    {off=7, enc="ring_enc",  kind="u7"},
-    -- source switches (sw_button inside the same group)
-    {off= 8, enc="saw_enc",   kind="sw", sw=true},
-    {off= 9, enc="sqr_enc",   kind="sw", sw=true},
-    {off=10, enc="sin_enc",   kind="sw", sw=true},
-    {off=11, enc="white_enc", kind="sw", sw=true},
-    {off=12, enc="pink_enc",  kind="sw", sw=true},
-    {off=13, enc="ring_enc",  kind="sw", sw=true},
-  },
-
-  -- ---- VCF  10 00 0A 00 ----
-  ["10000A00"] = {
-    {off= 0, enc="vcf_cutoff_enc",    kind="u16", max=255},
-    {off= 2, enc="vcf_resonance_enc", kind="u16", max=255},
-    {off= 4, enc="vcf_env_depth_enc", kind="u16", max=255},
-    {off= 6, enc="vcf_attack_enc",    kind="u7"},
-    {off= 7, enc="vcf_decay_enc",     kind="u7"},
-    {off= 8, enc="vcf_sustain_enc",   kind="u7"},
-    {off= 9, enc="vcf_release_enc",   kind="u7"},
-    {off=10, enc="vcf_key_follow_enc",kind="u7"},
-  },
-
-  -- ---- VCA  10 00 0C 00 ----
-  ["10000C00"] = {
-    {off=0, enc="vca_attack_enc",   kind="u7"},
-    {off=1, enc="vca_decay_enc",    kind="u7"},
-    {off=2, enc="vca_sustain_enc",  kind="u7"},
-    {off=3, enc="vca_release_enc",  kind="u7"},
-    {off=4, enc="patch_volume_enc", kind="u7"},
-  },
-
-  -- ---- DISTORTION  10 00 0E 00 ----
-  ["10000E00"] = {
-    {off=0, enc="dist_on_off",        kind="sw",  btn=true},
-    {off=1, kind="sp",                sp="dist_type"},
-    {off=2, enc="dist_drive_enc",     kind="u7",  max=120},
-    {off=3, enc="dist_bottom_enc",    kind="u7",  max=100, bipolar=true},
-    {off=4, enc="dist_tone_enc",      kind="u7",  max=100, bipolar=true},
-    {off=5, enc="dist_efx_level_enc", kind="u7",  max=100},
-    {off=6, enc="dist_dry_level_enc", kind="u7",  max=100},
-    {off=7, enc="dist_color",         kind="sw",  btn=true},
-  },
-
-  -- ---- PARAM ASSIGN / PORTAMENTO  10 00 14 00 ----
-  ["10001400"] = {
-    {off= 0, enc="porta_time_enc",      kind="sw",  sw=true},  -- PORTA SW
-    {off= 1, enc="porta_time_enc",      kind="u7"},             -- PORTA TIME
-    {off= 2, kind="sp",                 sp="porta_mode"},       -- PORTA MODE (radio buttons)
-    -- Confirmed via hardware probe: raw 0-23, where raw N = ±(N+1) semitones
-    -- (0 = ±1 ... 23 = ±24). semitoneRange flag tells applyValue to display
-    -- "±N st" instead of the raw byte.
-    {off= 3, enc="pitch_bend_range_enc",kind="u7",  max=23, semitoneRange=true},  -- BENDER RANGE
-    -- offsets 4–11: PARAM ID assignments (16-bit nibble-packed, u16=true)
-    {off= 4, kind="sp", sp="assign_xy_mod",      u16=true},    -- XY PAD MOD param ID
-    {off= 6, kind="sp", sp="assign_effect_knob", u16=true},    -- EFFECT KNOB param ID
-    {off= 8, kind="sp", sp="assign_pad_x",       u16=true},    -- XY PAD X param ID
-    {off=10, kind="sp", sp="assign_pad_y",        u16=true},    -- XY PAD Y param ID
-    {off=14, enc="accent_level_enc",    kind="u16", max=255},   -- ACCENT
-  },
-}
+local REGISTRY = {}
+do
+  for _, p in ipairs(Params.LIST) do
+    if p.addr then
+      local blk = string.format("%02X%02X%02X00", p.addr[1], p.addr[2], p.addr[3])
+      if not REGISTRY[blk] then REGISTRY[blk] = {} end
+      local f
+      if p.regSp then
+        f = {off = p.addr[4], kind = "sp", sp = p.regSp}
+        if p.regU16 then f.u16 = true end
+      elseif p.btn then
+        f = {off = p.addr[4], enc = p.path:match(",(.+)"), kind = "sw", btn = true}
+      elseif p.sw then
+        f = {off = p.addr[4], enc = p.path:match(",(.+)"), kind = "sw", sw = true}
+      elseif p.bits == 16 then
+        f = {off = p.addr[4], enc = p.path:match(",(.+)"), kind = "u16", max = p.max or 255}
+        if p.bipolar then f.bipolar = true end
+        if p.center  then f.center  = p.center end
+      elseif p.signed then
+        f = {off = p.addr[4], enc = p.path:match(",(.+)"), kind = "s7"}
+      else
+        f = {off = p.addr[4], enc = p.path:match(",(.+)"), kind = "u7"}
+        if p.max and p.max ~= 127 then f.max = p.max end
+        if p.bipolar       then f.bipolar       = true    end
+        if p.center        then f.center        = p.center end
+        if p.semitoneRange then f.semitoneRange = true    end
+      end
+      if p.par then f.par = p.par end
+      table.insert(REGISTRY[blk], f)
+    end
+  end
+end
 
 -- ---------------------------------------------------------------------------
 -- U16_OFFSETS — set of 0-based data byte offsets that are the MSB of a u16

@@ -9,7 +9,8 @@
       "include": [
         "bcr_map.lua",
         "patch_manager.lua",
-        "enc_map.lua"
+        "enc_map.lua",
+        "param_defs.lua"
       ]
     },
     {

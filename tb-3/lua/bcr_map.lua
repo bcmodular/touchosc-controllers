@@ -60,86 +60,35 @@
 -- ---------------------------------------------------------------------------
 local BCR = {}
 
-BCR.MAP = {
-  -- ---- Encoder Group 1 rotate: VCO source levels + LFO depth + patch vol ----
-  [1]  = { addr = {0x10,0x00,0x08,0x00}, bits = 7 },              -- VCO SAW LEVEL
-  [2]  = { addr = {0x10,0x00,0x08,0x01}, bits = 7 },              -- VCO SQR LEVEL
-  [3]  = { addr = {0x10,0x00,0x08,0x04}, bits = 7 },              -- VCO SIN LEVEL
-  [4]  = { addr = {0x10,0x00,0x08,0x05}, bits = 7 },              -- VCO WHITE LEVEL
-  [5]  = { addr = {0x10,0x00,0x08,0x06}, bits = 7 },              -- VCO PINK LEVEL
-  -- CC 6 (VCO RING LEVEL) moved to CC 17 — CC 6 is NRPN Data Entry MSB.
-  [7]  = { addr = {0x10,0x00,0x00,0x08}, bits = 7, signed = true },-- VCO LFO DEPTH
-  -- CC 8 (MORPH AMOUNT) retired — pos 8 rotate is now NRPN 8 (see BCR.NRPN_MAP).
-  -- Its push remains plain CC 40 (MORPH ON/OFF) below.
+-- ---------------------------------------------------------------------------
+-- BCR.MAP — derived from Params.LIST (param_defs.lua, loaded first)
+-- ---------------------------------------------------------------------------
+-- Derivation rules:
+--   Rows with bcr set → BCR.MAP[bcr] = {addr, bits, [signed], [bipolar], [max≠default]}
+--   sw/btn rows → max=1 always (no signed/bipolar); non-sw/btn omit max if == default.
+-- Address-less morph literals are added explicitly after the loop.
+-- CC 6 and CC 38 are NRPN status bytes on ch1 — never mapped here.
 
-  -- VCO RING LEVEL — physical encoder group 1 pos 6 rotate, retargeted from
-  -- CC 6 to CC 17 (group 3 rotate slot, unused) to free the NRPN data byte.
-  [17] = { addr = {0x10,0x00,0x08,0x07}, bits = 7 },              -- VCO RING LEVEL
+BCR.MAP = {}
 
-  -- ---- Encoder Group 2 rotate: LFO (Dope Robot ordering) ----
-  [9]  = { addr = {0x10,0x00,0x00,0x00}, bits = 7 },              -- LFO RATE
-  [10] = { addr = {0x10,0x00,0x00,0x06}, bits = 7 },              -- LFO CV OFFSET
-  [11] = { addr = {0x10,0x00,0x00,0x01}, bits = 7 },              -- LFO DELAY
-  [12] = { addr = {0x10,0x00,0x00,0x04}, bits = 7 },              -- LFO WAVE TRI
-  [13] = { addr = {0x10,0x00,0x00,0x02}, bits = 7 },              -- LFO WAVE SAW
-  [14] = { addr = {0x10,0x00,0x00,0x03}, bits = 7 },              -- LFO WAVE SQR
-  [15] = { addr = {0x10,0x00,0x00,0x05}, bits = 7 },              -- LFO WAVE SIN
-  [16] = { addr = {0x10,0x00,0x00,0x07}, bits = 7 },              -- LFO WAVE S&H
-
-  -- ---- Encoder Group 1 push: VCO source on/off switches ----
-  [33] = { addr = {0x10,0x00,0x08,0x08}, bits = 7, max = 1 },     -- VCO SAW SW
-  [34] = { addr = {0x10,0x00,0x08,0x09}, bits = 7, max = 1 },     -- VCO SQR SW
-  [35] = { addr = {0x10,0x00,0x08,0x0A}, bits = 7, max = 1 },     -- VCO SIN SW
-  [36] = { addr = {0x10,0x00,0x08,0x0B}, bits = 7, max = 1 },     -- VCO WHITE SW
-  [37] = { addr = {0x10,0x00,0x08,0x0C}, bits = 7, max = 1 },     -- VCO PINK SW
-  -- CC 38 (VCO RING SW) moved to CC 49 — CC 38 is NRPN Data Entry LSB.
-  -- CC 39: spare (VCO LFO DEPTH has no switch)
-  [40] = { morph_btn = true },                                     -- MORPH ON/OFF (no SysEx addr; special-cased in handleBCR1/syncBCR1)
-
-  -- VCO RING SW — physical encoder group 1 pos 6 push, retargeted from
-  -- CC 38 to CC 49 (group 3 push slot; keeps push = rotate + 32 pairing).
-  [49] = { addr = {0x10,0x00,0x08,0x0D}, bits = 7, max = 1 },     -- VCO RING SW
-
-  -- ---- Encoder Group 2 push: LFO ----
-  [41] = { addr = {0x10,0x00,0x00,0x0B}, bits = 7, max = 1 },     -- LFO BPM SYNC (push of RATE)
-  [42] = { addr = {0x10,0x00,0x00,0x0C}, bits = 7, max = 1 },     -- LFO RETRIGGER (push of CV OFFSET)
-  -- CC 43–48: spare
-
-  -- ---- Dedicated buttons (right-aligned in layout) ----
-  [71] = { addr = {0x10,0x00,0x0E,0x00}, bits = 7, max = 1 },     -- DIST ON/OFF
-  [79] = { addr = {0x10,0x00,0x0E,0x07}, bits = 7, max = 1 },     -- DIST COLOR
-
-  -- ---- Fixed encoder row 1: VCA ----
-  [81] = { addr = {0x10,0x00,0x0C,0x00}, bits = 7 },              -- VCA ATTACK
-  [82] = { addr = {0x10,0x00,0x0C,0x01}, bits = 7 },              -- VCA DECAY
-  [83] = { addr = {0x10,0x00,0x0C,0x02}, bits = 7 },              -- VCA SUSTAIN
-  [84] = { addr = {0x10,0x00,0x0C,0x03}, bits = 7 },              -- VCA RELEASE
-  [85] = { addr = {0x10,0x00,0x00,0x0A}, bits = 7, signed = true },-- VCA LFO DEPTH
-  -- CC 86: spare
-  [87] = { addr = {0x10,0x00,0x0E,0x02}, bits = 7, max = 120 },   -- DIST DRIVE (0–120)
-  [88] = { addr = {0x10,0x00,0x0E,0x01}, bits = 7, max = 24  },   -- DIST TYPE (0–24; special-cased in handleBCR1)
-
-  -- ---- Fixed encoder row 2: PATCH VOL + VCF ADSR + LFO MOD + Distortion character ----
-  -- CUTOFF, RESONANCE and ACCENT moved to panel_controls_group (not BCR-controllable).
-  [89] = { addr = {0x10,0x00,0x0C,0x04}, bits = 7 },              -- PATCH VOLUME
-  [90] = { addr = {0x10,0x00,0x0A,0x06}, bits = 7 },              -- VCF ATTACK
-  [91] = { addr = {0x10,0x00,0x0A,0x07}, bits = 7 },              -- VCF DECAY
-  [92] = { addr = {0x10,0x00,0x0A,0x08}, bits = 7 },              -- VCF SUSTAIN
-  [93] = { addr = {0x10,0x00,0x0A,0x09}, bits = 7 },              -- VCF RELEASE
-  [94] = { addr = {0x10,0x00,0x00,0x09}, bits = 7, signed = true },-- VCF LFO MOD
-  [95] = { addr = {0x10,0x00,0x0E,0x03}, bits = 7, max = 100, bipolar = true }, -- DIST BOTTOM
-  [96] = { addr = {0x10,0x00,0x0E,0x04}, bits = 7, max = 100, bipolar = true }, -- DIST TONE
-
-  -- ---- Fixed encoder row 3: Tuning + VCF ENV/KEY + Dist levels ----
-  -- Positions 1,2,3,5 (SAW/SQR/RING+SIN TUNING, VCF ENV DEPTH) are NRPN
-  -- encoders — see BCR.NRPN_MAP below. Their old plain CCs (97/98/99/101)
-  -- are retired: 98/99 are NRPN param-select bytes; 97 (Data Decrement) and
-  -- 101 (RPN MSB) are left unassigned to keep the channel spec-clean.
-  -- CC 100: GLOBAL TUNING — sends plain MIDI CC 104 to TB-3 (handled in root.lua)
-  [102] = { addr = {0x10,0x00,0x0A,0x0A}, bits = 7 },             -- VCF KEY FOLLOW
-  [103] = { addr = {0x10,0x00,0x0E,0x05}, bits = 7, max = 100 },  -- DIST EFX LEVEL
-  [104] = { addr = {0x10,0x00,0x0E,0x06}, bits = 7, max = 100 },  -- DIST DRY LEVEL
-}
+do
+  for _, p in ipairs(Params.LIST) do
+    if p.bcr then
+      local e = {addr = p.addr, bits = p.bits}
+      if p.sw or p.btn then
+        e.max = 1
+      else
+        if p.signed  then e.signed  = true end
+        if p.bipolar then e.bipolar = true end
+        local dflt = (p.bits == 16) and 255 or 127
+        if p.max and p.max ~= dflt then e.max = p.max end
+      end
+      BCR.MAP[p.bcr] = e
+    end
+  end
+  -- Address-less morph entries have no SysEx identity — not in Params.LIST
+  BCR.MAP[40] = {morph_btn = true}  -- MORPH ON/OFF push (special-cased in handleBCR1/syncBCR1)
+end
 
 -- ---------------------------------------------------------------------------
 -- BCR2000 #2  (MIDI channel 2) — EFX1 + EFX2
@@ -211,21 +160,27 @@ end
 -- (must match the corresponding ENC_SEND_MAP entries in enc_map.lua).
 -- ---------------------------------------------------------------------------
 
-BCR.NRPN_MAP = {
-  -- Tuning: usable hardware range is raw 0–151 (centre 127 = 0, +24 max);
-  -- no audible effect above 151 — same cap as enc_map.lua.
-  [1] = { addr = {0x10,0x00,0x02,0x00}, max = 151 }, -- SAW TUNING       (row 3 pos 1)
-  [2] = { addr = {0x10,0x00,0x02,0x02}, max = 151 }, -- SQR TUNING       (row 3 pos 2)
-  [3] = { addr = {0x10,0x00,0x02,0x04}, max = 151 }, -- RING+SIN TUNING  (row 3 pos 3)
-  [4] = { addr = {0x10,0x00,0x0A,0x04}, max = 255 }, -- VCF ENV DEPTH    (row 3 pos 5)
-  [5] = { addr = {0x10,0x00,0x0A,0x00}, max = 255 }, -- VCF CUTOFF       (no BCR encoder)
-  [6] = { addr = {0x10,0x00,0x0A,0x02}, max = 255 }, -- VCF RESONANCE    (no BCR encoder)
-  [7] = { addr = {0x10,0x00,0x14,0x0E}, max = 255 }, -- ACCENT LEVEL     (no BCR encoder)
-  -- MORPH AMOUNT — layout-internal float, no SysEx address; special-cased in
+-- ---------------------------------------------------------------------------
+-- BCR.NRPN_MAP — derived from Params.LIST
+-- ---------------------------------------------------------------------------
+-- Rows with nrpn set → BCR.NRPN_MAP[nrpn] = {addr, [max]}
+-- bipolar/center NOT emitted (display-only, driven by ENC_SEND_MAP).
+-- NRPN 8 (morph) has no SysEx address — added explicitly after the loop.
+
+BCR.NRPN_MAP = {}
+
+do
+  for _, p in ipairs(Params.LIST) do
+    if p.nrpn then
+      local e = {addr = p.addr}
+      if p.max then e.max = p.max end
+      BCR.NRPN_MAP[p.nrpn] = e
+    end
+  end
+  -- MORPH AMOUNT: layout-internal float, no SysEx address; special-cased in
   -- the handleBCR1 NRPN dispatch and syncBCR1. 0–500 → morphAmount 0.0–1.0
-  -- (matches the BCR encoder's Min/Max; acceleration levels 96 and 384).
-  [8] = { morph = true, max = 500 },                 -- MORPH AMOUNT     (group 1 pos 8 rotate)
-}
+  BCR.NRPN_MAP[8] = {morph = true, max = 500}
+end
 
 -- Reverse lookup for NRPN feedback (syncBCR1 / enc_moved mirror).
 -- key = addr hex string, value = { nrpn = N, entry = BCR.NRPN_MAP[N] }.
