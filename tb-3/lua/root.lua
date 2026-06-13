@@ -259,13 +259,17 @@ end
 -- ---------------------------------------------------------------------------
 
 -- Look up an encoder group using the "section,enc" path format from EncMap.
--- Finds the section first, then gets the enc as a direct child.
--- Falls back to global findByName only if the path has no comma (shouldn't happen).
+-- Prefers a section-scoped lookup (section → children[enc]) to avoid name
+-- collisions (e.g. saw_enc exists in both ring_mod_group and vco_group).
+-- Falls back to a global findByName if the scoped lookup returns nil so that
+-- results degrade gracefully rather than silently dropping updates.
 local function findEncByPath(path)
   local sec, enc = path:match("^([^,]+),([^,]+)$")
   if not sec then return root:findByName(path, true) end
   local secGrp = root:findByName(sec, true)
-  return secGrp and secGrp.children[enc]
+  local node   = secGrp and secGrp.children[enc]
+  if not node  then node = root:findByName(enc, true) end
+  return node
 end
 
 -- ---------------------------------------------------------------------------
