@@ -43,9 +43,20 @@ e.g. `PatchManager.distType` is set in `patch_manager.lua` and mutated by `root.
 > (`param_defs.lua`) **only**. `bcr_map.lua`, `enc_map.lua`, and `patch_manager.lua`
 > derive their primary tables from it at load time in `do…end` blocks. Edit a
 > parameter's facts in `Params.LIST`; the derived tables update on the next build.
-> (EFX slot/type data is **not** here — it lives in `efx_section.lua`'s `TYPE_DEFS`
-> and is mirrored in `PatchManager.EFX_SLOT_OFFSETS_*`; unifying those is open
-> Task 2.2b — see `../plans/review-backlog.md`.)
+> (EFX slot/type data is **not** in `Params.LIST` — it has its own single source
+> of truth, the `efx_defs` Shared Script; see below.)
+
+> **EFX single source of truth (Task 2.2b).** The EFX type/slot/button layout lives
+> in **one** place: `lua/shared/efx_defs.lua`, a TouchOSC **Shared Script** loaded via
+> `require("efx_defs")`. The root chunk (`patch_manager.lua`) derives
+> `PatchManager.EFX_SLOT_OFFSETS_*` (offsets only) from it; `efx_section.lua` rebuilds
+> `TYPE_DEFS` from it, resolving each slot's `display` **string key** to a local display
+> function via `DISPLAY_FNS` (display fns + lookup tables stay local — the sp404
+> `controls_info.lua` pattern). Edit a slot's `off`/`name`/`max`/`display`/`default` in
+> `efx_defs.lua` only; both chunks pick it up on the next build. Shared Scripts are
+> independent chunks: no shared `local`s, no nested `require`, cross-chunk only via the
+> returned table — so do **not** try to put `Params`/`BCR`/`PatchManager`/`EncMap`
+> (the 2.2a shared-`local` namespaces) behind `require`.
 
 ---
 
@@ -60,6 +71,7 @@ Injection order is the reverse of the JSON `include` list (see Build pipeline ab
 | `bcr_map.lua` | root | `BCR` namespace: `BCR.MAP` / `BCR.NRPN_MAP` (derived from `Params.LIST`); reverse `ADDR_TO_CC` / `ADDR_TO_NRPN`; EFX slot/button index helpers |
 | `patch_manager.lua` | root | `PatchManager` namespace: `parseBlock`; `PARAM_ID_MAP` / `SW_PARAM_ID_MAP` and file-local `REGISTRY` (derived from `Params.LIST`); `EFX_SLOT_OFFSETS_*`; dist type state |
 | `enc_map.lua` | root | `EncMap` namespace: `ENC_SEND_MAP` / `SW_SEND_MAP` (derived from `Params.LIST`); reverse `ADDR_TO_ENC` / `ADDR_TO_SW` lookup tables |
+| `shared/efx_defs.lua` | **Shared Script** — `require("efx_defs")` from root + both EFX sections | `EfxDefs`: canonical EFX type/slot/button layout (single source of truth). Pure data; slot `display` is a string key. Injected by the `shared` mapping kind, not concatenated into the root chunk. |
 | `root.lua` | root node (runs last) | MIDI routing; SysEx helpers; BCR handling; patch grid; assign mode |
 | `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay; sends `enc_touched` on finger-down |
 | `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_dump", "")` |

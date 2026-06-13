@@ -172,32 +172,47 @@ PatchManager.efxCurType = {[1]=0, [2]=0}
 
 -- ---------------------------------------------------------------------------
 -- EFX slot → block-relative byte offset, by [typeIdx][slotIdx].
--- Mirrors TYPE_DEFS slot order in efx_section.lua (not hardware order).
--- nil entries mean the slot is hidden/unused for that type.
--- Types 0–8 are shared between EFX1 and EFX2.
+-- DERIVED from the shared efx_defs Shared Script (require("efx_defs")) — the
+-- single source of truth for EFX slot layout (also consumed by efx_section.lua
+-- to rebuild TYPE_DEFS). We extract only the byte offsets here so the root chunk
+-- carries no EFX names/maxes/display fns. nil entries (hidden/unused slots) are
+-- preserved by indexing 1..12, never ipairs. Types 0–8 are shared between EFX1
+-- and EFX2; types 9/10 are per-section.
+--
+-- Before Task 2.2b these tables were hand-mirrored against TYPE_DEFS in the
+-- (unreachable) efx_section.lua chunk; the two drifted silently. Now both
+-- derive from efx_defs.lua, so the offsets exist in exactly one place.
 -- ---------------------------------------------------------------------------
 
-PatchManager.EFX_SLOT_OFFSETS_SHARED = {
-  [0] = {},   -- BYPASS
-  [1] = {0x04, 0x05, 0x02, 0x03, 0x06, 0x07, 0x08},                            -- COMP
-  [2] = {0x0A, 0x0B, 0x0F, 0x10, 0x0D, 0x0E},                                  -- RING MOD
-  [3] = {0x12, 0x13, 0x17, nil,  0x15, 0x16},                                   -- BIT CRUSH
-  [4] = {0x1C, 0x1B, nil,  nil,  0x1E, 0x19, 0x20, 0x1A, 0x1D},               -- TREMOLO
-  [5] = {0x24, 0x23, nil,  nil,  0x25, 0x26, 0x29, 0x27, 0x28},               -- CHORUS
-  [6] = {0x2C, 0x2B, nil,  nil,  0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33},  -- FLANGER
-  [7] = {0x37, 0x36, 0x3B, nil,  0x38, 0x39, 0x3A, 0x3C, 0x3D},              -- PHASER
-  [8] = {0x42, 0x40, nil,  nil,  0x41, 0x43, 0x44, 0x45, 0x46},              -- DELAY
-}
--- Type 9 and 10 differ between EFX1 and EFX2.
-PatchManager.EFX_SLOT_OFFSETS_SPECIAL = {
-  [1] = {
-    [9]  = {0x49, 0x4A, 0x4C, 0x4B, 0x4D, 0x4E, 0x50, 0x51},                 -- PITCH SHIFT
-    [10] = {0x54, 0x55, 0x5C, 0x5D, 0x56, 0x57, 0x58, nil, 0x59, 0x5A, 0x5B, 0x5E}, -- EQ
-  },
-  [2] = {
-    [9]  = {0x49, 0x4A, 0x4D, 0x50, 0x4B, 0x4C, 0x4E, 0x4F},                 -- REVERB
-  },
-}
+PatchManager.EFX_SLOT_OFFSETS_SHARED  = {}
+PatchManager.EFX_SLOT_OFFSETS_SPECIAL = {}
+
+do
+  local EfxDefs = require("efx_defs")
+
+  -- Extract { [slotIdx] = off } from a type def's slot rows, preserving holes.
+  local function offsetsOf(def)
+    local offs = {}
+    if def.slots then
+      for i = 1, 12 do
+        local s = def.slots[i]
+        if s then offs[i] = s.off end
+      end
+    end
+    return offs
+  end
+
+  for typeIdx, def in pairs(EfxDefs.SHARED) do
+    PatchManager.EFX_SLOT_OFFSETS_SHARED[typeIdx] = offsetsOf(def)
+  end
+
+  for efxN, types in pairs(EfxDefs.SPECIAL) do
+    PatchManager.EFX_SLOT_OFFSETS_SPECIAL[efxN] = {}
+    for typeIdx, def in pairs(types) do
+      PatchManager.EFX_SLOT_OFFSETS_SPECIAL[efxN][typeIdx] = offsetsOf(def)
+    end
+  end
+end
 
 -- ---------------------------------------------------------------------------
 -- Parameter Assign slot state — tracks the PARAM_ID currently assigned to

@@ -6,7 +6,7 @@
 > - Phase 1 (Tasks 1.1–1.5) — ✅ committed `b380a9f`.
 > - Task 2.1 (namespace the root chunk) — ✅ done and hardware-verified, committed `1bf2298`.
 > - Task 2.2a (canonical synth-param table) — ✅ **done and hardware-verified (2026-06-12)**. `param_defs.lua` added; `bcr_map.lua`, `enc_map.lua`, `patch_manager.lua` now derive their 7 primary tables from it. Value-identity harness PASS (zero diffs), `luac -p` PASS, build clean (241/241), hardware regression PASS.
-> - Task 2.2b (shared EFX defs) — open. Scope: new `efx_defs.lua` included into root AND both EFX sections; `EFX_SLOT_OFFSETS_*` derived in root, `TYPE_DEFS` rebuilt in `efx_section.lua` via string-key dispatch table.
+> - Task 2.2b (shared EFX defs) — ✅ **done and hardware-verified (2026-06-13).** Implemented via TouchOSC Shared Scripts (`require`). New `lua/shared/efx_defs.lua` is the single source of truth for the full EFX type/slot/button structure (offsets + names + maxes + display string-keys + defaults + disabledBy + btns), `require`d by the root chunk (`patch_manager.lua` derives `EFX_SLOT_OFFSETS_*`, offsets only) and `efx_section.lua` (rebuilds `TYPE_DEFS`, resolving display keys to local fns via `DISPLAY_FNS`). toscbuild gained a `shared` mapping kind (create-or-update of `<include><source>`) + `extract` round-trip. Value-identity harness PASS. `luac -p` PASS. Build clean (242/242, −4,265 bytes). Hardware regression PASS (EFX type changes, EFX slots, BCR2 round-trips, assign-mode EFX slots, EFX patch receive).
 > - Task 2.3 — open.
 > - Out-of-plan fix shipped in `1bf2298`: chunked the preset-manager bank pull/push OSC transfer (was hanging on banks >~8 KB due to macOS's ~9 KB UDP datagram cap + python-osc's 8192-byte recv buffer). See the new entry under [Out-of-plan fixes](#out-of-plan-fixes).
 
@@ -26,7 +26,7 @@
 | Duplicate `assign_xy_mod_status` labels | **Done** — Task 1.5 (`b380a9f`) |
 | Unverified display curves | **Known issue (open)** — see below |
 | Namespace the root chunk | **Done** — Task 2.1 (`1bf2298`) |
-| Single source of truth for parameter data | **2.2a done** (`param_defs.lua`, 2026-06-12) — 2.2b (EFX defs) open |
+| Single source of truth for parameter data | **2.2a done** (`param_defs.lua`, 2026-06-12); **2.2b done** (`shared/efx_defs.lua`, hardware-verified 2026-06-13) |
 | Standardize lookup and messaging idioms | **In scope** — Task 2.3 |
 
 ### Known issues (documented, no task)
@@ -185,6 +185,14 @@ Deliberate architectural improvements. **Sequential — one task per session**, 
 ---
 
 ### Task 2.2b — EFX shared defs (try TouchOSC Shared Scripts first)
+
+> **⏳ Implemented & offline-verified (2026-06-12); hardware regression pending.** Shared Scripts route taken (both spikes had passed). Files: `lua/shared/efx_defs.lua` (new), `patch_manager.lua` + `efx_section.lua` (derive from `require("efx_defs")`), `tools/toscbuild.py` (`shared` mapping kind + extract), `tb-3/toscbuild.json` (new mapping).
+>
+> **Design decision — full-structure shared file, not offsets-only.** The implementation outline below sketched an offsets-only shared table (`{SLOT_OFFSETS_SHARED, SLOT_OFFSETS_SPECIAL}`) with `efx_section` keeping `name`/`max`/`display` inline and pulling `off` by index. That would have *split one logical slot across two files* (name in `efx_section`, offset in shared) — a fresh index-alignment hazard. Instead, `efx_defs.lua` carries the **whole** per-type slot/btn structure (off + name + max + display-key + default + disabledBy + swOff + btns) so each slot is defined exactly once, atomically. Root derives offsets-only from it (stays lean); `efx_section` resolves the `display` string key to a local fn (the only thing that can't cross the chunk boundary cleanly). Net layout size went *down* 4,265 bytes (the `TYPE_DEFS` literal was duplicated into both EFX nodes + offsets in root; all three collapse to one shared copy + small derivers).
+>
+> **Prerequisite resolved (option "Both").** User authored the `efx_defs` `<include>` skeleton in the TouchOSC editor (giving a ground-truth schema), AND toscbuild gained a create-or-update path. The create path's synthesized `<include>` XML was confirmed **byte-identical** to the editor's, so the layout is now reproducible from source (scaffold/fresh-checkout safe), not dependent on a manual editor step.
+>
+> **Verification (offline):** value-identity harness PASS (derived `EFX_SLOT_OFFSETS_*` + reconstructed `TYPE_DEFS` for efx1 & efx2 vs HEAD, including every display-fn output across 0..max); `luac -p` PASS on all sources and the assembled root/efx chunks; build clean 242/242; shared script round-trips via `extract`. **Hardware regression still required before commit/close.**
 
 > **⚠️ Prerequisite (do this first).** toscbuild *updates* an existing `<include>`'s `<source>`; it does **not** create the `<include>` node. So before the inject path can work, an `efx_defs` Shared Script must already exist in `TB3.tosc` — either re-add it in the TouchOSC editor (name it `efx_defs`, save) **or** teach toscbuild's `scaffold` to create the `<include>` node. (Both 2.2b spikes already pass: Shared Scripts are `.tosc`-injectable and the deployment rig supports `require` — see Experiments below.)
 

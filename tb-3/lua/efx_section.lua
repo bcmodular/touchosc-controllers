@@ -233,283 +233,94 @@ local function dispPitchSt(raw)
 end
 
 -- ---------------------------------------------------------------------------
--- EFX type definitions
+-- EFX type definitions — rebuilt from the shared efx_defs Shared Script.
+--
+-- efx_defs.lua (require("efx_defs")) is the single source of truth for slot
+-- byte offsets, names, maxes, defaults, disabledBy, and button rows. It is also
+-- consumed by patch_manager.lua in the root chunk to derive EFX_SLOT_OFFSETS_*,
+-- so the offsets now live in exactly one place (before Task 2.2b they were
+-- hand-mirrored across the two unreachable chunks and drifted silently).
+--
+-- efx_defs is PURE DATA: each slot's `display` is a STRING KEY, resolved here to
+-- a local display function via DISPLAY_FNS. The display fns and their lookup
+-- tables stay local to this chunk and never cross the shared-script boundary
+-- (the sp404 controls_info.lua pattern), keeping the shared file portable and
+-- the root chunk free of EFX display code.
+--
+-- TYPE_DEFS keeps the exact runtime shape the rest of this file expects:
+--   slot : { off, name, max [, display(fn)] [, default] [, disabledBy] }
+--     display(raw) → string — optional; omit for plain 0-N integer display.
+--   btn  : { off, name, action [, val] }
+--     action "set"    → radio preset; write val; light this, unlight siblings
+--     action "toggle" → binary flip at offset
+--   Type-option ("set") buttons sit at the bottom row (btns[4]-[7] = B5-B8).
+--   Reverb fills all 7 B-button slots B2-B8 (btns[1]-[7]).
+--   Slot/button positional nil holes are preserved (consumers iterate 1..12 /
+--   2..8, never ipairs).
 -- ---------------------------------------------------------------------------
--- slot  : { off, name, max [, display] }
---   display(raw) → string — optional human-readable conversion.
---   Omit for plain 0-N integer display.
---
--- btn   : { off, name, action [, val, max] }
---   action "set"    → radio preset; write val; light this, unlight siblings
---   action "toggle" → binary flip at offset
---
--- Type-option ("set") buttons sit at the bottom row (btns[4]–[7] = B5–B8).
--- Reverb fills all 7 B-button slots B2–B8 (btns[1]–[7]).
--- BPM SYNC / STEP RATE are regular slots — not buttons.
 
-local TYPE_DEFS = {
-
-  [0] = { name="BYPASS" },
-
-  -- 1: COMP — Compressor/Sustainer
-  --    CS ATTACK 0-124 = 0-800ms  |  CS RELEASE 0-124 = 0-8000ms
-  --    CS THRESHOLD 0-40 = −40 to 0 dB  |  CS RATIO 0-13 = 14 ratios
-  --    CS KNEE 0-9 = Hard/Soft1-9  |  CS GAIN 0-80 = ±40 dB
-  --    CS BALANCE 0-100 = −50…+50
-  [1] = { name="COMP",
-    swOff = 0x01,
-    slots = {
-      {off=0x04, name="THRESHOLD", max=40,  display=dispThreshold},
-      {off=0x05, name="RATIO",     max=13,  display=dispRatio},
-      {off=0x02, name="ATTACK",    max=124, display=dispCsAttack},
-      {off=0x03, name="RELEASE",   max=124, display=dispCsRelease},
-      {off=0x06, name="KNEE",      max=9,   display=dispKnee},
-      {off=0x07, name="GAIN",      max=80,  display=dispDb40,      default=0.5},
-      {off=0x08, name="BALANCE",   max=100, display=dispBipolar50, default=0.5},
-    },
-    btns = {},
-  },
-
-  -- 2: RING MOD
-  --    EQ LOW/HIGH 0-30 = ±15 dB  |  BALANCE 0-100 = −50…+50
-  --    POLARITY 0=UP, 1=DOWN — two radio buttons (B2/B3)
-  [2] = { name="RING MOD",
-    swOff = 0x09,
-    slots = {
-      {off=0x0A, name="FREQ",    max=127},
-      {off=0x0B, name="SENS",    max=127},
-      {off=0x0F, name="BALANCE", max=100, display=dispBipolar50, default=0.5},
-      {off=0x10, name="LEVEL",   max=127},
-      {off=0x0D, name="EQ LOW",  max=30,  display=dispDb15,      default=0.5},
-      {off=0x0E, name="EQ HIGH", max=30,  display=dispDb15,      default=0.5},
-    },
-    btns = {
-      nil, nil, nil,
-      {off=0x0C, name="UP",   action="set", val=0},
-      {off=0x0C, name="DOWN", action="set", val=1},
-    },
-  },
-
-  -- 3: BIT CRUSH
-  --    EQ LOW/HIGH 0-30 = ±15 dB
-  [3] = { name="BIT CRUSH",
-    swOff = 0x11,
-    slots = {
-      {off=0x12, name="FILTER",    max=127},
-      {off=0x13, name="SAMP RATE", max=127},
-      {off=0x17, name="LEVEL",     max=127},
-      nil,
-      {off=0x15, name="EQ LOW",    max=30, display=dispDb15, default=0.5},
-      {off=0x16, name="EQ HIGH",   max=30, display=dispDb15, default=0.5},
-    },
-    btns = {},
-  },
-
-  -- 4: TREMOLO
-  --    S01-S04: dedicated time row — BPM SYNC, RATE (greyed when SYNC ≠ OFF), nil×2
-  --    S05+: sound parameters
-  --    TYPE 0-5 = TRI/UP SAW/DN SAW/SIN/SQR/RND  |  PHASE 0-100 = 0°-360°
-  [4] = { name="TREMOLO",
-    swOff = 0x18,
-    slots = {
-      {off=0x1C, name="BPM SYNC", max=20,  display=dispBpmDiv},
-      {off=0x1B, name="RATE",     max=100, display=dispRate, disabledBy={0x1C}},
-      nil, nil,
-      {off=0x1E, name="DEPTH",    max=100},
-      {off=0x19, name="TYPE",     max=5,   display=dispTrType},
-      {off=0x20, name="LEVEL",    max=100},
-      {off=0x1A, name="PHASE",    max=100, display=dispPhase},
-      {off=0x1D, name="SHAPE",    max=100},
-    },
-    btns = {
-      nil, nil, nil,
-      {off=0x1F, name="TREMOLO", action="set", val=0},
-      {off=0x1F, name="PAN",     action="set", val=1},
-    },
-  },
-
-  -- 5: CHORUS
-  --    S01-S04: dedicated time row — BPM SYNC, RATE (greyed when SYNC ≠ OFF), nil×2
-  --    S05+: sound parameters
-  --    PRE DLY 0-80 = 0-80 ms  |  HPF 0-17 = Flat-800 Hz  |  LPF 0-14 = 630 Hz-Flat
-  [5] = { name="CHORUS",
-    swOff = 0x21,
-    slots = {
-      {off=0x24, name="BPM SYNC", max=20,  display=dispBpmDiv},
-      {off=0x23, name="RATE",     max=100, display=dispRate, disabledBy={0x24}},
-      nil, nil,
-      {off=0x25, name="DEPTH",    max=100},
-      {off=0x26, name="PRE DLY",  max=80,  display=dispMs},
-      {off=0x29, name="LEVEL",    max=100},
-      {off=0x27, name="HPF",      max=17,  display=dispHPF},
-      {off=0x28, name="LPF",      max=14,  display=dispLPF, default=1.0},
-    },
-    btns = {
-      nil, nil, nil,
-      {off=0x22, name="MONO",    action="set", val=0},
-      {off=0x22, name="STEREO1", action="set", val=1},
-      {off=0x22, name="STEREO2", action="set", val=2},
-    },
-  },
-
-  -- 6: FLANGER
-  --    S01-S04: dedicated time row — BPM SYNC, RATE (greyed when SYNC ≠ OFF), nil×2
-  --    S05+: sound parameters
-  --    MANUAL 0-100 = −50…+50  |  HPF 0-10 = Flat-800 Hz (verify against hardware)
-  [6] = { name="FLANGER",
-    swOff = 0x2A,
-    slots = {
-      {off=0x2C, name="BPM SYNC",   max=20,  display=dispBpmDiv},
-      {off=0x2B, name="RATE",       max=100, display=dispRate, disabledBy={0x2C}},
-      nil, nil,
-      {off=0x2D, name="DEPTH",      max=100},
-      {off=0x2E, name="MANUAL",     max=100, display=dispBipolar50, default=0.5},
-      {off=0x2F, name="RESONANCE",  max=100},
-      {off=0x30, name="SEPARATION",  max=100},
-      {off=0x31, name="HPF",        max=10,  display=dispFLHPF},
-      {off=0x32, name="EFX LVL",    max=100},
-      {off=0x33, name="DIRECT LVL", max=100},
-    },
-    btns = {},
-  },
-
-  -- 7: PHASER
-  --    S01-S04: dedicated time row — BPM SYNC, RATE (greyed when S01 or S03 ≠ OFF),
-  --             STEP RATE, nil (Phaser fills 3 of 4 time slots)
-  --    S05+: sound parameters  |  MANUAL 0-100 = −50…+50
-  [7] = { name="PHASER",
-    swOff = 0x34,
-    slots = {
-      {off=0x37, name="BPM SYNC",   max=20,  display=dispBpmDiv},
-      {off=0x36, name="RATE",       max=100, display=dispRate, disabledBy={0x37, 0x3B}},
-      {off=0x3B, name="STEP RATE",  max=20,  display=dispBpmDiv},
-      nil,
-      {off=0x38, name="DEPTH",      max=100},
-      {off=0x39, name="MANUAL",     max=100, display=dispBipolar50, default=0.5},
-      {off=0x3A, name="RESONANCE",  max=127},
-      {off=0x3C, name="EFX LVL",    max=100},
-      {off=0x3D, name="DIRECT LVL", max=100},
-    },
-    btns = {
-      nil, nil, nil,
-      {off=0x35, name="4STAGE",  action="set", val=0},
-      {off=0x35, name="8STAGE",  action="set", val=1},
-      {off=0x35, name="12STAGE", action="set", val=2},
-      {off=0x35, name="BI-PH",   action="set", val=3},
-    },
-  },
-
-  -- 8: DELAY
-  --    S01-S04: dedicated time row — BPM SYNC, TIME (greyed when SYNC ≠ OFF), nil×2
-  --    S05+: sound parameters (TAP TIME first since it's time-adjacent)
-  --    BPM SYNC 0-13 = 14 beat divisions (Delay has a shorter sync range than others)
-  --    LPF 0-14 = 630 Hz-Flat
-  [8] = { name="DELAY",
-    swOff = 0x3E,
-    slots = {
-      {off=0x42, name="BPM SYNC",   max=13,  display=dispBpmDiv},
-      {off=0x40, name="TIME",       max=100, display=dispMs, disabledBy={0x42}},
-      nil, nil,
-      {off=0x41, name="TAP TIME",   max=100, display=dispPct},
-      {off=0x43, name="FEEDBACK",   max=100},
-      {off=0x44, name="LPF",        max=14,  display=dispLPF, default=1.0},
-      {off=0x45, name="EFX LVL",    max=100},
-      {off=0x46, name="DIRECT LVL", max=100},
-    },
-    btns = {
-      nil, nil, nil,
-      {off=0x3F, name="SINGLE", action="set", val=0},
-      {off=0x3F, name="PAN",    action="set", val=1},
-      {off=0x3F, name="STEREO", action="set", val=2},
-    },
-  },
+-- String-key -> local display function. Keys match efx_defs.lua slot `display`.
+local DISPLAY_FNS = {
+  dispBpmDiv    = dispBpmDiv,
+  dispDb20      = dispDb20,
+  dispDb15      = dispDb15,
+  dispDb40      = dispDb40,
+  dispThreshold = dispThreshold,
+  dispBipolar50 = dispBipolar50,
+  dispRatio     = dispRatio,
+  dispKnee      = dispKnee,
+  dispCsAttack  = dispCsAttack,
+  dispCsRelease = dispCsRelease,
+  dispHPF       = dispHPF,
+  dispFLHPF     = dispFLHPF,
+  dispLPF       = dispLPF,
+  dispEQFreq    = dispEQFreq,
+  dispEQQ       = dispEQQ,
+  dispTrType    = dispTrType,
+  dispPhase     = dispPhase,
+  dispRate      = dispRate,
+  dispMs        = dispMs,
+  dispPct       = dispPct,
+  dispRevTime   = dispRevTime,
+  dispPitchSt   = dispPitchSt,
 }
 
--- ---------------------------------------------------------------------------
--- EFX1-specific types (PITCH SHIFT type 9, EQ type 10)
--- ---------------------------------------------------------------------------
+-- Build a runtime type def from a shared (pure-data) def: copy scalar fields,
+-- resolve the display string key to a function, preserve slot nil holes.
+-- btns/disabledBy are shared by reference (read-only at runtime, never mutated).
+local function buildTypeDef(src)
+  local t = { name = src.name, swOff = src.swOff, btns = src.btns }
+  if src.slots then
+    t.slots = {}
+    for i = 1, 12 do
+      local s = src.slots[i]
+      if s then
+        t.slots[i] = {
+          off        = s.off,
+          name       = s.name,
+          max        = s.max,
+          default    = s.default,
+          disabledBy = s.disabledBy,
+          display    = s.display and DISPLAY_FNS[s.display] or nil,
+        }
+      end
+    end
+  end
+  return t
+end
 
-if efxNum == 1 then
-
-  -- 9: PITCH SHIFT (EFX1 only)
-  --    PITCH 0-48 = −24…+24 semitones (raw 24 = 0 st)
-  --    PRE DLY 0-100 = 0-100 ms
-  TYPE_DEFS[9] = { name="PITCH SHIFT",
-    swOff = 0x47,
-    slots = {
-      {off=0x49, name="PITCH 1",    max=48,  display=dispPitchSt, default=0.5},
-      {off=0x4A, name="PRE DLY 1",  max=100, display=dispMs},
-      {off=0x4C, name="EFX LVL 1",  max=100},
-      {off=0x4B, name="FEEDBACK",   max=100},
-      {off=0x4D, name="PITCH 2",    max=48,  display=dispPitchSt, default=0.5},
-      {off=0x4E, name="PRE DLY 2",  max=100, display=dispMs},
-      {off=0x50, name="EFX LVL 2",  max=100},
-      {off=0x51, name="DIRECT LVL", max=100},
-    },
-    btns = {
-      nil, nil, nil,
-      {off=0x48, name="1MONO",   action="set", val=0},
-      {off=0x48, name="2MONO",   action="set", val=1},
-      {off=0x48, name="2STEREO", action="set", val=2},
-    },
-  }
-
-  -- 10: EQ (EFX1 only)
-  --    GAIN params 0-40 = ±20 dB
-  --    LOW/HI CUT: HPF (0-17) / LPF (0-14) tables
-  --    FREQ 0-27 = 20 Hz-10 kHz  |  Q 0-5 = 0.5-16
-  TYPE_DEFS[10] = { name="EQ",
-    swOff = 0x53,
-    slots = {
-      {off=0x54, name="LOW CUT",  max=17, display=dispHPF},
-      {off=0x55, name="LOW GAIN", max=40, display=dispDb20,  default=0.5},
-      {off=0x5C, name="HI CUT",   max=14, display=dispLPF,   default=1.0},
-      {off=0x5D, name="HI GAIN",  max=40, display=dispDb20,  default=0.5},
-      {off=0x56, name="LM FREQ",  max=27, display=dispEQFreq},
-      {off=0x57, name="LM Q",     max=5,  display=dispEQQ},
-      {off=0x58, name="LM GAIN",  max=40, display=dispDb20,  default=0.5},
-      nil,
-      {off=0x59, name="HM FREQ",  max=27, display=dispEQFreq},
-      {off=0x5A, name="HM Q",     max=5,  display=dispEQQ},
-      {off=0x5B, name="HM GAIN",  max=40, display=dispDb20,  default=0.5},
-      {off=0x5E, name="LEVEL",    max=40, display=dispDb20,  default=0.5},
-    },
-    btns = {},
-  }
-
--- ---------------------------------------------------------------------------
--- EFX2-specific types (REVERB type 9)
--- ---------------------------------------------------------------------------
-
-else
-
-  -- 9: REVERB (EFX2 only)
-  --    TIME 0-99 = 0.0-9.9 s  |  PRE DLY 0-100 = 0-100 ms
-  --    HPF 0-17 = Flat-800 Hz  |  LPF 0-14 = 630 Hz-Flat
-  --    All 7 B-buttons (B2–B8) are reverb-type presets.
-  TYPE_DEFS[9] = { name="REVERB",
-    swOff = 0x47,
-    slots = {
-      {off=0x49, name="TIME",       max=99,  display=dispRevTime},
-      {off=0x4A, name="PRE DLY",    max=100, display=dispMs},
-      {off=0x4D, name="DENSITY",    max=10},
-      {off=0x50, name="SPRING SNS", max=100},
-      {off=0x4B, name="HPF",        max=17,  display=dispHPF},
-      {off=0x4C, name="LPF",        max=14,  display=dispLPF, default=1.0},
-      {off=0x4E, name="EFX LVL",    max=100},
-      {off=0x4F, name="DIRECT LVL", max=100},
-    },
-    btns = {
-      {off=0x48, name="AMBIENT", action="set", val=0},
-      {off=0x48, name="ROOM",    action="set", val=1},
-      {off=0x48, name="HALL 1",  action="set", val=2},
-      {off=0x48, name="HALL 2",  action="set", val=3},
-      {off=0x48, name="PLATE",   action="set", val=4},
-      {off=0x48, name="SPRING",  action="set", val=5},
-      {off=0x48, name="MOD",     action="set", val=6},
-    },
-  }
-
+local TYPE_DEFS = {}
+do
+  local EfxDefs = require("efx_defs")
+  for idx, src in pairs(EfxDefs.SHARED) do
+    TYPE_DEFS[idx] = buildTypeDef(src)
+  end
+  local special = EfxDefs.SPECIAL[efxNum]   -- types 9/10, per EFX section
+  if special then
+    for idx, src in pairs(special) do
+      TYPE_DEFS[idx] = buildTypeDef(src)
+    end
+  end
 end
 
 -- ---------------------------------------------------------------------------

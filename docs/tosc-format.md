@@ -202,7 +202,21 @@ TouchOSC uses a sandboxed Lua environment based on **Lua 5.1** with select 5.2/5
 
 From Lua base: `error`, `ipairs`, `next`, `pairs`, `print`, `select`, `tonumber`, `tostring`, `unpack`, `type`
 
-**Not available:** `require`, `dofile`, `loadfile`, `io`, `coroutine`, `os` (except `os.clock`, `os.time`, `os.difftime`), `debug`, `package`
+**Not available:** `dofile`, `loadfile`, `io`, `coroutine`, `os` (except `os.clock`, `os.time`, `os.difftime`), `debug`, `package`
+
+**`require` is available — but only for Shared Scripts** (see below), not the filesystem. `require("name")` returns the value returned by the Shared Script named `name`. It takes no path/arguments and does not read `package`.
+
+### Shared Scripts (`<includes>` / `require`)
+
+TouchOSC supports a native shared-library mechanism (since ~v1.5.1.255): a **Shared Script** is a standalone Lua chunk `require`-able from any control script. In the `.tosc` XML they live in an `<includes>` collection on the **root node** (first child, before `<properties>`):
+
+```xml
+<includes>
+  <include><name><![CDATA[efx_defs]]></name><source><![CDATA[ ...lua... ]]></source></include>
+</includes>
+```
+
+Semantics — a Shared Script is an **independent chunk**: it cannot read a requiring control's `local`s, cannot `require` another Shared Script (no nesting), and crosses the chunk boundary only via the table/value it `return`s (or globals). `toscbuild` treats `<include><source>` as a code-first injection target via the `shared` mapping kind (it create-or-updates the `<include>`, mirroring `<property script>` injection); `extract` round-trips them to a `shared/` subdirectory.
 
 ### Available Libraries
 

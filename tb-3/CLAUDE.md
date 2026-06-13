@@ -133,8 +133,9 @@ These two uses are mutually exclusive in time (the `"prog"` guard is cleared bef
 |------|--------------|---------|
 | `param_defs.lua` | root (include #4, runs first) | `Params` namespace: `Params.LIST` — canonical one-row-per-parameter source of truth for all synthesis params |
 | `bcr_map.lua` | root (include #1) | `BCR` namespace: `MAP` (CC→SysEx), `NRPN_MAP` (NRPN→SysEx) — both derived from `Params.LIST`; EFX slot/button index helpers |
-| `patch_manager.lua` | root (include #2) | `PatchManager` namespace: `parseBlock`; `PARAM_ID_MAP`; `SW_PARAM_ID_MAP` — derived from `Params.LIST`; `EFX_SLOT_OFFSETS_*`; dist type state |
+| `patch_manager.lua` | root (include #2) | `PatchManager` namespace: `parseBlock`; `PARAM_ID_MAP`; `SW_PARAM_ID_MAP` — derived from `Params.LIST`; `EFX_SLOT_OFFSETS_*` — derived from `require("efx_defs")` (Task 2.2b); dist type state |
 | `enc_map.lua` | root (include #3) | `EncMap` namespace: `ENC_SEND_MAP` / `SW_SEND_MAP` — derived from `Params.LIST`; reverse `ADDR_TO_ENC` / `ADDR_TO_SW` |
+| `shared/efx_defs.lua` | **Shared Script** (`require("efx_defs")`) — root chunk + both EFX sections | `EfxDefs` table: canonical single source of truth for EFX type/slot/button layout (`SHARED` types 0–8, `SPECIAL[efxNum]` types 9/10). Pure data; slot `display` is a string key. Stored in the `.tosc` `<includes>` collection, injected by the `shared` mapping kind (Task 2.2b). |
 | `root.lua` | root node | MIDI routing; SysEx helpers; BCR handling; patch grid; assign mode |
 | `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay; sends `enc_touched` |
 | `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_dump", "")` |
@@ -143,7 +144,7 @@ These two uses are mutually exclusive in time (the `"prog"` guard is cleared bef
 | `sw_button.lua` | all `sw_button` nodes | Toggle → sends `sw_toggled`; LFO BPM SYNC / RETRIG overlay labels flip to black when lit |
 | `porta_radio_btn.lua` | `porta_legato_btn`, `porta_always_btn` | Mutual-exclusion radio; sends `porta_mode_set` |
 | `dist_toggle_button.lua` | `dist_on_off`, `dist_color` | Toggle with assign-mode intercept; sends `sw_touched` / `sw_toggled` |
-| `efx_section.lua` | `efx1_section`, `efx2_section` | EFX type/slot/button state machine; raw SysEx byte cache in tag |
+| `efx_section.lua` | `efx1_section`, `efx2_section` | EFX type/slot/button state machine; `TYPE_DEFS` rebuilt from `require("efx_defs")` (display string-keys resolved to local fns via `DISPLAY_FNS`); raw SysEx byte cache in tag |
 | `efx_button.lua` | `efx1_b1`–`efx1_b8`, `efx2_b1`–`efx2_b8` | Button press relay → `efx_section:notify("btn_press", ...)` |
 | `efx_chooser_button.lua` | buttons `1`–`10` under `efx_1_chooser`; `1`–`9` under `efx_2_chooser` | Type direct-select → `root:notify("efx_type_select", "N,M")` |
 | `assign_slot_btn.lua` | `assign_xy_mod_btn`, `assign_effect_knob_btn`, `assign_pad_x_btn`, `assign_pad_y_btn` | Assign slot select → `root:notify("assign_slot_select", key)` |
@@ -302,7 +303,8 @@ Set around `PatchManager.parseBlock()` and the EFX section `patch_data` notify t
 
 ## Known design constraints
 
-- **No shared library mechanism *in use*.** `tb3Checksum`, `sendParam`, and connection constants are duplicated between the root chunk and `efx_section.lua`; keep them byte-identical. NOTE: TouchOSC *does* now ship a native shared-library primitive — Shared Scripts, included via the global `require("name")` (since ~v1.5.1.255). We don't use it yet. It is independent-chunk semantics (no shared `local`s, no nested `require`, cross-chunk sharing only via globals or the script's return value), so it does **not** fit the root chunk's shared-`local` model — but it is the natural fix for this forced duplication and is slated for evaluation in **Task 2.2b** (`plans/review-backlog.md`). Open question pending a spike: whether a Shared Script is a `toscbuild`-injectable XML node (preserves code-first source-of-truth) or editor-only state.
+- **Shared Scripts (`require`) — in use for EFX defs only (Task 2.2b).** TouchOSC ships a native shared-library primitive: a Shared Script included into a control script via the global `require("name")` (since ~v1.5.1.255). Since Task 2.2b, the EFX type/slot/button layout lives in **one** Shared Script, `lua/shared/efx_defs.lua` (`require("efx_defs")` from the root chunk and both EFX sections), ending the old `EFX_SLOT_OFFSETS_*` ↔ `TYPE_DEFS` cross-chunk duplication. Shared Scripts are stored in the `.tosc` `<includes>` collection on the root node and injected code-first by toscbuild's `shared` mapping kind (create-or-update). Semantics: independent chunk — no shared `local`s, no nested `require`, `require` takes no args, cross-chunk sharing only via the script's return value (or globals). This is why it does **not** fit the root chunk's shared-`local` model (2.2a) — do not retrofit `Params`/`BCR`/`PatchManager`/`EncMap` onto `require`.
+- **Remaining forced duplication (not yet deduped).** `tb3Checksum`, `sendParam`, and the connection constants are still duplicated between the root chunk and `efx_section.lua`; keep them byte-identical. The Shared Scripts mechanism could dedup these too (a `tb3_sysex` shared script), but that is a deliberately separate follow-on task — not bundled into 2.2b — to keep each session's hardware-regression surface bounded.
 - **200-local limit** (Lua 5.1 per-chunk). The concatenated root chunk (~2,500 lines) is approaching this. Avoid adding new top-level locals without removing others.
 - **`root:findByName(name, true)`** does a global depth-first search. The `saw_enc` name exists in both `ring_mod_group` and `vco_group` — the `EncMap.ENC_SEND_MAP` two-level key (`"section,enc"`) was added specifically to avoid this collision. Prefer `group.children[name]` for section-scoped lookups.
 - **`.claude/settings.local.json`** contains machine-specific absolute paths — leave it in place, it is local config and not committed.

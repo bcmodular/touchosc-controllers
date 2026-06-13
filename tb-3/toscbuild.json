@@ -4,6 +4,10 @@
   "lua_dir": "lua",
   "mappings": [
     {
+      "shared": "shared/efx_defs.lua",
+      "include_name": "efx_defs"
+    },
+    {
       "lua": "root.lua",
       "node_id": "root",
       "include": [

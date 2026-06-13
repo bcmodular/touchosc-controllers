@@ -71,6 +71,18 @@ _SCRIPT_CDATA_RE = (
     r"<value><!\[CDATA\[)(.*?)(\]\]></value></property>)"
 )
 
+# Regex to match the <source> CDATA of a Shared Script <include> by <name>.
+# Shared Scripts live in a document-level <includes> collection on the root node
+# (lexml > node[ROOT] > includes > include[]); each <include> is a <name> CDATA
+# + a <source> CDATA, require()'d from a control script via require("<name>").
+# This injection path is disjoint from _SCRIPT_CDATA_RE (which only matches the
+# [script] property), so building the root chunk leaves <includes> untouched.
+_INCLUDE_SOURCE_RE = (
+    r"(<include><name><!\[CDATA\[{name}\]\]></name><source><!\[CDATA\[)"
+    r"(.*?)"
+    r"(\]\]></source></include>)"
+)
+
 
 def _find_node_range(xml_str, node_name):
     """Find the properties range for the first <node> with this name."""
@@ -274,6 +286,87 @@ def replace_script_under_parent(xml_str, parent_name, child_names, lua_content):
 
 
 # ---------------------------------------------------------------------------
+# Shared Scripts (<includes>/<include>) — require()-able library scripts
+# ---------------------------------------------------------------------------
+
+def _make_include_xml(include_name, content):
+    """Build a complete <include> element for a Shared Script."""
+    return (
+        f"<include><name><![CDATA[{include_name}]]></name>"
+        f"<source><![CDATA[{content}]]></source></include>"
+    )
+
+
+def inject_shared_source(xml_str, include_name, content):
+    """Set a Shared Script's <source> to `content`, creating the <include> if absent.
+
+    Returns (modified_xml, action) where action is 'updated', 'created', or
+    'created+container'. Raises ValueError if the content would break CDATA or
+    there is no root node to attach an <includes> collection to.
+    """
+    if "]]>" in content:
+        raise ValueError("source contains ']]>' which would terminate the CDATA section")
+
+    # 1. Update an existing <include> with this name.
+    pattern = _INCLUDE_SOURCE_RE.format(name=re.escape(include_name))
+    m = re.search(pattern, xml_str, re.DOTALL)
+    if m:
+        new_xml = (
+            xml_str[:m.start()]
+            + m.group(1) + content + m.group(3)
+            + xml_str[m.end():]
+        )
+        return new_xml, "updated"
+
+    include_xml = _make_include_xml(include_name, content)
+
+    # 2. No matching <include> — insert into the existing <includes> collection.
+    close = xml_str.find("</includes>")
+    if close != -1:
+        return xml_str[:close] + include_xml + xml_str[close:], "created"
+
+    # 3. No <includes> collection — create one at the start of the root node,
+    #    immediately after its opening <node ...> tag (before <properties>).
+    rng = _find_root_node_range(xml_str)
+    if rng is None:
+        raise ValueError("no root node to attach an <includes> collection to")
+    node_start = rng[0]
+    gt = xml_str.find(">", node_start)
+    if gt == -1:
+        raise ValueError("malformed root <node> tag")
+    insert = "<includes>" + include_xml + "</includes>"
+    return xml_str[:gt + 1] + insert + xml_str[gt + 1:], "created+container"
+
+
+def _inject_shared(xml_str, lua_dir, mapping, quiet=False):
+    """Inject a Shared Script's source into its <include>. Returns (xml, count)."""
+    shared_rel = mapping["shared"]
+    shared_path = os.path.join(lua_dir, shared_rel)
+    include_name = (
+        mapping.get("include_name")
+        or os.path.splitext(os.path.basename(shared_rel))[0]
+    )
+
+    if not os.path.isfile(shared_path):
+        print(f"  SKIP  shared {shared_rel} (file not found)", file=sys.stderr)
+        return xml_str, 0
+
+    with open(shared_path) as f:
+        content = f.read()
+
+    try:
+        xml_str, action = inject_shared_source(xml_str, include_name, content)
+    except ValueError as e:
+        print(f"  ERROR shared {shared_rel}: {e}", file=sys.stderr)
+        return xml_str, 0
+
+    if not quiet:
+        print(f"  OK    {shared_rel} → include[{include_name}] "
+              f"({action}, {len(content)} chars)")
+    return xml_str, 1
+
+
+# ---------------------------------------------------------------------------
 # Subcommand: tree
 # ---------------------------------------------------------------------------
 
@@ -368,6 +461,18 @@ def _collect_scripts(root_elem):
     return scripts
 
 
+def _collect_includes(root_elem):
+    """Collect Shared Scripts from the <includes> collection (name + source)."""
+    includes = []
+    for inc in root_elem.iter("include"):
+        name_el = inc.find("name")
+        src_el = inc.find("source")
+        name = name_el.text if name_el is not None else None
+        if name:
+            includes.append({"name": name, "source": (src_el.text if src_el is not None else "") or ""})
+    return includes
+
+
 def cmd_extract(args):
     """Extract all scripts from a .tosc file to individual .lua files."""
     xml_str = tosc_read(args.file)
@@ -377,6 +482,18 @@ def cmd_extract(args):
 
     out_dir = args.output or "extracted"
     os.makedirs(out_dir, exist_ok=True)
+
+    # Shared Scripts (<includes>) round-trip to a shared/ subdirectory.
+    includes = _collect_includes(root)
+    if includes:
+        shared_dir = os.path.join(out_dir, "shared")
+        os.makedirs(shared_dir, exist_ok=True)
+        for inc in includes:
+            with open(os.path.join(shared_dir, f"{inc['name']}.lua"), "w") as f:
+                f.write(inc["source"])
+        print(f"Extracted {len(includes)} shared script(s) to {shared_dir}/")
+        for inc in includes:
+            print(f"  shared '{inc['name']}' ({len(inc['source'])} chars)")
 
     # Track name collisions — use path-based naming for duplicates
     name_counts = {}
@@ -458,6 +575,9 @@ def _count_total_targets(mappings, xml_str):
     """Estimate injection targets (duplicate node_name counts all matches)."""
     total = 0
     for m in mappings:
+        if "shared" in m:
+            total += 1
+            continue
         resolved = _resolve_targets(m)
         if resolved is None:
             continue
@@ -488,6 +608,9 @@ def _inject_mapping(xml_str, lua_dir, mapping, quiet=False):
 
     Returns (xml_str, inject_count).
     """
+    if "shared" in mapping:
+        return _inject_shared(xml_str, lua_dir, mapping, quiet)
+
     lua_file = mapping["lua"]
     lua_path = os.path.join(lua_dir, lua_file)
 

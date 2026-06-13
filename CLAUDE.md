@@ -87,6 +87,7 @@ Mapping types:
 - **`node_names`** (array) — One-to-many: inject the same script into every layout node with that name.
 - **`under_name`** + **`node_names`** — Inject into direct children only: for each parent node named `under_name`, update each child whose name is in `node_names` (e.g. preset pads `1`–`8` under `preset_grid`, avoiding global name collisions).
 - **`node_id: "root"`** — Special case targeting the root `<node>` (first child of `<lexml>`).
+- **`shared`** + **`include_name`** — Inject a Lua file into a TouchOSC **Shared Script** (`require`-able library) rather than a node script. Writes the source into the `<include>` named `include_name` in the root node's `<includes>` collection (create-or-update — creates the `<include>`, and the `<includes>` container, if absent). Used by TB-3 for `shared/efx_defs.lua` (`require("efx_defs")`). `extract` round-trips Shared Scripts to a `shared/` subdirectory.
 
 The `layout` section (optional) defines nodes for the `scaffold` command to generate.
 
