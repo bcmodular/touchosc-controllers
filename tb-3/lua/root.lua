@@ -164,6 +164,16 @@ local function tb3Request(a1, a2, a3, a4, s1, s2, s3, s4)
             a1, a2, a3, a4, s1, s2, s3, s4, cs, 0xF7}, TB3_CONNECTION)
 end
 
+-- ---------------------------------------------------------------------------
+-- BCR2000 #1 sync state — declared before requestPatchDump to prevent
+-- forward-reference scoping bug (function body captures globals, not locals,
+-- when the locals are declared after the function definition).
+-- ---------------------------------------------------------------------------
+
+local awaitingBlocks  = 0   -- counts DT1 blocks expected after requestPatchDump
+local pushToggleState = {}  -- BCR push-encoder toggle state; key = channel*1000+cc
+local syncTimer       = 0   -- frame countdown; fires syncBCR1() as a fallback
+
 -- Request all 11 synthesis blocks (sound only — no pattern data).
 -- Sizes and checksums taken directly from Dope Robot Ctrlr panel source.
 local function requestPatchDump()
@@ -317,10 +327,6 @@ end
 -- BCR2000 #1 sync — called after a full patch receive to push current
 -- fader positions to the BCR2000 so its LED rings reflect the patch.
 -- ---------------------------------------------------------------------------
-
-local awaitingBlocks = 0   -- counts DT1 blocks expected after requestPatchDump
-local pushToggleState = {} -- BCR push-encoder toggle state; key = channel*1000+cc
-local syncTimer = 0        -- frame countdown; fires syncBCR1() as a fallback
 
 -- Set around every PatchManager.parseBlock() call (patch dump / OSC patch / restore).
 -- applyValue() sets fader/switch values directly, which synchronously
