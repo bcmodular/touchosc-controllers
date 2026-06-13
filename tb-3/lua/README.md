@@ -74,7 +74,7 @@ Injection order is the reverse of the JSON `include` list (see Build pipeline ab
 | `shared/efx_defs.lua` | **Shared Script** — `require("efx_defs")` from root + both EFX sections | `EfxDefs`: canonical EFX type/slot/button layout (single source of truth). Pure data; slot `display` is a string key. Injected by the `shared` mapping kind, not concatenated into the root chunk. |
 | `root.lua` | root node (runs last) | MIDI routing; SysEx helpers; BCR handling; patch grid; assign mode |
 | `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay; sends `enc_touched` on finger-down |
-| `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_dump", "")` |
+| `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_patch_dump", 1)` |
 | `send_button.lua` | `send_button` BUTTON | Press → sends current state to TB-3 |
 | `control_fader.lua` | all `control_fader` nodes | Slider value → sends `enc_moved` notify via parent group |
 | `sw_button.lua` | all `sw_button` nodes | Toggle → sends `sw_toggled`; LFO BPM SYNC / RETRIG overlay labels flip to black when lit |
@@ -91,6 +91,18 @@ Injection order is the reverse of the JSON `include` list (see Build pipeline ab
 **Orphaned files (not in `toscbuild.json` — do not use or reference):**
 `dist_type_button.lua`, `delete_all_presets_button.lua`, `save_to_library_btn.lua`,
 `morph_amount_fader.lua`, `porta_mode_button.lua`
+
+---
+
+## Notify convention
+
+**Use `root:notify` for root-bound messages; parent relay only where the parent owns or transforms the payload.**
+
+- **`root:notify(key, value)`** — the standard channel for all messages root handles: `enc_moved`, `sw_toggled`, `enc_touched`, `sw_touched`, `patch_mode_set`, `patch_slot_pressed`, `patch_slot_released`, `assign_slot_select`, `porta_mode_set`, `efx_type_select`, `efx_type_step`, `request_patch_dump`, `send_patch_to_device`.
+- **`self.parent:notify(key, value)`** — only when the parent genuinely owns the message: `efx_button.lua` → `efx_section` (`btn_press`); `receive_button.lua` / `send_button.lua` → root (these buttons are direct children of root, so `self.parent` IS root).
+- **No `self.parent.parent:notify`** — use `root:notify` instead. Grandparent relays bypass root's routing logic and couple the button to its position in the tree.
+
+**Node lookups:** prefer `parent.children["name"]` over `root:findByName("name", true)` when the parent group is already in scope. Use `findByName` only when no scope is available (e.g. top-level section resolution at init, or the node's parent is unknown). This avoids name-collision bugs (e.g. `saw_enc` exists in both `ring_mod_group` and `vco_group`).
 
 ---
 

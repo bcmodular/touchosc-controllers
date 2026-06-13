@@ -255,6 +255,20 @@ local function sendFromEntryFloat(entry, x)
 end
 
 -- ---------------------------------------------------------------------------
+-- Scoped node lookup — avoids ring_mod/vco name collisions (saw_enc)
+-- ---------------------------------------------------------------------------
+
+-- Look up an encoder group using the "section,enc" path format from EncMap.
+-- Finds the section first, then gets the enc as a direct child.
+-- Falls back to global findByName only if the path has no comma (shouldn't happen).
+local function findEncByPath(path)
+  local sec, enc = path:match("^([^,]+),([^,]+)$")
+  if not sec then return root:findByName(path, true) end
+  local secGrp = root:findByName(sec, true)
+  return secGrp and secGrp.children[enc]
+end
+
+-- ---------------------------------------------------------------------------
 -- UI update helpers — called after BCR input so faders reflect hardware state
 -- ---------------------------------------------------------------------------
 
@@ -265,7 +279,7 @@ local function updateUIForAddr(addr, ccVal, srcEntry)
     addr[1], addr[2], addr[3], addr[4])
   local hit = EncMap.ADDR_TO_ENC[key]
   if not hit then return end
-  local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+  local encGrp = findEncByPath(hit.path)
   if not encGrp then return end
   local x = ccVal / 127
   local fader = encGrp.children["control_fader"]
@@ -283,7 +297,7 @@ local function updateSwUIForAddr(addr, v)
     addr[1], addr[2], addr[3], addr[4])
   local hit = EncMap.ADDR_TO_SW[key]
   if not hit then return end
-  local node = root:findByName(hit.path:match(",(.+)$"), true)
+  local node = findEncByPath(hit.path)
   if not node then return end
   if hit.entry.btn then
     -- Standalone BUTTON node: set value directly (no children to look up).
@@ -332,7 +346,7 @@ local function syncBCR1()
         -- Toggle switch: read sw_button / standalone button state
         local hit = EncMap.ADDR_TO_SW[key]
         if hit then
-          local node = root:findByName(hit.path:match(",(.+)$"), true)
+          local node = findEncByPath(hit.path)
           if node then
             local btn
             if hit.entry.btn then
@@ -352,7 +366,7 @@ local function syncBCR1()
         -- Regular encoder: read fader position
         local hit = EncMap.ADDR_TO_ENC[key]
         if hit then
-          local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+          local encGrp = findEncByPath(hit.path)
           if encGrp then
             local fader = encGrp.children["control_fader"]
             if fader then
@@ -372,7 +386,7 @@ local function syncBCR1()
         entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
       local hit = EncMap.ADDR_TO_ENC[key]
       if hit then
-        local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+        local encGrp = findEncByPath(hit.path)
         local fader  = encGrp and encGrp.children["control_fader"]
         if fader then
           sendNRPNToBCR(nrpn, math.floor(fader.values.x * entry.max + 0.5))
@@ -497,7 +511,7 @@ local function handleBCR1(cc, ccVal)
     local key = string.format("%02X%02X%02X%02X", a[1], a[2], a[3], a[4])
     local hit = EncMap.ADDR_TO_ENC[key]
     if hit then
-      local encGrp = root:findByName(hit.path:match(",(.+)$"), true)
+      local encGrp = findEncByPath(hit.path)
       local fader  = encGrp and encGrp.children["control_fader"]
       if fader then fader.values.x = v / entry.max end
     end
@@ -676,11 +690,7 @@ local function updateUIForParamId(paramId, ccVal)
   -- 1. Regular encoder (from PatchManager.PARAM_ID_MAP)
   local path = PatchManager.PARAM_ID_TO_PATH[paramId]
   if path then
-    local sec, enc = path:match("^([^,]+),([^,]+)$")
-    -- Section-scoped lookup avoids ring_mod/vco name collisions.
-    local secGrp = root:findByName(sec, true)
-    local encGrp = secGrp and secGrp.children[enc]
-    if not encGrp then encGrp = root:findByName(enc, true) end
+    local encGrp = findEncByPath(path)
     if encGrp then
       local fader = encGrp.children["control_fader"]
       if fader then fader.values.x = x end
@@ -725,8 +735,7 @@ local function handleTB3CC(cc, ccVal)
   -- Fixed encoder display (cutoff, resonance)
   local encPath = TB3_CC_DISPLAY_MAP[cc]
   if encPath then
-    local encName = encPath:match(",(.+)$")
-    local encGrp  = root:findByName(encName, true)
+    local encGrp = findEncByPath(encPath)
     if not encGrp then return end
     local x = ccVal / 127
     local fader = encGrp.children["control_fader"]
@@ -1497,16 +1506,16 @@ function onReceiveNotify(key, value)
   end
 
   -- EFX type direct-select from efx_1_chooser / efx_2_chooser button grids
-  -- value = "N,M": N = EFX number (1 or 2), M = button index (1-based)
+  -- value = "N,M": N = EFX number (1 or 2), M = type index (button name == type index;
+  -- 0 = BYPASS, 1 = COMP, 2 = RING MOD, ...)
   if key == "efx_type_select" then
-    local efxNum, btnIdx = value:match("^(%d+),(%d+)$")
+    local efxNum, typeIdx = value:match("^(%d+),(%d+)$")
     efxNum  = tonumber(efxNum)
-    btnIdx  = tonumber(btnIdx)
-    if efxNum and btnIdx then
-      local typeIndex   = btnIdx - 1
+    typeIdx = tonumber(typeIdx)
+    if efxNum and typeIdx then
       local sectionName = efxNum == 1 and "efx1_section" or "efx2_section"
       local section     = root:findByName(sectionName, true)
-      if section then section:notify("type_set", typeIndex) end
+      if section then section:notify("type_set", typeIdx) end
     end
     return
   end

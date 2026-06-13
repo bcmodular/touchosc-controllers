@@ -11,6 +11,6 @@ function onValueChanged(key)
   if key ~= "x" then return end
   -- self.parent = efx_N_chooser GROUP; self.parent.parent = efxN_section GROUP
   if self.parent.parent.tag == "prog" then return end
-  local typeIdx = tonumber(self.name) or 1
-  self.parent.parent:notify("type_set", typeIdx)
+  local efxNum = tonumber(self.parent.parent.name:match("efx(%d+)_section")) or 1
+  root:notify("efx_type_select", efxNum .. "," .. self.name)
 end

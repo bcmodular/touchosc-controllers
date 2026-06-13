@@ -138,7 +138,7 @@ These two uses are mutually exclusive in time (the `"prog"` guard is cleared bef
 | `shared/efx_defs.lua` | **Shared Script** (`require("efx_defs")`) — root chunk + both EFX sections | `EfxDefs` table: canonical single source of truth for EFX type/slot/button layout (`SHARED` types 0–8, `SPECIAL[efxNum]` types 9/10). Pure data; slot `display` is a string key. Stored in the `.tosc` `<includes>` collection, injected by the `shared` mapping kind (Task 2.2b). |
 | `root.lua` | root node | MIDI routing; SysEx helpers; BCR handling; patch grid; assign mode |
 | `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay; sends `enc_touched` |
-| `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_dump", "")` |
+| `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_patch_dump", 1)` |
 | `send_button.lua` | `send_button` BUTTON | Press → sends current state to TB-3 via OSC /tb3/restore sequence |
 | `control_fader.lua` | all `control_fader` nodes | Slider value → sends `enc_moved` to root (via parent group notify) |
 | `sw_button.lua` | all `sw_button` nodes | Toggle → sends `sw_toggled`; LFO BPM SYNC / RETRIG overlay labels flip to black when lit |
@@ -173,9 +173,9 @@ All cross-element IPC uses `node:notify(key, value)`. The table below covers eve
 | `patch_clear_all` | `""` | *(dead handler — `delete_all_presets_button.lua` deleted)* | Clears all 16 slots |
 | `save_to_library` | `""` | *(dead handler — replaced by OSC `/tb3/request_patch_export`)* | Sends `/tb3/backup` OSC |
 | `assign_slot_select` | slot key string or `""` | `assign_slot_btn.lua` | Activate / cancel assign mode for that slot |
-| `efx_type_select` | `"N,M"` — EFX num, button index (1-based) | `efx_chooser_button.lua` | Forward `type_set` to efx section |
+| `efx_type_select` | `"N,M"` — EFX num, type index (button name == type index; 1=COMP, 2=RING MOD, …) | `efx_chooser_button.lua` | Forward `type_set` to efx section |
 | `efx_type_step` | `"N,D"` — EFX num, direction (+1/-1) | on-screen PREV/NEXT buttons | Forward `type_step` to efx section |
-| `request_dump` | `""` | `receive_button.lua` | Call `requestPatchDump()` |
+| `request_patch_dump` | `1` | `receive_button.lua` | Call `requestPatchDump()` |
 | `dist_type_up` / `dist_type_dn` | `""` | *(dead handlers — `dist_type_button.lua` deleted)* | Increments/decrements `PatchManager.distType`; calls undefined `sendDistType()` |
 | `efx_type_changed` | `"N,T"` — EFX num, type index | `efx_section.lua` | Update `PatchManager.efxCurType[N]` for assign-mode EFX slot resolution |
 | `efx_sw_touched` | `"efxNum,swOff"` | `efx_section.lua` B1 press handler | Assign-mode: assigns EFX SW parameter to pending slot |

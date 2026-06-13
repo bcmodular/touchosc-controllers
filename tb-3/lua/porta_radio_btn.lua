@@ -27,7 +27,7 @@ function init()
   local my_val = tonumber(self.tag:match("val:(%d+)")) or -1
   if my_val == 0 then
     -- This is the LEGATO button. Activate it if neither button is lit yet.
-    local always_btn = root:findByName("porta_always_btn", true)
+    local always_btn = self.parent.children["porta_always_btn"]
     if self.values.x < 0.5 and (not always_btn or always_btn.values.x < 0.5) then
       updating = true
       self.values.x = 1
@@ -52,7 +52,7 @@ function onValueChanged(key)
     -- User pressed the already-active button (toggle off): re-latch to prevent
     -- both buttons being unlit at the same time.
     local sibling_name = (val == 0) and "porta_always_btn" or "porta_legato_btn"
-    local sibling = root:findByName(sibling_name, true)
+    local sibling = self.parent.children[sibling_name]
     if not sibling or sibling.values.x < 0.5 then
       -- No other option is active; keep this one lit.
       updating = true
