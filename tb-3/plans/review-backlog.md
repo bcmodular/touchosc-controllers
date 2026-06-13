@@ -7,7 +7,7 @@
 > - Task 2.1 (namespace the root chunk) — ✅ done and hardware-verified, committed `1bf2298`.
 > - Task 2.2a (canonical synth-param table) — ✅ **done and hardware-verified (2026-06-12)**. `param_defs.lua` added; `bcr_map.lua`, `enc_map.lua`, `patch_manager.lua` now derive their 7 primary tables from it. Value-identity harness PASS (zero diffs), `luac -p` PASS, build clean (241/241), hardware regression PASS.
 > - Task 2.2b (shared EFX defs) — ✅ **done and hardware-verified (2026-06-13).** Implemented via TouchOSC Shared Scripts (`require`). New `lua/shared/efx_defs.lua` is the single source of truth for the full EFX type/slot/button structure (offsets + names + maxes + display string-keys + defaults + disabledBy + btns), `require`d by the root chunk (`patch_manager.lua` derives `EFX_SLOT_OFFSETS_*`, offsets only) and `efx_section.lua` (rebuilds `TYPE_DEFS`, resolving display keys to local fns via `DISPLAY_FNS`). toscbuild gained a `shared` mapping kind (create-or-update of `<include><source>`) + `extract` round-trip. Value-identity harness PASS. `luac -p` PASS. Build clean (242/242, −4,265 bytes). Hardware regression PASS (EFX type changes, EFX slots, BCR2 round-trips, assign-mode EFX slots, EFX patch receive).
-> - Task 2.3 — open.
+> - Task 2.3 — ⏳ **implemented (2026-06-13, `800351f`); hardware regression pending.**
 > - Out-of-plan fix shipped in `1bf2298`: chunked the preset-manager bank pull/push OSC transfer (was hanging on banks >~8 KB due to macOS's ~9 KB UDP datagram cap + python-osc's 8192-byte recv buffer). See the new entry under [Out-of-plan fixes](#out-of-plan-fixes).
 
 ---
