@@ -1200,6 +1200,16 @@ function onReceiveNotify(key, value)
     return
   end
 
+  -- Sent by sync_to_controllers_button.lua — push current state to both BCRs.
+  if key == "sync_to_controllers" then
+    syncBCR1()
+    local efx1 = root:findByName("efx1_section", true)
+    local efx2 = root:findByName("efx2_section", true)
+    if efx1 then efx1:notify("sync_bcr", "") end
+    if efx2 then efx2:notify("sync_bcr", "") end
+    return
+  end
+
   -- Sent by control_fader.lua when a fader is moved.
   -- value = "section,enc,x"  (x is a 0–1 float string)
   if key == "enc_moved" then

@@ -32,6 +32,10 @@
       "node_name": "send_button"
     },
     {
+      "lua": "sync_to_controllers_button.lua",
+      "node_name": "sync_to_controllers_button"
+    },
+    {
       "lua": "control_fader.lua",
       "node_names": [
         "control_fader"

@@ -6,6 +6,6 @@
 function onValueChanged(key)
   -- self.values, not bare 'values' — TouchOSC Lua 5.1 doesn't expose it as a global.
   if key == "x" and self.values.x == 1 then
-    self.parent:notify("request_patch_dump", 1)
+    root:notify("request_patch_dump", 1)
   end
 end

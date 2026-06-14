@@ -578,6 +578,11 @@ end
 
 function onReceiveNotify(key, value)
 
+  if key == "sync_bcr" then
+    applyType(curType)
+    return
+  end
+
   if key == "type_cc" then
     local ccVal   = tonumber(value) or 0
     local typeIdx = math.min(math.floor(ccVal / 127 * MAX_TYPE + 0.5), MAX_TYPE)
