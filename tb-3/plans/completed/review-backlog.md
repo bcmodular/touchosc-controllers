@@ -7,7 +7,7 @@
 > - Task 2.1 (namespace the root chunk) — ✅ done and hardware-verified, committed `1bf2298`.
 > - Task 2.2a (canonical synth-param table) — ✅ **done and hardware-verified (2026-06-12)**. `param_defs.lua` added; `bcr_map.lua`, `enc_map.lua`, `patch_manager.lua` now derive their 7 primary tables from it. Value-identity harness PASS (zero diffs), `luac -p` PASS, build clean (241/241), hardware regression PASS.
 > - Task 2.2b (shared EFX defs) — ✅ **done and hardware-verified (2026-06-13).** Implemented via TouchOSC Shared Scripts (`require`). New `lua/shared/efx_defs.lua` is the single source of truth for the full EFX type/slot/button structure (offsets + names + maxes + display string-keys + defaults + disabledBy + btns), `require`d by the root chunk (`patch_manager.lua` derives `EFX_SLOT_OFFSETS_*`, offsets only) and `efx_section.lua` (rebuilds `TYPE_DEFS`, resolving display keys to local fns via `DISPLAY_FNS`). toscbuild gained a `shared` mapping kind (create-or-update of `<include><source>`) + `extract` round-trip. Value-identity harness PASS. `luac -p` PASS. Build clean (242/242, −4,265 bytes). Hardware regression PASS (EFX type changes, EFX slots, BCR2 round-trips, assign-mode EFX slots, EFX patch receive).
-> - Task 2.3 — ⏳ **implemented (2026-06-13, `800351f`); hardware regression pending.**
+> - Task 2.3 — ✅ **done and hardware-verified (2026-06-14).** Scoped lookups, notify standardization, + forward-reference fix for `awaitingBlocks`/`syncTimer` (commits `800351f`, `0ded2f3`, `5530c5d`).
 > - Out-of-plan fix shipped in `1bf2298`: chunked the preset-manager bank pull/push OSC transfer (was hanging on banks >~8 KB due to macOS's ~9 KB UDP datagram cap + python-osc's 8192-byte recv buffer). See the new entry under [Out-of-plan fixes](#out-of-plan-fixes).
 
 ---
@@ -252,7 +252,7 @@ Deliberate architectural improvements. **Sequential — one task per session**, 
 
 ---
 
-### Task 2.3 — Standardize lookup and messaging idioms
+### Task 2.3 — Standardize lookup and messaging idioms ✅ Hardware-verified (2026-06-14)
 
 **Problem / Fix.** Two consistency passes, mechanical once 2.1/2.2 have settled:
 
@@ -262,6 +262,13 @@ Deliberate architectural improvements. **Sequential — one task per session**, 
 **Acceptance.** Build succeeds; grep shows no remaining unscoped `findByName` calls except documented exceptions; notify contract table in `CLAUDE.md` matches the code; smoke-test all notify paths (encoders, switches, EFX buttons, patch grid, assign mode).
 
 **Model:** mid-tier (Sonnet class). Do last.
+
+**Commits:**
+- `800351f` — Task 2.3 implementation (scoped lookups + notify standardization); `efx_type_select` off-by-one fix; `CLAUDE.md` and `lua/README.md` updated.
+- `0ded2f3` — `findEncByPath`: global fallback so scoped lookup failure is non-fatal.
+- `5530c5d` — **Forward-reference fix:** `awaitingBlocks`/`syncTimer` declared after `requestPatchDump` — both were setting globals while the rest of root.lua read the locals (always 0). `syncBCR1()` never fired after RECEIVE; the Distortion Type BCR ring was the only visible symptom because `enc_moved` general path covered all other params.
+
+**Hardware regression:** ✅ PASS — all notify paths, BCR dist-type sync after RECEIVE confirmed.
 
 ---
 
