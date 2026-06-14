@@ -122,6 +122,45 @@ local TB3_MIDI_CHANNEL = 2
 local BCR1_CHANNEL     = 1   -- BCR2000 #1 (all encoder groups on one channel)
 local BCR2_CHANNEL     = 2   -- BCR2000 #2: EFX1 + EFX2
 
+local LAUNCHKEY_CONNECTION = {false,false,false,true}
+local LAUNCHKEY_CHANNEL    = 1  -- Launchkey MK4 sends on MIDI ch 1
+
+-- CC assignments for Launchkey MK4 encoders (7 encoders, 0-127 resolution).
+-- 16-bit SysEx params (cutoff/resonance/accent) are scaled 0-127 → 0-255.
+local LAUNCHKEY_CC_MAP = {
+  [74]  = { addr={0x10,0x00,0x0A,0x00}, max=255 },  -- VCF CUTOFF    (enc 1)
+  [71]  = { addr={0x10,0x00,0x0A,0x02}, max=255 },  -- VCF RESONANCE (enc 2)
+  [16]  = { addr={0x10,0x00,0x14,0x0E}, max=255 },  -- ACCENT LEVEL  (enc 3)
+  [17]  = { assignCC=17 },                           -- EFFECT KNOB   (enc 4)
+  [12]  = { assignCC=12 },                           -- XY PAD X      (enc 5)
+  [13]  = { assignCC=13 },                           -- XY PAD Y      (enc 6)
+  [104] = { globalTuning=true },                     -- GLOBAL TUNING (enc 7)
+  [105] = { morph=true },                            -- MORPH AMOUNT
+}
+
+-- Reverse lookup: SysEx addr hex → Launchkey CC (for enc_moved feedback).
+local LAUNCHKEY_ADDR_TO_CC = {}
+for cc, entry in pairs(LAUNCHKEY_CC_MAP) do
+  if entry.addr then
+    local k = string.format("%02X%02X%02X%02X",
+      entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+    LAUNCHKEY_ADDR_TO_CC[k] = cc
+  end
+end
+
+-- Assign slot key → Launchkey CC (for per-change mirror of assigned params).
+local LAUNCHKEY_ASSIGN_CC = {
+  effect_knob = 17,
+  pad_x       = 12,
+  pad_y       = 13,
+}
+
+-- Reverse: Launchkey CC → assign slot key (for syncLaunchkey assign-slot push).
+local LAUNCHKEY_ASSIGN_CC_REVERSE = {}
+for slotKey, cc in pairs(LAUNCHKEY_ASSIGN_CC) do
+  LAUNCHKEY_ASSIGN_CC_REVERSE[cc] = slotKey
+end
+
 -- ---------------------------------------------------------------------------
 -- Global tuning display table (CC 104, verified against hardware)
 -- CC 64 = 0.0, range −7.0 (CC 0) to +7.0 (CC 127), steps mostly 0.1 st.
@@ -225,6 +264,7 @@ local function sendNRPNToBCR(nrpn, value)
   sendMIDI({st, 6,  math.floor(value / 128)},    BCR_CONNECTION)  -- data MSB
   sendMIDI({st, 38, value % 128},                BCR_CONNECTION)  -- data LSB
 end
+
 
 -- ---------------------------------------------------------------------------
 -- Value scaling helper
@@ -407,6 +447,99 @@ local function syncBCR1()
   -- Morph amount (NRPN 8) and morph on/off (CC 40) — no addr entries, handled manually
   sendNRPNToBCR(8, math.floor(morphAmount * BCR.NRPN_MAP[8].max + 0.5))
   sendMIDI({0xB0, 40, patchGridMode == "morph" and 127 or 0}, BCR_CONNECTION)
+end
+
+-- Return the current fader x (0–1) for any paramId, including EFX slot params.
+-- Used by syncLaunchkey to push assign-slot CC values after a full sync.
+local function getFaderXForParamId(paramId)
+  local path = PatchManager.PARAM_ID_TO_PATH[paramId]
+  if path then
+    local encGrp = findEncByPath(path)
+    local fader  = encGrp and encGrp.children["control_fader"]
+    return fader and fader.values.x
+  end
+  local efxNum, off
+  if paramId >= 77 and paramId <= 170 then
+    efxNum = 1; off = paramId - 76
+  elseif paramId >= 172 and paramId <= 253 then
+    efxNum = 2; off = paramId - 171
+  end
+  if efxNum and off then
+    local typeIdx = PatchManager.efxCurType[efxNum] or 0
+    local offs = PatchManager.EFX_SLOT_OFFSETS_SHARED[typeIdx]
+    if not offs then
+      local sp = PatchManager.EFX_SLOT_OFFSETS_SPECIAL[efxNum]
+      offs = sp and sp[typeIdx]
+    end
+    if offs then
+      for slotIdx = 1, 12 do
+        if offs[slotIdx] == off then
+          local slotGrp = root:findByName(
+            string.format("efx%d_s%02d", efxNum, slotIdx), true)
+          local fader = slotGrp and slotGrp.children["control_fader"]
+          return fader and fader.values.x
+        end
+      end
+    end
+  end
+  return nil
+end
+
+-- Return the current paramId for an EFX slot identified by sec/enc from enc_moved.
+-- sec = "efx1_section" | "efx2_section"; enc = "efx1_s03" etc.
+-- Returns nil if sec is not an EFX section or slot has no offset in current type.
+local function getEfxSlotParamId(sec, enc)
+  local efxNum
+  if sec == "efx1_section" then efxNum = 1
+  elseif sec == "efx2_section" then efxNum = 2
+  else return nil end
+  local slotIdx = tonumber(enc:match("%d+$"))
+  if not slotIdx then return nil end
+  local typeIdx = PatchManager.efxCurType[efxNum] or 0
+  local offs = PatchManager.EFX_SLOT_OFFSETS_SHARED[typeIdx]
+  if not offs then
+    local sp = PatchManager.EFX_SLOT_OFFSETS_SPECIAL[efxNum]
+    offs = sp and sp[typeIdx]
+  end
+  if not offs then return nil end
+  local off = offs[slotIdx]
+  if not off then return nil end
+  return efxNum == 1 and (76 + off) or (171 + off)
+end
+
+-- Push current fader positions to the Launchkey MK4's encoder LED rings via CC.
+-- Assign-slot entries (17/12/13) are omitted — values depend on active assignment.
+local function syncLaunchkey()
+  for cc, entry in pairs(LAUNCHKEY_CC_MAP) do
+    local ccVal
+    if entry.addr then
+      local hit = EncMap.ADDR_TO_ENC[string.format("%02X%02X%02X%02X",
+        entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])]
+      if hit then
+        local encGrp = findEncByPath(hit.path)
+        local fader  = encGrp and encGrp.children["control_fader"]
+        if fader then ccVal = math.floor(fader.values.x * 127 + 0.5) end
+      end
+    elseif entry.globalTuning then
+      local encGrp = findEncByPath("tuning_group,tuning_enc")
+      local fader  = encGrp and encGrp.children["control_fader"]
+      if fader then ccVal = math.floor(fader.values.x * 127 + 0.5) end
+    elseif entry.morph then
+      ccVal = math.floor(morphAmount * 127 + 0.5)
+    elseif entry.assignCC then
+      -- Assign-slot: push the current value of the assigned parameter, if any.
+      -- getFaderXForParamId handles both regular encoder params and EFX slot params.
+      local slotKey = LAUNCHKEY_ASSIGN_CC_REVERSE[cc]
+      if slotKey then
+        local paramId = PatchManager.assignedParamIds[slotKey]
+        if paramId then
+          local fx = getFaderXForParamId(paramId)
+          if fx then ccVal = math.floor(fx * 127 + 0.5) end
+        end
+      end
+    end
+    if ccVal then sendMIDI({0xB0, cc, ccVal}, LAUNCHKEY_CONNECTION) end
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -741,6 +874,7 @@ local function updateUIForParamId(paramId, ccVal)
   end
 end
 
+
 local function handleTB3CC(cc, ccVal)
   -- Fixed encoder display (cutoff, resonance)
   local encPath = TB3_CC_DISPLAY_MAP[cc]
@@ -827,6 +961,7 @@ local function handleTB3SysEx(message)
   if triggerSync then
     syncTimer = 0  -- cancel fallback timer; awaitingBlocks beat it
     syncBCR1()
+    syncLaunchkey()
   end
 
   -- Attempt pending store after every block: succeeds as soon as all required
@@ -871,6 +1006,72 @@ function onReceiveMIDI(message, connections)
       local ch = (status % 16) + 1
       if ch == TB3_MIDI_CHANNEL then
         handleTB3CC(message[2], message[3])
+      end
+    end
+    return
+  end
+
+  -- Launchkey MK4 (connection 4): notes/pitch bend pass through; encoders via CC
+  if connections[4] then
+    local status  = message[1]
+    local msgType = status - (status % 16)
+    local ch      = (status % 16) + 1
+    if ch ~= LAUNCHKEY_CHANNEL then return end
+
+    if msgType == 0x90 or msgType == 0x80 then
+      sendMIDI({msgType + (TB3_MIDI_CHANNEL - 1), message[2], message[3]}, TB3_CONNECTION)
+    elseif msgType == 0xE0 then
+      sendMIDI({0xE0 + (TB3_MIDI_CHANNEL - 1), message[2], message[3]}, TB3_CONNECTION)
+    elseif msgType == 0xB0 then
+      local cc    = message[2]
+      local ccVal = message[3]
+      local entry = LAUNCHKEY_CC_MAP[cc]
+      if entry then
+        local x = ccVal / 127
+        if entry.addr then
+          -- 16-bit SysEx param: scale 0-127 → 0-255, send SysEx, update on-screen
+          local a     = entry.addr
+          local val16 = math.floor(x * entry.max + 0.5)
+          tb3Send16bit(a[1], a[2], a[3], a[4], val16)
+          local blk = rawSysexBlocks[string.format("%02X%02X%02X00", a[1], a[2], a[3])]
+          if blk then blk.data[a[4]+1]=math.floor(val16/16); blk.data[a[4]+2]=val16%16 end
+          local hit = EncMap.ADDR_TO_ENC[string.format("%02X%02X%02X%02X",a[1],a[2],a[3],a[4])]
+          if hit then
+            local encGrp = findEncByPath(hit.path)
+            if encGrp then
+              local fader = encGrp.children["control_fader"]
+              if fader then fader.values.x = x end
+              local lbl = encGrp.children["value_label"]
+              if lbl then lbl.values.text = tostring(val16) end
+            end
+          end
+        elseif entry.assignCC then
+          -- Assign-slot param: forward CC to TB-3, update on-screen
+          sendMIDI({0xB0 + (TB3_MIDI_CHANNEL - 1), cc, ccVal}, TB3_CONNECTION)
+          handleTB3CC(cc, ccVal)
+        elseif entry.globalTuning then
+          -- Global tuning: forward CC 104 to TB-3, update display, mirror to BCR1
+          sendMIDI({0xB0 + (TB3_MIDI_CHANNEL - 1), 104, ccVal}, TB3_CONNECTION)
+          local encGrp = findEncByPath("tuning_group,tuning_enc")
+          if encGrp then
+            local fader = encGrp.children["control_fader"]
+            if fader then fader.values.x = x end
+            local lbl = encGrp.children["value_label"]
+            if lbl then lbl.values.text = GLOBAL_TUNING_DISPLAY[ccVal] or "---" end
+          end
+          sendMIDI({0xB0, 100, ccVal}, BCR_CONNECTION)
+        elseif entry.morph then
+          -- Morph amount: gated on morph mode + target selected
+          if patchGridMode ~= "morph" or morphTargetSlot == nil then return end
+          morphAmount = x
+          applyMorph()
+          local morphEnc = root:findByName("morph_enc", true)
+          local fader    = morphEnc and morphEnc.children["control_fader"]
+          if fader then fader.values.x = morphAmount end
+        end
+      else
+        -- Unmapped CC (mod wheel, sustain, etc.): pass through to TB-3
+        sendMIDI({0xB0 + (TB3_MIDI_CHANNEL - 1), cc, ccVal}, TB3_CONNECTION)
       end
     end
     return
@@ -1008,7 +1209,8 @@ local function applySnapshotDiff(targetJson, baseJson)
     end
   end
   print("patch_grid: diff applied " .. sent .. "/" .. #target.blocks .. " blocks")
-  syncBCR1()  -- push updated fader positions to BCR LED rings
+  syncBCR1()
+  syncLaunchkey()
 end
 
 -- Read all 16 slot snapshots from preset_grid's tag.
@@ -1117,7 +1319,7 @@ applyMorph = function()
   -- stale echoes snap the encoder position backwards (jerky response). The
   -- timer fires one full sync ~0.3s after the last morph step, when the
   -- echoed morph amount matches the encoder's resting position.
-  if anyChanged then syncTimer = 20 end
+  if anyChanged then syncTimer = 40 end
 end
 
 -- Broadcast the current mode to all mode buttons.
@@ -1200,9 +1402,10 @@ function onReceiveNotify(key, value)
     return
   end
 
-  -- Sent by sync_to_controllers_button.lua — push current state to both BCRs.
+  -- Sent by sync_to_controllers_button.lua — push current state to BCRs + Launchkey.
   if key == "sync_to_controllers" then
     syncBCR1()
+    syncLaunchkey()
     local efx1 = root:findByName("efx1_section", true)
     local efx2 = root:findByName("efx2_section", true)
     if efx1 then efx1:notify("sync_bcr", "") end
@@ -1241,6 +1444,9 @@ function onReceiveNotify(key, value)
         if patchGridMode ~= "morph" or not morphTargetSlot then return end
         morphAmount = x
         applyMorph()
+        -- Do NOT echo CC 105 to Launchkey here — per-step echoes snap the encoder
+        -- ring backwards while still sweeping (same fix as BCR NRPN 8 debounce).
+        -- syncLaunchkey() sends the final value after the syncTimer debounce.
         -- Show the actual morph amount as a percentage — control_fader's
         -- fallback label is a meaningless 0–127 value here.
         local secGrp = root:findByName(sec, true)
@@ -1312,8 +1518,8 @@ function onReceiveNotify(key, value)
           end
         end
 
-        -- Mirror to BCR2000 #1 so its LED ring tracks the on-screen fader.
-        -- Skip during morph — applyMorph calls syncBCR1() once after the batch.
+        -- Mirror to BCR2000 #1 and Launchkey MK4.
+        -- Skip during morph — applyMorph calls syncBCR1() + syncLaunchkey() once after the batch.
         if not morphing then
           if entry.sp == "global_tuning" then
             -- Global tuning has no SysEx addr; BCR uses CC 100 on channel 1.
@@ -1333,6 +1539,25 @@ function onReceiveNotify(key, value)
               end
             end
           end
+
+          -- Mirror to Launchkey MK4 (CC).
+          local lkCCVal = math.floor(x * 127 + 0.5)
+          if entry.sp == "global_tuning" then
+            sendMIDI({0xB0, 104, lkCCVal}, LAUNCHKEY_CONNECTION)
+          elseif entry.addr then
+            local addrKey = string.format("%02X%02X%02X%02X",
+              entry.addr[1], entry.addr[2], entry.addr[3], entry.addr[4])
+            local lkCC = LAUNCHKEY_ADDR_TO_CC[addrKey]
+            if lkCC then sendMIDI({0xB0, lkCC, lkCCVal}, LAUNCHKEY_CONNECTION) end
+          end
+          -- If this param is assigned to a Launchkey assign slot, mirror there too.
+          local currentPath = sec .. "," .. enc
+          for slotKey, lkCC in pairs(LAUNCHKEY_ASSIGN_CC) do
+            local paramId = PatchManager.assignedParamIds[slotKey]
+            if paramId and PatchManager.PARAM_ID_TO_PATH[paramId] == currentPath then
+              sendMIDI({0xB0, lkCC, lkCCVal}, LAUNCHKEY_CONNECTION)
+            end
+          end
         end
       else
         -- Not in EncMap.ENC_SEND_MAP — route EFX slot faders to their section.
@@ -1342,6 +1567,18 @@ function onReceiveNotify(key, value)
         if not receivingPatch then
           local efxSection = root:findByName(sec, true)
           if efxSection then efxSection:notify("slot_moved", enc .. "," .. xs) end
+        end
+        -- Mirror to Launchkey assign slots if this EFX slot is currently assigned.
+        if not morphing then
+          local efxParamId = getEfxSlotParamId(sec, enc)
+          if efxParamId then
+            local lkCCVal = math.floor(x * 127 + 0.5)
+            for slotKey, lkCC in pairs(LAUNCHKEY_ASSIGN_CC) do
+              if PatchManager.assignedParamIds[slotKey] == efxParamId then
+                sendMIDI({0xB0, lkCC, lkCCVal}, LAUNCHKEY_CONNECTION)
+              end
+            end
+          end
         end
       end
     end
@@ -1571,7 +1808,7 @@ function onReceiveNotify(key, value)
     pendingStoreSlot = nil
     broadcastPatchMode()
     -- When leaving morph mode, sync BCR1 to the final blended state.
-    if wasInMorph then syncBCR1() end
+    if wasInMorph then syncBCR1(); syncLaunchkey() end
     return
   end
 
@@ -1811,7 +2048,7 @@ end
 function update()
   if syncTimer > 0 then
     syncTimer = syncTimer - 1
-    if syncTimer == 0 then syncBCR1(); tryCompletePendingStore() end
+    if syncTimer == 0 then syncBCR1(); syncLaunchkey(); tryCompletePendingStore() end
   end
 
   -- Backstop for receivingPatch (see declaration) — normally cleared
@@ -1838,8 +2075,8 @@ function init()
     if lbl then lbl.values.text = GLOBAL_TUNING_DISPLAY[64] end
   end
 
-  -- Push current fader positions to BCR2000 #1 on layout load so its LED
-  -- rings reflect whatever values the layout last had.
+  -- Push current fader positions to BCR2000 #1 and Launchkey on layout load.
   syncBCR1()
+  syncLaunchkey()
   updateMorphEncState()
 end
