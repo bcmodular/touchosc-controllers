@@ -248,13 +248,11 @@ end
 
 ---
 
-## Feature 2 — Launchkey MK4 Passthrough  ✅ IMPLEMENTED (bugs below)
+## Feature 2 — Launchkey MK4 Passthrough  ✅ COMPLETE
 
-**Implemented 2026-06-14.** Notes/pitchbend pass through. 7 encoders (CC 74/71/16/17/12/13/104) + morph (CC 105) are mapped. LED ring feedback working via `syncLaunchkey()` and per-change mirrors in `enc_moved`. Assign-slot CCs (17/12/13) update correctly for both regular encoder params and EFX slot params via `getEfxSlotParamId` / `getFaderXForParamId`. Morph snap-back fixed (removed per-step CC 105 echo; `syncTimer` debounced to 40 ticks / ~667ms).
+**Implemented 2026-06-14. Bug fixed 2026-06-15.** Notes/pitchbend pass through. 7 encoders (CC 74/71/16/17/12/13/104) + morph (CC 105) + mod wheel (CC 1) are mapped. LED ring feedback working via `syncLaunchkey()` and per-change mirrors in `enc_moved`. Assign-slot CCs (17/12/13) update correctly for both regular encoder params and EFX slot params via `getEfxSlotParamId` / `getFaderXForParamId`. Morph snap-back fixed (removed per-step CC 105 echo; `syncTimer` debounced to 40 ticks / ~667ms).
 
-### Known bugs / remaining issues
-
-- **Mod wheel (CC 1 / XY_MOD assign slot) — NOT updating on-screen control.** CC 1 from the Launchkey is forwarded to the TB-3 (so the sound changes), but `handleTB3CC(1, ccVal)` calls `updateUIForParamId` which looks up `assignedParamIds["xy_mod"]`. This path is not being reached correctly, or the assigned param's fader is not updating visibly. As a result the on-screen knob for the assigned parameter does not move when the mod wheel is turned. **Fix needed in `handleTB3CC` / `updateUIForParamId` path for CC 1.**
+**Mod wheel fix (2026-06-15):** Added `[1] = { assignCC=1 }` to `LAUNCHKEY_CC_MAP`. CC 1 was falling into the unmapped-CC `else` branch (forwarded to TB-3 but no UI update). Now routes through the `assignCC` branch which calls `handleTB3CC(1, ccVal)` → `updateUIForParamId(assignedParamIds["xy_mod"], ccVal)`. `syncLaunchkey` correctly skips CC 1 (not in `LAUNCHKEY_ASSIGN_CC_REVERSE`, so no erroneous feedback to the physical mod wheel).
 
 ### Launchkey encoder CC assignments
 | Encoder | CC | TB-3 parameter |
@@ -338,6 +336,6 @@ All 7 are already in `TB3_CC_DISPLAY_MAP` or handled by existing CC receive logi
 | ~~1~~ | ~~F4a + F4b + F4c~~ | — | ✅ Done |
 | ~~2~~ | ~~F1 (BCR + morph + send)~~ | — | ✅ Done |
 | ~~3~~ | ~~F4d (name labels in TouchOSC)~~ | — | ✅ Done |
-| ~~4~~ | ~~F2 (Launchkey passthrough)~~ | — | ✅ Done (mod wheel bug pending) |
+| ~~4~~ | ~~F2 (Launchkey passthrough)~~ | — | ✅ Done |
 | 5 | F3 (Launchpad Pro) | `LAUNCHPAD_CONNECTION = {false,false,true}` (conn 3) — confirmed 2026-06-14 | ⬜ |
 | 6 | F5 (docs) | All above complete | ⬜ |

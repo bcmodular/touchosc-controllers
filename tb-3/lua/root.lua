@@ -136,6 +136,7 @@ local LAUNCHKEY_CC_MAP = {
   [13]  = { assignCC=13 },                           -- XY PAD Y      (enc 6)
   [104] = { globalTuning=true },                     -- GLOBAL TUNING (enc 7)
   [105] = { morph=true },                            -- MORPH AMOUNT
+  [1]   = { assignCC=1 },                            -- MOD WHEEL → xy_mod assign slot
 }
 
 -- Reverse lookup: SysEx addr hex → Launchkey CC (for enc_moved feedback).
