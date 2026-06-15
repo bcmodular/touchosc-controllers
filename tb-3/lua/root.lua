@@ -724,6 +724,18 @@ local function handleBCR1(cc, ccVal)
     return
   end
 
+  -- Sync buttons (CC 105–107, bottom-left 2×2 grid on BCR1).
+  -- BCR Toggle-Off mode: 127 on press, 0 on release — mirrors momentary behaviour.
+  if cc == 105 or cc == 106 or cc == 107 then
+    local btnName = cc == 105 and "send_button"
+                 or cc == 106 and "receive_button"
+                 or "sync_to_controllers_button"
+    local btn = root:findByName(btnName, true)
+    if btn then btn.values.x = ccVal > 0 and 1 or 0 end
+    return
+  end
+  -- CC 108: spare (bottom-right of grid, currently unmapped).
+
   -- All other BCR1 CCs: flat lookup in BCR.MAP
   local entry = BCR.MAP[cc]
   if not entry then return end
