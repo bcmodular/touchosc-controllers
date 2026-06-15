@@ -730,7 +730,8 @@ local function handleBCR1(cc, ccVal)
     local btnName = cc == 105 and "send_button"
                  or cc == 106 and "receive_button"
                  or "sync_to_controllers_button"
-    local btn = root:findByName(btnName, true)
+    local syncGrp = root.children["sync_group"]
+    local btn     = syncGrp and syncGrp.children[btnName]
     if btn then btn.values.x = ccVal > 0 and 1 or 0 end
     return
   end
