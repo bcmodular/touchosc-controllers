@@ -13,4 +13,5 @@ extracted/
 tb-3/backups/
 tb-3/*.tosc.bak*
 .vscode/settings.json
+.claude/settings.local.json
 __pycache__/
