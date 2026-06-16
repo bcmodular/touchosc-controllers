@@ -585,6 +585,11 @@ local function handleLaunchpadControlChange(cc, ccValue)
   if cc == SHIFT_CC then
     launchpadShiftHeld = ccValue > 63
     syncLaunchpadModifierTags()
+    -- Drive grab mode directly (mirrors DELETE_CC -> setLaunchpadDeleteMode). Without
+    -- this, grab from the Launchpad never engaged: the manager's grabMode toggle and
+    -- the on-screen grab_mode_button stayed off, relying only on the per-pad shiftHeld
+    -- tag read. setLaunchpadGrabMode(false) on release restores any active grab.
+    setLaunchpadGrabMode(launchpadShiftHeld)
     local sr, sg, sb = launchpadShiftRgb(launchpadShiftHeld and LAUNCHPAD_ON_BRIGHTNESS or LAUNCHPAD_IDLE_BRIGHTNESS)
     sendLaunchpadLedRgb(SHIFT_CC, sr, sg, sb)
     debugLaunchpad(string.format("shift %s", launchpadShiftHeld and "on" or "off"))

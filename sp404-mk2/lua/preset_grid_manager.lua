@@ -38,8 +38,8 @@ local presetNoteMap = buildPresetNoteMap()
 local BUTTON_STATE_COLORS = {
   AVAILABLE = "FFFFFFFF",
   DELETE = "FF0000FF",
-  -- Magenta: target-pick mode only (not bus 5 green, not delete red).
-  MORPH_SELECT = "FF44CCFF",
+  -- Orange: morph target-pick mode (shared with TB-3; clear of bus colours + delete red).
+  MORPH_SELECT = "FF7F00FF",
 }
 
 local PRESET_STATE = {
@@ -648,7 +648,7 @@ local function refreshMIDIButtons(busNum)
     elseif state == PRESET_STATE.STORED then
       r, g, b = launchpadBusRgb(busNum, launchpadIdleBrightness())
     elseif state == PRESET_STATE.MORPH_SELECT then
-      r, g, b = launchpadRgb255(255, 68, 204, launchpadIdleBrightness())
+      r, g, b = launchpadRgb255(255, 127, 0, launchpadIdleBrightness())
     end
 
     if r then
@@ -888,9 +888,9 @@ local function updateButtonMIDIHighlight(busNum, presetNum, isPressed)
     r, g, b = launchpadBusRgb(busNum, brightness)
   elseif state == PRESET_STATE.MORPH_SELECT then
     if isPressed then
-      r, g, b = launchpadRgb255(255, 68, 204, launchpadOnBrightness())
+      r, g, b = launchpadRgb255(255, 127, 0, launchpadOnBrightness())
     else
-      r, g, b = launchpadRgb255(255, 68, 204, launchpadIdleBrightness())
+      r, g, b = launchpadRgb255(255, 127, 0, launchpadIdleBrightness())
     end
   elseif state == PRESET_STATE.AVAILABLE then
     if isBusLocked(busNum) then

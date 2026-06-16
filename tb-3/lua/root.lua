@@ -100,6 +100,16 @@ local applyMorph              -- forward declaration; defined below after getPat
 local broadcastPatchMode      -- forward declaration; defined below after applyMorph
 local updateMorphEncState     -- forward declaration; defined below after broadcastPatchMode
 local tryCompletePendingStore -- forward declaration; defined below after setPatchGridSlots
+-- Launchpad Pro preset-grid control (Feature 3). syncLaunchpadLEDs is referenced
+-- by setPatchGridSlots/broadcastPatchMode; the handle* functions are referenced
+-- by both onReceiveMIDI (Launchpad branch) and onReceiveNotify.
+local syncLaunchpadLEDs       -- forward declaration; defined below after getPatchGridSlots
+local paintSlotPad            -- forward declaration; defined below after sendLaunchpadLedRgb
+local handlePatchSlotPress    -- forward declaration; defined below before onReceiveNotify
+local handlePatchSlotRelease  -- forward declaration; defined below before onReceiveNotify
+local handlePatchModeSet      -- forward declaration; defined below before onReceiveNotify
+local enterLaunchpadHoldMode  -- forward declaration; momentary delete/grab (defined below)
+local exitLaunchpadHoldMode   -- forward declaration; momentary delete/grab (defined below)
 
 local EXPORT_BLOCK_ORDER = {
   "10000000", "10000200", "10000400", "10000600",
@@ -124,6 +134,100 @@ local BCR2_CHANNEL     = 2   -- BCR2000 #2: EFX1 + EFX2
 
 local LAUNCHKEY_CONNECTION = {false,false,false,true}
 local LAUNCHKEY_CHANNEL    = 1  -- Launchkey MK4 sends on MIDI ch 1
+
+-- Launchpad Pro (original MK1) on connection 3 — physical preset-grid controller.
+-- Same SysEx dialect as the SP-404 layout (device ID 00 20 29 02 10): Programmer
+-- layout sends grid notes + side-button CCs on MIDI ch 10.
+local LAUNCHPAD_CONNECTION   = {false, false, true}
+local LAUNCHPAD_NOTE_CHANNEL = 10
+
+-- Programmer-layout grid notes → preset slots. note = 10*row + col (row 1 bottom,
+-- row 8 top). Top row 81–88 = slots 1–8; second row 71–78 = slots 9–16, matching
+-- the 8×2 on-screen preset_grid. SLOT_TO_LAUNCHPAD_PAD is the reverse (LED feedback).
+local LAUNCHPAD_PAD_TO_SLOT = {}
+local SLOT_TO_LAUNCHPAD_PAD = {}
+do
+  for i = 0, 7 do
+    LAUNCHPAD_PAD_TO_SLOT[81 + i] = 1 + i   -- top row  → slots 1–8
+    LAUNCHPAD_PAD_TO_SLOT[71 + i] = 9 + i   -- 2nd row  → slots 9–16
+  end
+  for note, slot in pairs(LAUNCHPAD_PAD_TO_SLOT) do
+    SLOT_TO_LAUNCHPAD_PAD[slot] = note
+  end
+end
+
+-- Side-column round buttons (CC on ch 10). CC numbers match the SP-404 layout.
+--   Delete (50) + Grab/Shift (80) are MOMENTARY (held = active, release = off).
+--   Morph/Quantise (40) is a TOGGLE. User (98) cycles LED brightness.
+--   Undo (60) + Click (70) are disabled on TB-3 (no per-patch "defaults" concept).
+local LAUNCHPAD_HOLD_CC  = { [50] = "delete", [80] = "grab" }  -- momentary-hold
+local LAUNCHPAD_MORPH_CC = 40
+local LAUNCHPAD_USER_CC  = 98
+local LAUNCHPAD_SYNC_CC  = 70   -- Click → request patch dump from TB-3 (lit green)
+local launchpadDeleteHeld = false   -- physical Delete (CC 50) held?
+local launchpadShiftHeld  = false   -- physical Shift  (CC 80) held?
+
+-- Launchpad LED colour bases (0–255, scaled to 0–63 by the active brightness profile).
+-- Shared scheme with the SP-404 layout: morph = orange, delete = red, grab = white
+-- (grab presses go to full white), filled = blue, empty = off.
+local LP_DELETE = {255, 0, 0}
+local LP_GRAB   = {255, 255, 255}
+local LP_MORPH  = {255, 127, 0}
+local LP_FILLED = {74, 144, 217}
+local LP_SYNC   = {0, 255, 0}    -- green — Click = request patch dump
+
+-- Brightness profiles (ported from sp404-mk2/lua/launchpad_led.lua), cycled by the
+-- User button (CC 98) and persisted to root.tag.launchpadBrightnessProfile.
+local LAUNCHPAD_BRIGHTNESS_PROFILES = {
+  very_dim = { idle = 0.08, on = 1.0, emptyPress = 0.20 },
+  night    = { idle = 0.18, on = 1.0, emptyPress = 0.35 },
+  normal   = { idle = 0.30, on = 1.0, emptyPress = 0.45 },
+  day      = { idle = 0.45, on = 1.0, emptyPress = 0.55 },
+}
+local LAUNCHPAD_BRIGHTNESS_ORDER = { "very_dim", "night", "normal", "day" }
+local launchpadBrightnessKey = "night"
+local lpIdle, lpOn, lpEmptyPress = 0.18, 1.0, 0.35
+
+-- Scale a 0–255 RGB triple to the Launchpad's 0–63 range at the given brightness.
+local function lpRgb(r, g, b, brightness)
+  local function ch(v)
+    return math.max(0, math.min(63, math.floor(v / 255 * 63 * brightness + 0.5)))
+  end
+  return ch(r), ch(g), ch(b)
+end
+
+local function applyLaunchpadBrightnessProfile(key)
+  local p = LAUNCHPAD_BRIGHTNESS_PROFILES[key]
+  if not p then key = "night"; p = LAUNCHPAD_BRIGHTNESS_PROFILES.night end
+  launchpadBrightnessKey = key
+  lpIdle, lpOn, lpEmptyPress = p.idle, p.on, p.emptyPress
+end
+
+local function saveLaunchpadBrightness()
+  local tag = json.toTable(root.tag) or {}
+  tag.launchpadBrightnessProfile = launchpadBrightnessKey
+  root.tag = json.fromTable(tag)
+end
+
+local function loadLaunchpadBrightness()
+  local tag = json.toTable(root.tag) or {}
+  local key = tag.launchpadBrightnessProfile
+  if type(key) == "string" and LAUNCHPAD_BRIGHTNESS_PROFILES[key] then
+    applyLaunchpadBrightnessProfile(key)
+  else
+    applyLaunchpadBrightnessProfile("night")
+  end
+end
+
+-- Advance to the next brightness profile and repaint all Launchpad LEDs.
+local function cycleLaunchpadBrightnessProfile()
+  local order = LAUNCHPAD_BRIGHTNESS_ORDER
+  local idx = 1
+  for i, k in ipairs(order) do if k == launchpadBrightnessKey then idx = i; break end end
+  applyLaunchpadBrightnessProfile(order[(idx % #order) + 1])
+  saveLaunchpadBrightness()
+  syncLaunchpadLEDs()
+end
 
 -- CC assignments for Launchkey MK4 encoders (7 encoders, 0-127 resolution).
 -- 16-bit SysEx params (cutoff/resonance/accent) are scaled 0-127 → 0-255.
@@ -1090,6 +1194,54 @@ function onReceiveMIDI(message, connections)
     end
     return
   end
+
+  -- Launchpad Pro (connection 3): physical preset grid. Programmer layout sends
+  -- grid notes, side-button CCs, and poly-aftertouch all on ch 10.
+  if connections[3] then
+    local status  = message[1]
+    local msgType = status - (status % 16)
+    local ch      = (status % 16) + 1
+    if ch ~= LAUNCHPAD_NOTE_CHANNEL then return end
+
+    if msgType == 0x90 then          -- note-on (velocity 0 = release)
+      local slot = LAUNCHPAD_PAD_TO_SLOT[message[2]]
+      if slot then
+        if message[3] > 0 then handlePatchSlotPress(slot)
+        else handlePatchSlotRelease(slot) end
+      end
+    elseif msgType == 0x80 then      -- note-off
+      local slot = LAUNCHPAD_PAD_TO_SLOT[message[2]]
+      if slot then handlePatchSlotRelease(slot) end
+    elseif msgType == 0xA0 then      -- poly aftertouch → morph blend
+      if patchGridMode == "morph" and morphTargetSlot
+         and LAUNCHPAD_PAD_TO_SLOT[message[2]] == morphTargetSlot then
+        morphAmount = message[3] / 127
+        applyMorph()
+        local morphEnc = root:findByName("morph_enc", true)
+        local fader    = morphEnc and morphEnc.children["control_fader"]
+        if fader then fader.values.x = morphAmount end
+      end
+    elseif msgType == 0xB0 then      -- side-column buttons
+      local cc, v = message[2], message[3]
+      local holdMode = LAUNCHPAD_HOLD_CC[cc]
+      if holdMode then               -- Delete / Grab: momentary hold
+        if v > 0 then enterLaunchpadHoldMode(holdMode)
+        else exitLaunchpadHoldMode(holdMode) end
+      elseif cc == LAUNCHPAD_MORPH_CC then   -- Morph: toggle
+        if v > 0 then handlePatchModeSet("morph") end
+      elseif cc == LAUNCHPAD_USER_CC then    -- User: cycle LED brightness
+        if v > 0 then cycleLaunchpadBrightnessProfile() end
+      elseif cc == LAUNCHPAD_SYNC_CC then    -- Click: sync from TB-3
+        -- Drive the on-screen receive_button (same path as the BCR1 sync button) so
+        -- it flashes for visual feedback; its own handler calls requestPatchDump().
+        local syncGrp = root.children["sync_group"]
+        local btn     = syncGrp and syncGrp.children["receive_button"]
+        if btn then btn.values.x = v > 0 and 1 or 0 end
+      end
+      -- Undo (60) intentionally ignored on TB-3.
+    end
+    return
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -1234,12 +1386,76 @@ local function getPatchGridSlots()
   return json.toTable(pgNode.tag) or {}
 end
 
+-- Original Launchpad Pro RGB LED: F0 00 20 29 02 10 0B <led> <r> <g> <b> F7
+-- (r,g,b 0–63). Same dialect as the SP-404 layout's sendLaunchpadLedRgb.
+local function sendLaunchpadLedRgb(led, r, g, b)
+  sendMIDI({0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0B, led,
+            math.max(0, math.min(63, r)),
+            math.max(0, math.min(63, g)),
+            math.max(0, math.min(63, b)), 0xF7}, LAUNCHPAD_CONNECTION)
+end
+
+-- Compute a slot pad's RGB (0–63), or nil if it should be off. Mode-tinted and
+-- brightness-scaled: morph target → full-bright orange; filled → mode colour
+-- (delete red / grab white / morph orange / default blue) at idle, or on-brightness
+-- when pressed; empty → off (idle) or dim blue (pressed, = "store here").
+local function slotPadRGB(slot, filled, pressed)
+  if patchGridMode == "morph" and morphTargetSlot == slot then
+    return lpRgb(LP_MORPH[1], LP_MORPH[2], LP_MORPH[3], lpOn)
+  end
+  if filled then
+    local base = LP_FILLED
+    if patchGridMode == "delete" then base = LP_DELETE
+    elseif patchGridMode == "grab" then base = LP_GRAB
+    elseif patchGridMode == "morph" then base = LP_MORPH end
+    return lpRgb(base[1], base[2], base[3], pressed and lpOn or lpIdle)
+  end
+  if pressed then
+    return lpRgb(LP_FILLED[1], LP_FILLED[2], LP_FILLED[3], lpEmptyPress)
+  end
+  return nil
+end
+
+-- Light a single slot pad for its current resting state, or pressed (brighter).
+paintSlotPad = function(slot, pressed)
+  local led = SLOT_TO_LAUNCHPAD_PAD[slot]
+  if not led then return end
+  local filled = type(getPatchGridSlots()[tostring(slot)]) == "table"
+  local r, g, b = slotPadRGB(slot, filled, pressed)
+  if r then sendLaunchpadLedRgb(led, r, g, b) else sendLaunchpadLedRgb(led, 0, 0, 0) end
+end
+
+-- Refresh all Launchpad LEDs to reflect current grid + mode + brightness state.
+syncLaunchpadLEDs = function()
+  local slots = getPatchGridSlots()
+  for slot = 1, 16 do
+    local led = SLOT_TO_LAUNCHPAD_PAD[slot]
+    if led then
+      local filled = type(slots[tostring(slot)]) == "table"
+      local r, g, b = slotPadRGB(slot, filled, false)
+      if r then sendLaunchpadLedRgb(led, r, g, b) else sendLaunchpadLedRgb(led, 0, 0, 0) end
+    end
+  end
+  -- Mode buttons: lit in their colour when active, dim when not.
+  sendLaunchpadLedRgb(40, lpRgb(LP_MORPH[1], LP_MORPH[2], LP_MORPH[3],
+                                patchGridMode == "morph" and lpOn or lpIdle))
+  sendLaunchpadLedRgb(50, lpRgb(LP_DELETE[1], LP_DELETE[2], LP_DELETE[3],
+                                patchGridMode == "delete" and lpOn or lpIdle))
+  sendLaunchpadLedRgb(80, lpRgb(LP_GRAB[1], LP_GRAB[2], LP_GRAB[3],
+                                patchGridMode == "grab" and lpOn or lpIdle))
+  -- Undo (60) stays dark. Click (70) = green "sync from TB-3". User (98) dim marker.
+  sendLaunchpadLedRgb(60, 0, 0, 0)
+  sendLaunchpadLedRgb(70, lpRgb(LP_SYNC[1], LP_SYNC[2], LP_SYNC[3], lpIdle))
+  sendLaunchpadLedRgb(98, lpRgb(255, 255, 255, lpIdle))
+end
+
 -- Write all 16 slot snapshots back to preset_grid's tag and refresh the UI.
 local function setPatchGridSlots(slots)
   local pgNode = root:findByName("preset_grid", true)
   if not pgNode then return end
   pgNode.tag = json.fromTable(slots)
   pgNode:notify("refresh_preset_ui", "")
+  syncLaunchpadLEDs()
 end
 
 -- Complete an auto-store that was deferred because blocks weren't cached yet.
@@ -1345,7 +1561,10 @@ broadcastPatchMode = function()
     if btn then btn:notify("patch_mode_changed", modeStr) end
   end
   local pgNode = root:findByName("preset_grid", true)
-  if pgNode then pgNode:notify("patch_mode_changed", modeStr) end
+  if pgNode then
+    pgNode:notify("patch_mode_changed", modeStr)
+    pgNode:notify("morph_target", tostring(morphTargetSlot or 0))
+  end
   -- morph_group visibility is always-on; no longer toggled here.
   -- When entering morph mode: show "-" in morph_preset_label and "Pick Preset"
   -- in the morph_enc value_label. On exit: clear both.
@@ -1359,6 +1578,7 @@ broadcastPatchMode = function()
     encValLbl.values.text = patchGridMode == "morph" and "Pick Preset" or ""
   end
   updateMorphEncState()
+  syncLaunchpadLEDs()
 end
 
 -- Enable morph_enc only when morph mode is on and a target preset is selected.
@@ -1392,6 +1612,147 @@ local function updatePatchInfoLabel()
   if currentBankName   ~= "" then parts[#parts+1] = "Bank: "   .. currentBankName   end
   if currentPresetName ~= "" then parts[#parts+1] = "Preset: " .. currentPresetName end
   lbl.values.text = table.concat(parts, "  ")
+end
+
+-- ---------------------------------------------------------------------------
+-- Patch-grid action handlers (shared by on-screen buttons and the Launchpad).
+-- Extracted from onReceiveNotify so the Launchpad MIDI branch can reuse them
+-- with no behaviour change.
+-- ---------------------------------------------------------------------------
+
+-- Toggle the active patch-grid mode (pressing the active mode again clears it).
+handlePatchModeSet = function(value)
+  local wasInMorph = (patchGridMode == "morph")
+  if value == patchGridMode then
+    patchGridMode = nil
+  else
+    patchGridMode = value
+  end
+  if patchGridMode ~= "morph" or not wasInMorph then
+    morphTargetSlot = nil
+    morphBaseSnapshot = nil
+    morphLastBlocks = nil
+  end
+  pendingStoreSlot = nil
+  broadcastPatchMode()
+  -- When leaving morph mode, sync BCR1 to the final blended state.
+  if wasInMorph then syncBCR1(); syncLaunchkey() end
+end
+
+-- Momentary Delete/Grab from the Launchpad: button down enters the mode, button up
+-- exits it. Mirrors the SP-404 (DELETE_CC / SHIFT_CC are momentary there too).
+enterLaunchpadHoldMode = function(mode)
+  if mode == "delete" then launchpadDeleteHeld = true
+  elseif mode == "grab" then launchpadShiftHeld = true end
+  if patchGridMode ~= mode then
+    if patchGridMode == "morph" then
+      morphTargetSlot = nil; morphBaseSnapshot = nil; morphLastBlocks = nil
+    end
+    patchGridMode = mode
+    pendingStoreSlot = nil
+    broadcastPatchMode()
+  end
+end
+
+exitLaunchpadHoldMode = function(mode)
+  if mode == "delete" then launchpadDeleteHeld = false
+  elseif mode == "grab" then launchpadShiftHeld = false end
+  if patchGridMode == mode then
+    -- Grab: restore any still-active grab snapshot before leaving the mode.
+    if mode == "grab" and grabSnapshot then
+      applySnapshotDiff(grabSnapshot, snapshotCurrentPatch())
+      grabSnapshot = nil
+    end
+    patchGridMode = nil
+    broadcastPatchMode()
+  end
+end
+
+-- Press a slot pad/button. Default (nil mode): empty → store, filled → recall.
+-- Delete: clear slot. Grab: diff-apply (release restores). Morph: set target.
+handlePatchSlotPress = function(slotNum)
+  print("patch_grid: slot pressed " .. tostring(slotNum) .. " mode=" .. tostring(patchGridMode))
+  if not slotNum then return end
+  -- Any new slot press cancels a pending auto-store from a previous tap.
+  pendingStoreSlot = nil
+  local slots = getPatchGridSlots()
+  local slotKey = tostring(slotNum)
+
+  if patchGridMode == "delete" then
+    slots[slotKey] = nil
+    setPatchGridSlots(slots)
+    currentPresetName = ""
+    updatePatchInfoLabel()
+
+  elseif patchGridMode == "grab" then
+    -- Snapshot current state, diff-apply the slot; release restores.
+    if slots[slotKey] then
+      grabSnapshot = snapshotCurrentPatch()
+      local slotJson = json.fromTable(slots[slotKey])
+      applySnapshotDiff(slotJson, grabSnapshot)
+    end
+
+  elseif patchGridMode == "morph" then
+    -- Record base snapshot and reset fader so morph starts from current patch.
+    morphTargetSlot   = slotNum
+    morphBaseSnapshot = snapshotCurrentPatch()
+    if morphBaseSnapshot then
+      morphLastBlocks = (json.toTable(morphBaseSnapshot) or {}).blocks
+    end
+    morphAmount = 0.0
+    local morphEnc = root:findByName("morph_enc", true)
+    local fader    = morphEnc and morphEnc.children["control_fader"]
+    if fader then fader.values.x = 0.0 end
+    local morphLbl = root:findByName("morph_preset_label", true)
+    if morphLbl then morphLbl.values.text = tostring(slotNum) end
+    local encValLbl = morphEnc and morphEnc.children["value_label"]
+    if encValLbl then encValLbl.values.text = "0" end
+    updateMorphEncState()
+    syncLaunchpadLEDs()   -- light the orange morph-target pad
+    local pgT = root:findByName("preset_grid", true)
+    if pgT then pgT:notify("morph_target", tostring(slotNum)) end
+
+  else
+    -- Default: empty → store; filled → recall
+    if slots[slotKey] == nil then
+      print("patch_grid: storing slot " .. slotKey)
+      local snapshot = snapshotCurrentPatch()
+      if snapshot then
+        print("patch_grid: snapshot ok, saving")
+        slots[slotKey] = json.toTable(snapshot)
+        setPatchGridSlots(slots)
+      else
+        print("patch_grid: snapshot nil - blocks missing, triggering sync")
+        pendingStoreSlot = slotKey
+        requestPatchDump()
+      end
+    else
+      print("patch_grid: recalling slot " .. slotKey)
+      applySnapshotDiff(json.fromTable(slots[slotKey]), snapshotCurrentPatch())
+      currentPresetName = (type(slots[slotKey]) == "table" and slots[slotKey].name) or ""
+      updatePatchInfoLabel()
+    end
+  end
+
+  -- Brighten the pressed pad on both surfaces (Launchpad LED + on-screen back_N),
+  -- regardless of whether the press came from the screen or the Launchpad.
+  paintSlotPad(slotNum, true)
+  local pg = root:findByName("preset_grid", true)
+  if pg then pg:notify("slot_visual", slotNum .. ",1") end
+end
+
+-- Release a slot pad/button. In grab mode: restore the pre-grab snapshot.
+handlePatchSlotRelease = function(slotNum)
+  if patchGridMode == "grab" and grabSnapshot then
+    -- Diff against current state (= the grabbed preset) to restore original.
+    applySnapshotDiff(grabSnapshot, snapshotCurrentPatch())
+    grabSnapshot = nil
+  end
+  if not slotNum then return end
+  -- Restore resting brightness on both surfaces.
+  paintSlotPad(slotNum, false)
+  local pg = root:findByName("preset_grid", true)
+  if pg then pg:notify("slot_visual", slotNum .. ",0") end
 end
 
 -- ---------------------------------------------------------------------------
@@ -1806,102 +2167,20 @@ function onReceiveNotify(key, value)
   end
 
   -- Sent by mode buttons (delete_button, grab_mode_button, morph_button).
-  -- Toggles the mode on/off (pressing the active mode again clears it).
   if key == "patch_mode_set" then
-    local wasInMorph = (patchGridMode == "morph")
-    if value == patchGridMode then
-      patchGridMode = nil
-    else
-      patchGridMode = value
-    end
-    if patchGridMode ~= "morph" or not wasInMorph then
-      morphTargetSlot = nil
-      morphBaseSnapshot = nil
-      morphLastBlocks = nil
-    end
-    pendingStoreSlot = nil
-    broadcastPatchMode()
-    -- When leaving morph mode, sync BCR1 to the final blended state.
-    if wasInMorph then syncBCR1(); syncLaunchkey() end
+    handlePatchModeSet(value)
     return
   end
 
   -- Sent by slot buttons "1"–"16" under preset_grid.
-  -- Default (nil mode): empty slot → store; filled slot → recall.
-  -- Delete mode: clear the slot.
-  -- Grab / Morph: stubbed — wired but no action yet.
   if key == "patch_slot_pressed" then
-    print("patch_grid: slot pressed " .. tostring(value) .. " mode=" .. tostring(patchGridMode))
-    local slotNum = tonumber(value)
-    if not slotNum then return end
-    -- Any new slot press cancels a pending auto-store from a previous tap.
-    pendingStoreSlot = nil
-    local slots = getPatchGridSlots()
-    local slotKey = tostring(slotNum)
-
-    if patchGridMode == "delete" then
-      slots[slotKey] = nil
-      setPatchGridSlots(slots)
-      currentPresetName = ""
-      updatePatchInfoLabel()
-
-    elseif patchGridMode == "grab" then
-      -- Snapshot current state, diff-apply the slot; release restores.
-      if slots[slotKey] then
-        grabSnapshot = snapshotCurrentPatch()
-        local slotJson = json.fromTable(slots[slotKey])
-        applySnapshotDiff(slotJson, grabSnapshot)
-      end
-
-    elseif patchGridMode == "morph" then
-      -- Record base snapshot and reset fader so morph starts from current patch.
-      morphTargetSlot   = slotNum
-      morphBaseSnapshot = snapshotCurrentPatch()
-      if morphBaseSnapshot then
-        morphLastBlocks = (json.toTable(morphBaseSnapshot) or {}).blocks
-      end
-      morphAmount = 0.0
-      local morphEnc = root:findByName("morph_enc", true)
-      local fader    = morphEnc and morphEnc.children["control_fader"]
-      if fader then fader.values.x = 0.0 end
-      local morphLbl = root:findByName("morph_preset_label", true)
-      if morphLbl then morphLbl.values.text = tostring(slotNum) end
-      local encValLbl = morphEnc and morphEnc.children["value_label"]
-      if encValLbl then encValLbl.values.text = "0" end
-      updateMorphEncState()
-
-    else
-      -- Default: empty → store; filled → recall
-      if slots[slotKey] == nil then
-        print("patch_grid: storing slot " .. slotKey)
-        local snapshot = snapshotCurrentPatch()
-        if snapshot then
-          print("patch_grid: snapshot ok, saving")
-          slots[slotKey] = json.toTable(snapshot)
-          setPatchGridSlots(slots)
-        else
-          print("patch_grid: snapshot nil - blocks missing, triggering sync")
-          pendingStoreSlot = slotKey
-          requestPatchDump()
-        end
-      else
-        print("patch_grid: recalling slot " .. slotKey)
-        applySnapshotDiff(json.fromTable(slots[slotKey]), snapshotCurrentPatch())
-        currentPresetName = (type(slots[slotKey]) == "table" and slots[slotKey].name) or ""
-        updatePatchInfoLabel()
-      end
-    end
+    handlePatchSlotPress(tonumber(value))
     return
   end
 
   -- Sent by slot buttons on release (x → 0).
-  -- In grab mode: restore the snapshot saved on press.
   if key == "patch_slot_released" then
-    if patchGridMode == "grab" and grabSnapshot then
-      -- Diff against current state (= the grabbed preset) to restore original.
-      applySnapshotDiff(grabSnapshot, snapshotCurrentPatch())
-      grabSnapshot = nil
-    end
+    handlePatchSlotRelease(tonumber(value))
     return
   end
 
@@ -2093,4 +2372,16 @@ function init()
   syncBCR1()
   syncLaunchkey()
   updateMorphEncState()
+
+  -- Launchpad Pro: restore the saved brightness profile, enter Programmer layout (03),
+  -- blank every grid + side LED (clears leftover state), then paint the preset grid.
+  loadLaunchpadBrightness()
+  sendMIDI({0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x2C, 0x03, 0xF7}, LAUNCHPAD_CONNECTION)
+  -- Blank EVERY programmer-layout LED (index 1–98): 1–8 bottom row, 10–89 grid +
+  -- left/right columns, 91–98 top row. The earlier 10–89 sweep left the top/bottom
+  -- round buttons (Session/Device/Record Arm/etc.) lit from the SP-404 layout.
+  for led = 1, 98 do
+    sendLaunchpadLedRgb(led, 0, 0, 0)
+  end
+  syncLaunchpadLEDs()
 end

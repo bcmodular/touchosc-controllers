@@ -329,6 +329,98 @@ All 7 are already in `TB3_CC_DISPLAY_MAP` or handled by existing CC receive logi
 
 ---
 
+## Feature 6 — Launchpad/preset UX parity with SP-404 (+ SP-404 grab fix)
+
+**Created 2026-06-16. ✅ Implemented + hardware-tested 2026-06-16.** Feature 3
+(Launchpad Pro preset control) is functionally complete; this was its hardware-feedback
+follow-up, bringing the TB-3 Launchpad + on-screen preset grid in line with the SP-404,
+porting the SP-404 brightness-profile (User button) feature, and fixing a latent SP-404
+grab-from-Launchpad bug. Goal: one consistent preset-grid mental model across both
+layouts and both control surfaces.
+
+**Implementation notes (as built):**
+- All TB-3 changes in `lua/root.lua` + `lua/preset_grid.lua`; SP-404 in `lua/root.lua`
+  + `lua/preset_grid_manager.lua`. No `toscbuild.json` changes.
+- **Two additions beyond the original plan:**
+  - **Click (CC 70) → "sync from TB-3"**, lit **green** (`LP_SYNC`). Drives the on-screen
+    `receive_button` (via `sync_group.children`) like the BCR1 sync button, so it flashes
+    for visual feedback and its own handler calls `requestPatchDump()`.
+  - **`init()` now blanks the full programmer-layout LED range (index 1–98)** — the first
+    pass only cleared 10–89, leaving the top-row (Session/Device/User) and bottom-row
+    (Record Arm/etc.) buttons lit when switching from the SP-404 layout.
+- The "sync_to_controllers doesn't update the EFX BCR" report was a **hardware** issue
+  (BCR operating modes had drifted); fixed by resetting BCR1→U4, BCR2→S3. No code change.
+
+> **Model guidance:** implement with **Opus 4.8** (current model). This edits the
+> load-bearing concatenated root chunk on *both* layouts, adds momentary-hold state
+> machines, colour-scaling maths, and a behaviour-preserving SP-404 refactor —
+> high-stakes, context-heavy Lua. Fast mode is fine; do **not** drop to Sonnet for this.
+
+### Confirmed decisions
+- **Morph colour** (shared SP-404 + TB-3 + Launchpad + Quantise button): **orange `FF7F00`**.
+- **Grab-mode filled-preset colour**: **`E6E6E6`** (matches the grab button); a press in
+  grab mode goes to **full white `FFFFFF`**. Empty stays grey `BFBFBF`; filled blue `4A90D9`.
+- **Delete + Grab on the Launchpad**: **momentary hold** (held = active, release = off) —
+  matches the SP-404 (`DELETE_CC` / `SHIFT_CC` are already momentary). Morph (Quantise
+  CC 40) stays a **toggle**. On-screen delete/grab buttons stay toggles.
+
+### Standard Launchpad control-button CC map (both layouts, ch 10)
+| Button | CC | TB-3 role |
+|--------|----|-----------|
+| Quantise | 40 | Morph (toggle) |
+| Delete | 50 | Delete (momentary hold) |
+| Undo | 60 | disabled — LED dark (no defaults concept) |
+| Click | 70 | Sync from TB-3 (green LED) — drives on-screen receive_button |
+| Shift | 80 | Grab (momentary hold) |
+| User | 98 | Brightness cycle (new) |
+
+Change vs current TB-3 F3: grab CC 60→80; delete+grab momentary (not toggle); CC 60
+no-op (dark); CC 70 = sync-from-TB-3 (green); CC 98 added.
+
+### Part A — TB-3 (`lua/root.lua`, `lua/preset_grid.lua`, `lua/preset_grid_slot_btn.lua`)
+- **A1/A4** — Replace `LAUNCHPAD_MODE_CC` with `LAUNCHPAD_HOLD_CC = {[50]="delete",[80]="grab"}`
+  (momentary enter on val>0 / exit on val 0); CC 40 morph toggle; CC 98 User. Track
+  `launchpadDeleteHeld`/`launchpadShiftHeld` so a release clears only its own mode;
+  grab-exit restores any active `grabSnapshot`. CC 60 no-op + dark; CC 70 = sync from
+  TB-3 (green `LP_SYNC`, drives the on-screen `receive_button`).
+- **A2** — `preset_grid.lua` `MODE_COLORS`: morph `FF7F00FF`, grab `E6E6E6FF`, delete
+  `E70000FF`; morph target gets a distinct full-bright orange. `syncLaunchpadLEDs` tints
+  filled pads by mode (delete→red, grab→white, morph→orange, target→bright orange) +
+  mode-button LEDs (40 orange / 50 red / 80 white; 60/70 dark).
+- **A3** — Brighten-on-press both surfaces: `scaleHexColor(hex,factor)` (idle ~0.78 /
+  press 1.0; grab special-cased `E6E6E6`→`FFFFFF`). Slot press/release visual relay via
+  `back_N`; Launchpad `lightSlotPad(slot,pressed)` on note-on/off.
+- **A5** — Port brightness profiles from `sp404-mk2/lua/launchpad_led.lua`
+  (`very_dim/night/normal/day`, default `night`) into the TB-3 root chunk as locals;
+  `launchpadRgb255`-equiv; CC 98 cycles + repaints; persist `root.tag.launchpadBrightnessProfile`
+  (TB-3 `root.tag` is unused); load in `init()` before first `syncLaunchpadLEDs()`. Root
+  chunk is at 94/200 top-level locals — ample headroom.
+
+### Part B — SP-404 (`lua/root.lua`, `lua/preset_grid_manager.lua`)
+- **B1** — Grab-from-Launchpad fix: `SHIFT_CC` handler (root.lua:585) never calls
+  `setLaunchpadGrabMode` (only ever called with `false`). Add
+  `setLaunchpadGrabMode(launchpadShiftHeld)` there, mirroring `DELETE_CC` →
+  `setLaunchpadDeleteMode`. Verify `toggleGrabMode(false)` restores on early Shift release.
+  Needs on-hardware verification.
+- **B2** — Morph colour `FF44CCFF` → `FF7F00FF` (orange) in `preset_grid_manager.lua`
+  (`MORPH_SELECT` / `BUTTON_STATE_COLORS.MORPH_SELECT`) and the Launchpad morph RGB site.
+  Orange is clear of `LAUNCHPAD_BUS_RGB` and `FALLBACK_BUS_ACCENT_HEX`.
+- **B3** — SP-404 grab pad colour stays per-bus (deliberate; buses carry meaning there).
+
+No `toscbuild.json` changes (all into existing nodes). TB-3 grab button colour
+(`E6E6E6FF`) already changed in the layout by the user.
+
+### Verification
+1. `build tb-3` + `build sp404-mk2` zero errors; luac-check the TB-3 root chunk.
+2. TB-3 hardware: colours match screen↔Launchpad (morph orange, grab grey→white);
+   press brightens both (grab press→full white); morph target stands out; **hold** Shift
+   → grab, **hold** Delete → delete; morph toggles; Click/Undo dark no-ops; User cycles
+   brightness and persists across reload.
+3. SP-404 hardware: hold Shift + tap stored preset → preview, release → restore;
+   grab_mode_button lights while held; morph colour no longer clashes with buses.
+
+---
+
 ## Suggested Implementation Order
 
 | Step | Feature | Prereq | Status |
@@ -337,5 +429,6 @@ All 7 are already in `TB3_CC_DISPLAY_MAP` or handled by existing CC receive logi
 | ~~2~~ | ~~F1 (BCR + morph + send)~~ | — | ✅ Done |
 | ~~3~~ | ~~F4d (name labels in TouchOSC)~~ | — | ✅ Done |
 | ~~4~~ | ~~F2 (Launchkey passthrough)~~ | — | ✅ Done |
-| 5 | F3 (Launchpad Pro) | `LAUNCHPAD_CONNECTION = {false,false,true}` (conn 3) — confirmed 2026-06-14 | ⬜ |
-| 6 | F5 (docs) | All above complete | ⬜ |
+| 5 | F3 (Launchpad Pro) | `LAUNCHPAD_CONNECTION = {false,false,true}` (conn 3) — confirmed 2026-06-14 | ✅ Functionally complete (hardware-tested; see F6 follow-ups) |
+| 6 | F6 (Launchpad/preset SP-404 parity + SP-404 grab fix) | F3 complete | ✅ Implemented + hardware-tested 2026-06-16 |
+| 7 | F5 (docs) | All above complete | ⬜ |
