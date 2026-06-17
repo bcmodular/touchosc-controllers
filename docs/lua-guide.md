@@ -3,6 +3,25 @@
 General reference for all TouchOSC controller projects in this repo.
 Project-specific notes live in each project's `lua/README.md`.
 
+## Contents
+
+| Rule | Section |
+|------|---------|
+| `&`, `\|`, `~`, `<<`, `>>` are syntax errors — use arithmetic equivalents | [No bitwise operators](#no-bitwise-operators) |
+| `goto` unavailable — use `break`, early `return`, or helpers | [`goto` is not available](#goto-is-not-available) |
+| `root:findByName("name", true)` — instance method, always needs receiver | [`findByName` is an instance method](#findbyname-is-an-instance-method-not-a-global) |
+| `self.values.x` — not bare `values` | [`self.values`, not bare `values`](#selfvalues-not-bare-values) |
+| `self` is only valid inside a callback — do not store it | [`self` is callback-scoped](#self-is-callback-scoped) |
+| Scripted value writes do not reliably fire `onValueChanged` | [`onValueChanged` from Lua is unreliable](#onvaluechanged-from-lua-is-unreliable) |
+| camelCase vars/fns, UPPER_SNAKE constants, snake_case node names | [Naming conventions](#naming-conventions) |
+| Define callees before callers; use forward declarations for mutual recursion | [`local function` order](#local-function-order--define-callees-before-callers) |
+| No module-style namespace tables (`Foo = {}`) — plain locals only | [No namespace tables](#no-namespace-tables) |
+| Hard 200-local limit per chunk across all `include` files | [200-local limit](#the-200-local-limit-and-the-setup-function-pattern) |
+| Prefer direct node access over `notify` where possible | [Prefer direct node access](#prefer-direct-node-access-over-notify) |
+| `tag` (JSON-encoded string) is the only parent↔child state channel in grids | [Grid scope and `tag`](#grid-scope-and-tag-as-shared-state) |
+| Store button states as integers in `self.name` | [Button state pattern](#button-state-pattern) |
+| Build: `python3 tools/toscbuild.py build <dir>` | [Build pipeline](#build-pipeline-all-projects) |
+
 ---
 
 ## Lua version: 5.1
