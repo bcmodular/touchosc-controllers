@@ -15,9 +15,21 @@ TouchOSC layout for the Roland SP-404 MKII sampler, with optional **Behringer BC
 | Morph | Blend live faders toward a stored preset |
 | Backup | Unified export/import (`/sp404/backup`) + optional Mac utility |
 
+## Loading the layout
+
+The layout file is **[`SP404.tosc`](SP404.tosc)** in this folder.
+
+**Desktop (macOS/Windows/Linux):** open `SP404.tosc` directly in TouchOSC.
+
+**Mobile (iOS/Android):** transfer the file to your device using one of:
+- **TouchOSC Editor network** — open the Editor on your desktop, go to **Sync**, and push the layout to the device over Wi-Fi.
+- **File sharing** — AirDrop (iOS/macOS), Google Drive, or any file manager that can open `.tosc` files with TouchOSC.
+
+> **Known issue — Editor network load:** when the layout is sent via the TouchOSC Editor network, effect parameter mappings can appear scrambled. **Workaround:** after receiving the layout on the device, save it locally (**File → Save**) and reload from the saved copy. This only needs to be done once per transfer.
+
 ## Quick start
 
-1. Open **`SP404.tosc`** in TouchOSC (from this folder).
+1. Load **`SP404.tosc`** onto your device (see above).
 2. Configure TouchOSC **MIDI connection 1** to your **SP-404 MKII** (this is the critical setup step).
 3. On the SP-404, open **Shift + Pad 16 (FX Settings)**:
    - Set a **Favourite** for **Buses 3+4** (anything except **Bypass**), otherwise buses 3+4 will stay bypassed.
