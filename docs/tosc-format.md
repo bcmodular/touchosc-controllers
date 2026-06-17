@@ -2,6 +2,44 @@
 
 Reference for the TouchOSC `.tosc` binary layout format, documented from analysis of files in this repository.
 
+## Contents
+
+- [Compression](#compression) — zlib-compressed XML; how to inspect raw
+- [XML Structure](#xml-structure) — `<lexml>` root, `<node>` tree, four child sections
+- [Node Types](#node-types) — GROUP, BUTTON, FADER, LABEL, BOX, GRID, TEXT
+- [Properties](#properties) — typed `<property>` elements; CDATA string values
+  - [Property Types](#property-types) — b/i/f/s/c/r type codes
+  - [Common Properties](#common-properties) — name, frame, color, script, tag, …
+  - [Button-Specific Properties](#button-specific-properties)
+  - [Fader-Specific Properties](#fader-specific-properties)
+  - [Grid-Specific Properties](#grid-specific-properties)
+  - [Text Properties](#text-properties)
+- [Values](#values) — `<values>` / `<value>` state channels (x, touch, text)
+- [Messages](#messages) — MIDI / OSC bindings inside `<value>` blocks
+- [Script Embedding](#script-embedding) — CDATA `script` property; CDATA preservation warning
+- [Lua Scripting Environment](#lua-scripting-environment) — Lua 5.1 sandbox
+  - [Available Globals](#available-globals) — what's in scope; what's absent
+  - [Shared Scripts (`require`)](#shared-scripts-includes--require) — `<includes>` collection; independent-chunk semantics
+  - [Available Libraries](#available-libraries) — string, table, math, bit32, json, …
+  - [TouchOSC API](#touchosc-api) — sendMIDI, sendOSC, notify, self, root, …
+  - [Lifecycle Callbacks](#lifecycle-callbacks) — init, update, onValueChanged, onReceiveMIDI, …
+  - [Grid Scope Rules](#grid-scope-rules) — child isolation; tag as shared state
+  - [Naming Conventions](#naming-conventions) — camelCase / UPPER_SNAKE / snake_case
+  - [MIDI Value Conversion](#midi-value-conversion) — float ↔ 0–127
+- [Programmatic Layout Generation (Scaffold)](#programmatic-layout-generation-scaffold)
+  - [Layout Definition Format](#layout-definition-format) — JSON `layout` section in toscbuild.json
+  - [Node Definition Fields](#node-definition-fields) — type, name, frame, color, children, …
+  - [Property Type Inference](#property-type-inference) — auto-typed from field name
+  - [Generated Structure](#generated-structure) — UUIDs, defaults, values sections
+  - [Workflow: Scaffold then Build](#workflow-scaffold-then-build)
+- [Modifying .tosc Files Programmatically](#modifying-tosc-files-programmatically)
+  - [Reading and Writing](#reading-and-writing) — zlib decompress/compress
+  - [Script Replacement Strategy](#script-replacement-strategy) — regex over CDATA; never ElementTree
+  - [Build manifest (`toscbuild.json`)](#build-manifest-toscbuildjson) — node_name / node_names / under_name / root
+  - [Removing Nodes](#removing-nodes)
+
+---
+
 ## Compression
 
 A `.tosc` file is **zlib-compressed XML** (raw deflate, not zip/gzip). To inspect:
