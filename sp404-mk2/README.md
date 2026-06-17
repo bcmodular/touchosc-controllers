@@ -1,6 +1,6 @@
 # SP-404 MKII TouchOSC Controller
 
-TouchOSC layout for the Roland SP-404 MKII sampler, with optional **Behringer BCR2000** and **Launchpad Pro Mk1** control.
+TouchOSC layout for the Roland SP-404 MKII sampler, with optional **Behringer BCR2000**, **Launchpad Pro Mk1**, and **Novation Launchkey MK4** control.
 
 > **Launchpad note:** This layout targets the **original Launchpad Pro (Mk1)**. Later Launchpad models use different modes and SysEx behaviour, so they are not supported by this implementation.
 
@@ -22,7 +22,7 @@ TouchOSC layout for the Roland SP-404 MKII sampler, with optional **Behringer BC
    - Optionally set **Buses 1+2** to serial or parallel routing.
 4. In TouchOSC, on each bus: tap **Choose** to select an effect, then tap the bus **FX** button to switch the effect on.
 
-**Optional:** add Launchpad Pro Mk1 (connection 3). For **BCR2000** (connection 2), import [`SP404-mk2-BCR2000.syx`](SP404-mk2-BCR2000.syx) into each unit first — see [BCR2000](#bcr2000) below.
+**Optional hardware:** BCR2000 (connection 2) — import [`SP404-mk2-BCR2000.syx`](SP404-mk2-BCR2000.syx) first; Launchpad Pro Mk1 (connection 3) — preset/scene performance + LED feedback; Launchkey MK4 (connections 4+5) — keyboard controller for Hyper Reso, Resonator, and Vocoder effects.
 
 ---
 
@@ -35,6 +35,8 @@ TouchOSC uses up to three MIDI connections:
 | **1** | SP-404 MKII | Core effect control (required) |
 | **2** | BCR2000 (one or two units) | Hands-on per-bus control |
 | **3** | Launchpad Pro Mk1 | Preset/scene performance control + LED feedback |
+| **4** | Launchkey MK4 — MIDI port | Notes, pads, encoder CCs (input + output) |
+| **5** | Launchkey MK4 — DAW port | Pad/encoder mode switching (output only) |
 
 ```mermaid
 flowchart TB
