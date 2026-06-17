@@ -106,6 +106,40 @@ Injection order is the reverse of the JSON `include` list (see Build pipeline ab
 
 ---
 
+### Connection constants (root.lua)
+
+All connection arrays are defined as chunk-level locals in `root.lua`:
+
+| Constant | Value | Device |
+|----------|-------|--------|
+| `BCR_CONNECTION` | `{false,true}` | BCR2000 #1 and #2 (connection 2) |
+| `LAUNCHPAD_CONNECTION` | `{false,false,true}` | Launchpad Pro (connection 3) |
+| `LAUNCHKEY_CONNECTION` | `{false,false,false,true}` | Launchkey MK4 (connection 4) |
+| `TB3_CONNECTION` | `{false,false,false,false,false,true}` | TB-3 (connection 6) |
+
+### Launchpad Pro constants (root.lua)
+
+```lua
+LAUNCHPAD_PAD_TO_SLOT  -- note → slot: [81–88] → 1–8, [71–78] → 9–16
+SLOT_TO_LAUNCHPAD_PAD  -- reverse map: slot → note (built from LAUNCHPAD_PAD_TO_SLOT)
+LAUNCHPAD_HOLD_CC      -- {[50]="delete",[80]="grab"} — momentary-hold modes
+-- CC 40 = morph toggle, CC 70 = sync from TB-3 (LP_SYNC), CC 98 = brightness cycle
+```
+
+`launchpadBrightnessKey` (`"very_dim"` / `"night"` / `"normal"` / `"day"`, default `"night"`) persists to `root.tag.launchpadBrightnessProfile`. CC 98 (User button) cycles through profiles and calls `syncLaunchpadLEDs()`.
+
+### Launchkey MK4 constants (root.lua)
+
+```lua
+LAUNCHKEY_CONNECTION = {false,false,false,true}  -- connection 4
+LAUNCHKEY_CHANNEL    = 1                          -- Launchkey default channel
+LAUNCHKEY_CC_MAP     -- CC → {assignCC?} or {morph?}: maps encoder CCs 74/71/16/17/12/13/104 + mod wheel CC 1
+```
+
+`syncLaunchkey()` is called from `init()` and after every patch receive (same call sites as `syncBCR1()`).
+
+---
+
 ## SysEx protocol quick reference
 
 ```
@@ -146,6 +180,12 @@ local morphing          = false -- true while applyMorph send loop runs; suppres
 | `getPatchGridSlots()` / `setPatchGridSlots(t)` | Read/write `preset_grid.tag` as a Lua table |
 | `updateMorphEncState()` | Enables `morph_enc` only when morph mode is on and a target slot is selected (`tag = "disabled"` otherwise); value label stays white for *Pick Preset* |
 | `refreshPatchGridUI()` | Broadcasts `refresh_preset_ui` to `preset_grid` node |
+| `handlePatchSlotPress(slotNum)` | Store / recall / delete / grab / morph for slot N; called by both `patch_slot_pressed` notify and the Launchpad Pro note-on handler |
+| `handlePatchSlotRelease(slotNum)` | Grab-mode restore on pad/note release |
+| `handlePatchModeSet(modeStr)` | Toggles `patchGridMode`; broadcasts `patch_mode_changed`; called by mode buttons and Launchpad CC handler |
+| `syncLaunchpadLEDs()` | Repaints all Launchpad Pro pad LEDs (slots 81–88, 71–78) and mode-button LEDs to match current grid + mode state; scaled by `launchpadBrightnessKey` |
+| `syncLaunchkey()` | Sends current fader values for 7 encoder CCs (74, 71, 16, 17, 12, 13, 104) to the Launchkey on `LAUNCHKEY_CONNECTION` for LED ring sync; called after patch receive |
+| `updatePatchInfoLabel()` | Writes `"Bank: X  Preset: Y"` to `preset_name_label`; called whenever `currentBankName` or `currentPresetName` changes |
 
 ### Preset slot colours (`preset_grid.lua`)
 
@@ -154,10 +194,22 @@ local morphing          = false -- true while applyMorph send loop runs; suppres
 | Empty slot | Light grey | `BFBFBFFF` |
 | Filled (default) | Blue | `4A90D9FF` |
 | Filled + delete mode | Red | `E70000FF` |
-| Filled + grab mode | Orange | `FF9500FF` |
-| Filled + morph mode | Cyan | `00E6FFFF` |
+| Filled + grab mode | Light grey-white | `E6E6E6FF` |
+| Filled + morph mode | Orange | `FF7F00FF` |
+| Morph target slot | Bright orange | `FF7F00FF` (full brightness) |
 
-Only **filled** slots take the mode tint; empty slots stay grey.
+Only **filled** slots take the mode tint; empty slots stay grey. Pressing a slot
+brightens it (grab press → full white `FFFFFFFF`; delete/morph/default → full colour).
+The same colour scheme applies to the Launchpad Pro pad LEDs (scaled by the active
+brightness profile).
+
+### Morph encoder gating
+
+`morph_enc` is disabled (`tag = "disabled"`, name label dimmed) until morph mode is on **and** a target preset slot is selected. The value label stays white while showing *Pick Preset*. `pointer.lua` rejects drag input when the parent group tag is `"disabled"`. Root also gates on-screen `enc_moved` and BCR1 NRPN 8 on the same condition. `morphTargetSlot` is cleared when entering or leaving morph mode (UI mode buttons and BCR CC 40).
+
+### `receivingPatch` guard
+
+Set around `PatchManager.parseBlock()` and the EFX section `patch_data` notify to prevent re-entrant SysEx sends back to the TB-3. `enc_moved`, `sw_toggled`, and `slot_moved` handlers all check this flag and skip their SysEx send (but still update labels / BCR LED rings). Cleared synchronously after all processing. `receivingPatchTimer` provides a frame-count backstop (cleared in `update()`) in case of mid-function errors.
 
 ### Mode button pattern
 

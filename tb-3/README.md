@@ -23,6 +23,8 @@ The BCR2000 integration is designed for **two units** (one for tone/distortion, 
 | Connection | Device | Notes |
 |------------|--------|-------|
 | **Connection 2** | BCR2000 (both units) | Both units share one port; differentiated by MIDI channel |
+| **Connection 3** | Launchpad Pro *(optional)* | Preset grid control + LED feedback |
+| **Connection 4** | Launchkey MK4 *(optional)* | Note/pitchbend passthrough + encoder control |
 | **Connection 6** | TB-3 (USB or DIN MIDI) | Bidirectional — SysEx out and patch dump receive |
 
 The TB-3 and BCR2000 units use separate connections so SysEx to the TB-3 never reaches the BCR2000.
@@ -46,6 +48,76 @@ Send **[`bcr2000/TB-3-TouchOSC-BCR2000.syx`](bcr2000/TB-3-TouchOSC-BCR2000.syx)*
 **One BCR2000:** load both presets onto the same unit and switch between them as needed — you get full control of each half of the feature set, just not at the same time.
 
 See [`bcr2000/bcr2000-1-tone-dist.md`](bcr2000/bcr2000-1-tone-dist.md) and [`bcr2000/bcr2000-2-efx.md`](bcr2000/bcr2000-2-efx.md) for the full CC maps.
+
+---
+
+## Launchkey MK4 (optional)
+
+Connect the Launchkey MK4 on **Connection 4** in TouchOSC. MIDI channel 1 (the Launchkey's default).
+
+### Notes + Pitchbend
+
+All note-on / note-off and pitch-bend messages from the Launchkey are translated to the TB-3's MIDI channel and forwarded to the TB-3 hardware. Use the Launchkey as a keyboard controller for the TB-3 without any DAW in the loop.
+
+### Encoders
+
+The seven Launchkey encoders are mapped to key TB-3 parameters:
+
+| Encoder | CC | TB-3 parameter |
+|---------|-----|----------------|
+| 1 | 74 | VCF Cutoff |
+| 2 | 71 | VCF Resonance |
+| 3 | 16 | Accent Level |
+| 4 | 17 | Effect Knob (assign control) |
+| 5 | 12 | XY PAD X (assign control) |
+| 6 | 13 | XY PAD Y (assign control) |
+| 7 | 104 | Global Tuning |
+
+The on-screen encoders update in sync as you turn the Launchkey encoders. The mod wheel (CC 1) is routed through the XY MOD assign slot for expression control.
+
+Encoder LED rings stay in sync with the on-screen controls after a patch receive.
+
+---
+
+## Launchpad Pro (optional)
+
+Connect the Launchpad Pro on **Connection 3** in TouchOSC. The layout switches the Launchpad into Programmer mode on load and blanks all LEDs before syncing the preset grid state.
+
+### Pad → slot mapping
+
+The top two rows of pads map to the 16 preset grid slots:
+
+| Row | Pads | Slots |
+|-----|------|-------|
+| Top row | 81–88 | 1–8 |
+| Second row | 71–78 | 9–16 |
+
+Pad colours match the on-screen grid:
+
+| State | Launchpad colour |
+|-------|-----------------|
+| Empty slot | Off |
+| Filled slot | Blue (dim) |
+| Filled + delete mode | Red |
+| Filled + grab mode | White (dim) |
+| Filled + morph mode | Orange (dim) |
+| Active morph target | Orange (bright) |
+
+Pressing a pad brightens it momentarily to confirm the action (grab mode press → full white; others → full colour). The Launchpad LEDs update whenever the preset grid changes.
+
+### Control buttons (side column)
+
+| Button | CC | Action |
+|--------|----|--------|
+| **Quantise** | 40 | Morph (toggle) |
+| **Delete** | 50 | Delete (momentary hold — held = active, release = off) |
+| **Click** | 70 | Sync from TB-3 (green LED) |
+| **Shift** | 80 | Grab (momentary hold — held = active, release = off) |
+| **User** | 98 | Cycle brightness profile (very dim / night / normal / day) |
+
+Delete and grab are **momentary**: holding the button activates the mode; releasing it exits. Morph is a toggle (press once to arm, press again to exit). The Click button drives the on-screen SYNC FROM TB-3 button for visual confirmation.
+
+Brightness profiles are persisted across layout reloads.
 
 ---
 
@@ -94,14 +166,18 @@ clear which action will apply on tap. Empty slots stay grey.
 
 Morph lives in the separate **MORPH** group (not a third grid mode button):
 
-1. Press the **MORPH** button (cyan) in the MORPH group to arm morph mode. Filled
-   preset slots turn cyan. The target label shows `-` and the **AMOUNT** encoder
+1. Press the **MORPH** button in the MORPH group to arm morph mode. Filled
+   preset slots turn orange. The target label shows `-` and the **AMOUNT** encoder
    is disabled with *Pick Preset* shown in white in the value label.
-2. Tap any filled preset slot — it becomes the morph target (slot number shown
-   in the target label). The **AMOUNT** encoder becomes active.
+2. Tap any filled preset slot — it becomes the morph target (lit bright orange).
+   The **AMOUNT** encoder becomes active.
 3. Turn the **AMOUNT** encoder from minimum (0 %) to maximum (100 %) to blend
    from the current patch towards the target.
 4. Press **MORPH** again to exit; the BCR2000 LED rings snap to the final blended position.
+
+**Hardware control:** BCR2000 #1 Group 1 pos 8 (NRPN 8) controls morph amount. CC 40
+at the BCR also controls morph button state. On the Launchpad Pro, the **Quantise**
+button (CC 40) toggles morph mode, and pressing a pad drives pad aftertouch → morph amount.
 
 ### Bank Backup (desktop app)
 

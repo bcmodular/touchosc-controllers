@@ -30,48 +30,26 @@ python3 tools/toscbuild.py tree tb-3/TB3.tosc  # inspect node hierarchy
 python3 tools/toscbuild.py dev tb-3            # watch mode (macOS)
 ```
 
-## Root chunk — include order contract
+See [`lua/README.md`](lua/README.md) for the root chunk include order, the luac parse-check command, and instructions for adding new encoders or synthesis parameters.
 
-`toscbuild.json` injects **five** files into the root node as a single concatenated Lua chunk. `_inject_mapping` **prepends** each include (toscbuild.py:507), so the runtime execution order is the **reverse** of the JSON `include` list. The JSON list is:
+## Root chunk — critical constraints
 
-```
-["bcr_map.lua", "patch_manager.lua", "enc_map.lua", "param_defs.lua"]  → root.lua
-```
+The root node runs a **single concatenated Lua chunk** from five files. Full rationale and execution order are in [`lua/README.md`](lua/README.md#build-pipeline). Two constraints that will silently break things if missed:
 
-Actual runtime execution order (first to last):
-
-1. `param_defs.lua` — canonical parameter table (`Params.LIST`)
-2. `enc_map.lua`
-3. `patch_manager.lua`
-4. `bcr_map.lua`
-5. `root.lua`
-
-**`param_defs.lua` must run first** — all three namespace tables derive their primary tables from `Params.LIST` at load time. **`root.lua` must run last** — it references the three namespace tables. This order is load-bearing; do not reorder.
-
-Because all five files share one chunk scope, **each of the four includes exposes exactly one top-level `local` namespace table**, and `root.lua` references only those four. This keeps the cross-file surface to 4 names and stops `local`-redeclaration from silently shadowing a shared symbol.
-
-> **Namespace-table exception.** Module-style namespace tables are otherwise banned in this codebase (`sp404-mk2/lua/README.md`, "No Namespace Tables") because TouchOSC isolates each node's script. The root chunk is the *one* place that rationale fails — five files genuinely share scope — and the flat-locals approach was pushing the chunk toward Lua 5.1's 200-local limit. These four tables are the sanctioned exception; do **not** propagate the pattern to other (single-node) scripts.
+**Namespace-table exception.** Module-style namespace tables (`Foo = {}`) are banned everywhere else in this codebase because TouchOSC isolates each node's script. The root chunk is the one place that rationale fails — five files share scope and the flat-locals approach would exhaust the 200-local limit. The four namespace tables (`Params`, `BCR`, `PatchManager`, `EncMap`) are the sanctioned exception; do **not** propagate the pattern to other scripts.
 
 | Namespace table | Declared in | Role |
 |-----------------|-------------|------|
-| `Params` | `param_defs.lua` | **Canonical source of truth** — one row per synthesis param; load-only (not read at runtime after derivation) |
-| `BCR` | `bcr_map.lua` | `MAP`, `NRPN_MAP` derived from `Params.LIST`; `ADDR_TO_CC`, `ADDR_TO_NRPN` derived from those; EFX slot/btn helpers |
-| `PatchManager` | `patch_manager.lua` | `PARAM_ID_MAP`, `SW_PARAM_ID_MAP`, `REGISTRY` (file-local) derived from `Params.LIST`; EFX tables (unchanged, 2.2b); mutable state fields |
-| `EncMap` | `enc_map.lua` | `ENC_SEND_MAP`, `SW_SEND_MAP` derived from `Params.LIST`; `ADDR_TO_ENC`, `ADDR_TO_SW` derived from those |
+| `Params` | `param_defs.lua` | Canonical source of truth — one row per synthesis param; load-only |
+| `BCR` | `bcr_map.lua` | `MAP`, `NRPN_MAP` derived from `Params.LIST`; EFX slot/btn helpers |
+| `PatchManager` | `patch_manager.lua` | `PARAM_ID_MAP`, `SW_PARAM_ID_MAP` derived from `Params.LIST`; mutable state fields |
+| `EncMap` | `enc_map.lua` | `ENC_SEND_MAP`, `SW_SEND_MAP` derived from `Params.LIST`; reverse lookup tables |
 
-**Single source of truth:** SysEx address, range, scaling, BCR CC/NRPN, and param-assign-ID facts for all ~50 synthesis parameters live in `Params.LIST` only. `bcr_map.lua`, `enc_map.lua`, and `patch_manager.lua` derive their primary tables from it in `do…end` blocks (loop locals are block-scoped, no top-level local cost). Edit a parameter's facts in `Params.LIST`; the three tables update automatically on the next build.
-
-`distType`, `efxCurType`, and `assignedParamIds` are read **and mutated** from `root.lua`; as table fields they stay shared by reference (a scalar `local` could not). Do not re-declare any of these four tables in `root.lua` — a shadowing `local` silently breaks the linkage. Purely file-local helpers (`REGISTRY`, `applyValue`, `parseSpecial`, the `*_OFF_NAMES` lookups, etc.) are intentionally **not** on the namespace tables.
+**Mutable table fields.** `distType`, `efxCurType`, and `assignedParamIds` are read **and mutated** from `root.lua` as fields on the namespace tables (a scalar `local` could not be shared by reference). Do not re-declare any of the four namespace tables in `root.lua` — a shadowing `local` silently breaks the linkage.
 
 ## Connection / channel constants
 
-| Constant | Value | Hardware |
-|----------|-------|----------|
-| `TB3_CONNECTION` | `{false,false,false,false,false,true}` | TB-3 on connection 6 |
-| `BCR_CONNECTION` | `{false,true}` | BCR2000 #1 and #2 both on connection 2 |
-| `BCR1_CHANNEL` | `1` | BCR2000 #1 MIDI channel |
-| `BCR2_CHANNEL` | `2` | BCR2000 #2 MIDI channel |
-| `TB3_MIDI_CHANNEL` | `2` | TB-3 receive channel (user-configured) |
+→ See [`lua/README.md`](lua/README.md#connection-constants-rootlua) for the full table.
 
 `efx_section.lua` duplicates `TB3_CONN` and `BCR_CONN` as local constants — **keep them byte-identical with root.lua**. TouchOSC has no shared-library mechanism; this duplication is forced.
 
@@ -87,14 +65,7 @@ The seven 16-bit params (3× tuning, VCF env depth / cutoff / resonance, accent)
 
 ## SysEx protocol
 
-```
-Send (DT1):    F0 41 10 00 00 7B 12  [addr×4]  [data…]  [checksum]  F7
-Request (RQ1): F0 41 10 00 00 7B 11  [addr×4]  [size×4] [checksum]  F7
-Checksum: (0x100 − (sum of addr+data bytes % 256)) % 128
-7-bit param:  single data byte, 0x00–0x7F
-16-bit param: MSB = value // 16, LSB = value % 16  (nibble-packed; MSB at addr, LSB at addr+1)
-Signed param: raw 64 = 0; display range −64…+63
-```
+→ See [`lua/README.md`](lua/README.md#sysex-protocol-quick-reference) for the DT1/RQ1 format.
 
 `tb3Checksum` / `sendParam` / connection constants appear in both `root.lua` and `efx_section.lua`. The blocks must stay byte-identical; add a "keep in sync with root.lua" comment if you touch them.
 
@@ -129,28 +100,7 @@ These two uses are mutually exclusive in time (the `"prog"` guard is cleared bef
 
 ## Script responsibilities
 
-| File | Injected into | Purpose |
-|------|--------------|---------|
-| `param_defs.lua` | root (include #4, runs first) | `Params` namespace: `Params.LIST` — canonical one-row-per-parameter source of truth for all synthesis params |
-| `bcr_map.lua` | root (include #1) | `BCR` namespace: `MAP` (CC→SysEx), `NRPN_MAP` (NRPN→SysEx) — both derived from `Params.LIST`; EFX slot/button index helpers |
-| `patch_manager.lua` | root (include #2) | `PatchManager` namespace: `parseBlock`; `PARAM_ID_MAP`; `SW_PARAM_ID_MAP` — derived from `Params.LIST`; `EFX_SLOT_OFFSETS_*` — derived from `require("efx_defs")` (Task 2.2b); dist type state |
-| `enc_map.lua` | root (include #3) | `EncMap` namespace: `ENC_SEND_MAP` / `SW_SEND_MAP` — derived from `Params.LIST`; reverse `ADDR_TO_ENC` / `ADDR_TO_SW` |
-| `shared/efx_defs.lua` | **Shared Script** (`require("efx_defs")`) — root chunk + both EFX sections | `EfxDefs` table: canonical single source of truth for EFX type/slot/button layout (`SHARED` types 0–8, `SPECIAL[efxNum]` types 9/10). Pure data; slot `display` is a string key. Stored in the `.tosc` `<includes>` collection, injected by the `shared` mapping kind (Task 2.2b). |
-| `root.lua` | root node | MIDI routing; SysEx helpers; BCR handling; patch grid; assign mode |
-| `pointer.lua` | all `pointer` BOX nodes | Drag-to-change encoder overlay; sends `enc_touched` |
-| `receive_button.lua` | `receive_button` BUTTON | Press → `root:notify("request_patch_dump", 1)` |
-| `send_button.lua` | `send_button` BUTTON | Press → sends current state to TB-3 via OSC /tb3/restore sequence |
-| `control_fader.lua` | all `control_fader` nodes | Slider value → sends `enc_moved` to root (via parent group notify) |
-| `sw_button.lua` | all `sw_button` nodes | Toggle → sends `sw_toggled`; LFO BPM SYNC / RETRIG overlay labels flip to black when lit |
-| `porta_radio_btn.lua` | `porta_legato_btn`, `porta_always_btn` | Mutual-exclusion radio; sends `porta_mode_set` |
-| `dist_toggle_button.lua` | `dist_on_off`, `dist_color` | Toggle with assign-mode intercept; sends `sw_touched` / `sw_toggled` |
-| `efx_section.lua` | `efx1_section`, `efx2_section` | EFX type/slot/button state machine; `TYPE_DEFS` rebuilt from `require("efx_defs")` (display string-keys resolved to local fns via `DISPLAY_FNS`); raw SysEx byte cache in tag |
-| `efx_button.lua` | `efx1_b1`–`efx1_b8`, `efx2_b1`–`efx2_b8` | Button press relay → `efx_section:notify("btn_press", ...)` |
-| `efx_chooser_button.lua` | buttons `1`–`10` under `efx_1_chooser`; `1`–`9` under `efx_2_chooser` | Type direct-select → `root:notify("efx_type_select", "N,M")` |
-| `assign_slot_btn.lua` | `assign_xy_mod_btn`, `assign_effect_knob_btn`, `assign_pad_x_btn`, `assign_pad_y_btn` | Assign slot select → `root:notify("assign_slot_select", key)` |
-| `preset_grid.lua` | `preset_grid` group | Receives `refresh_preset_ui` / `patch_mode_changed` → updates `back_N` slot colors (blue filled default; red/orange/cyan when delete/grab/morph mode active) |
-| `preset_grid_slot_btn.lua` | slots `1`–`16` under `preset_grid` | Press/release relay → `root:notify("patch_slot_pressed/released", N)` |
-| `mode_button.lua` | `morph_button`, `delete_button`, `grab_mode_button` | Mode toggle → `root:notify("patch_mode_set", MODE)` where MODE is derived from `self.name` |
+→ See [`lua/README.md`](lua/README.md#script-table) for the full script-to-node table.
 
 **Orphaned (not in toscbuild.json — do not use):** `dist_type_button.lua`, `delete_all_presets_button.lua`, `save_to_library_btn.lua`, `morph_amount_fader.lua`, `porta_mode_button.lua`.
 
@@ -213,61 +163,7 @@ All cross-element IPC uses `node:notify(key, value)`. The table below covers eve
 
 ## Patch grid architecture
 
-Root orchestrates all preset grid behaviour. Child scripts are thin relays.
-
-### Patch grid state (root.lua)
-
-```lua
-local patchGridMode     = nil   -- nil | "delete" | "grab" | "morph"
-local grabSnapshot      = nil   -- JSON; saved on grab press, restored on release
-local morphTargetSlot   = nil
-local morphBaseSnapshot = nil   -- JSON of patch at morph-target selection time
-local morphLastBlocks   = nil   -- block hex strings last sent (diff guard)
-local morphAmount       = 0.0   -- 0.0–1.0, driven by morph_enc control_fader
-local morphing          = false -- true while applyMorph batch-sends; suppresses BCR1
-```
-
-### Preset slot format (`preset_grid.tag`)
-
-```jsonc
-{
-  "1": {"blocks": ["F041...F7", .../* 11 hex strings */], "name": "My Patch"},
-  "2": null,
-  ...
-  "16": {"blocks": [...]}
-}
-```
-
-### Key root helpers
-
-| Function | Purpose |
-|----------|---------|
-| `snapshotCurrentPatch()` | Assembles 11-block JSON from `rawSysexBlocks` (9 synth blocks) + two EFX section tags |
-| `applySnapshotDiff(targetJson, baseJson)` | Block-level diff: sends only changed blocks to the TB-3 |
-| `applyMorph()` | Byte-interpolates all 11 blocks at `morphAmount`; sends changed blocks; sets `morphing` |
-| `getPatchGridSlots()` / `setPatchGridSlots(t)` | Read/write `preset_grid.tag` as Lua table |
-| `updateMorphEncState()` | Sets `morph_enc.tag` to `"disabled"` / `""` and dims encoder labels; enabled only when `patchGridMode == "morph"` and `morphTargetSlot ~= nil` |
-| `syncBCR1()` | Pushes all BCR1 fader positions to BCR2000 #1 after patch restore |
-
-### Preset slot colours (`preset_grid.lua`)
-
-| State | Colour | Hex |
-|-------|--------|-----|
-| Empty slot | Light grey | `BFBFBFFF` |
-| Filled (default) | Blue | `4A90D9FF` |
-| Filled + delete mode | Red | `E70000FF` |
-| Filled + grab mode | Orange | `FF9500FF` |
-| Filled + morph mode | Cyan | `00E6FFFF` |
-
-`grab_mode_button` layout colour matches grab orange (`update_colors.py`). Empty slots stay grey in all modes.
-
-### Morph encoder gating
-
-`morph_enc` is disabled (`tag = "disabled"`, name label dimmed) until morph mode is on **and** a target preset slot is selected. The value label stays white while showing *Pick Preset*. `pointer.lua` rejects drag input when the parent group tag is `"disabled"`. Root also gates on-screen `enc_moved` and BCR1 NRPN 8 (morph amount, was CC 8) on the same condition. `morphTargetSlot` is cleared when entering or leaving morph mode (UI mode buttons and BCR CC 40).
-
-### `receivingPatch` guard
-
-Set around `PatchManager.parseBlock()` and the EFX section `patch_data` notify to prevent re-entrant SysEx sends back to the TB-3. `enc_moved`, `sw_toggled`, and `slot_moved` handlers all check this flag and skip their SysEx send (but still update labels / BCR LED rings). Cleared synchronously after all processing. `receivingPatchTimer` provides a frame-count backstop (cleared in `update()`) in case of mid-function errors.
+→ See [`lua/README.md`](lua/README.md#patch-grid-architecture) for state variables, key helper functions, slot colours, mode button pattern, and slot data format.
 
 ## OSC interface (preset manager ↔ TouchOSC)
 

@@ -319,13 +319,16 @@ All 7 are already in `TB3_CC_DISPLAY_MAP` or handled by existing CC receive logi
 
 ---
 
-## Feature 5 — Documentation Review
+## Feature 5 — Documentation Review  ✅ COMPLETE
 
-- [ ] **plans/tb3-layout-plan.md** — Add Phase 6 section covering Features 1–4. Update Open Items table.
-- [ ] **README.md** — Add/update sections: Launchkey MK4 setup, Launchpad Pro setup, updated preset manager workflow (Python app pull instead of TouchOSC button), patch naming, bank/preset name display, Send button, morph encoder.
-- [ ] **lua/README.md** — Document `LAUNCHKEY_CONNECTION`, `LAUNCHPAD_CONNECTION`, `LAUNCHPAD_PAD_TO_SLOT`, `syncLaunchpadLEDs()`, `handlePatchSlotPress()`, `currentBankName`, `updatePatchInfoLabel()`. Update the BCR1 section to reflect morph NRPN 8, removed cutoff/resonance/accent CCs.
-- [ ] **bcr2000/bcr2000-1-tone-dist.md** — Remove rows for CCs 89/90/95 (Cutoff, Resonance, Accent — now panel controls); confirm morph NRPN 8 entry.
-- [ ] **preset-manager/README.md** — Update workflow: pull-based export, two-pane layout, patch naming, name display in TouchOSC.
+**Updated 2026-06-16.** All documentation passes complete.
+
+- [x] **plans/tb3-layout-plan.md** — No standalone plan file existed; tb3-remaining-features.md serves as the full history. No action needed.
+- [x] **README.md** — Added Connections 3+4 to MIDI Setup table; added Launchkey MK4 section (encoder CC map, note/pitchbend passthrough, LED ring sync); added Launchpad Pro section (pad→slot mapping, control buttons, brightness profiles, LED colour scheme); updated Morph section (orange colour, hardware control via NRPN 8 and Launchpad CC 40).
+- [x] **lua/README.md** — Added Connection constants table; added Launchpad Pro constants section; added Launchkey MK4 constants section; added `handlePatchSlotPress/Release`, `handlePatchModeSet`, `syncLaunchpadLEDs`, `syncLaunchkey`, `updatePatchInfoLabel` to key helpers table; updated slot colour table (grab → `E6E6E6FF`, morph → `FF7F00FF`).
+- [x] **bcr2000/bcr2000-1-tone-dist.md** — Already reflects correct post-Feature-1 state: CC 89 = PATCH VOLUME, CC 95 = DIST BOTTOM, VCF CUTOFF/RESONANCE/ACCENT in NRPN-only section, NRPN 8 = MORPH AMOUNT. No changes needed.
+- [x] **CLAUDE.md** — Added `LAUNCHPAD_CONNECTION` and `LAUNCHKEY_CONNECTION` (+ `LAUNCHKEY_CHANNEL`) to Connection / channel constants table.
+- [x] **preset-manager/README.md** — Already reflects pull-based workflow, two-pane layout, patch naming, and OSC protocol. No changes needed.
 
 ---
 
@@ -431,4 +434,4 @@ No `toscbuild.json` changes (all into existing nodes). TB-3 grab button colour
 | ~~4~~ | ~~F2 (Launchkey passthrough)~~ | — | ✅ Done |
 | 5 | F3 (Launchpad Pro) | `LAUNCHPAD_CONNECTION = {false,false,true}` (conn 3) — confirmed 2026-06-14 | ✅ Functionally complete (hardware-tested; see F6 follow-ups) |
 | 6 | F6 (Launchpad/preset SP-404 parity + SP-404 grab fix) | F3 complete | ✅ Implemented + hardware-tested 2026-06-16 |
-| 7 | F5 (docs) | All above complete | ⬜ |
+| 7 | F5 (docs) | All above complete | ✅ Done |
