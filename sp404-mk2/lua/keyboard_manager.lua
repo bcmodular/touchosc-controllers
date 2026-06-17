@@ -1023,12 +1023,19 @@ end
 local function syncKeysGroupChordPadSelection(selectedPadIndex)
   selectedPadIndex = tonumber(selectedPadIndex)
   if not selectedPadIndex then return end
-  local chordGrid = getKeysGroupChordGrid()
+  local keysGroup = root:findByName("keys_group", true)
+  local chordGrid = keysGroup and keysGroup:findByName("chord_grid", true)
+  local labelGrid = keysGroup and keysGroup:findByName("chord_label_grid", true)
   if not chordGrid then return end
   setKeyboardHighlightingFlag(true)
   for padIndex = 1, 16 do
+    local selected = padIndex == selectedPadIndex
     local button = chordGrid.children[tostring(padIndex)]
-    if button then button.values.x = (padIndex == selectedPadIndex) and 1 or 0 end
+    if button then button.values.x = selected and 1 or 0 end
+    local label = labelGrid and labelGrid.children[tostring(padIndex)]
+    if label then
+      label.textColor = Color.fromHexString(selected and "000000FF" or "FFFFFFFF")
+    end
   end
   setKeyboardHighlightingFlag(false)
 end
@@ -1094,12 +1101,12 @@ local function syncHyperResoScalePadUi(busNum)
   for padIndex = 1, 16 do
     local role = HYPER_RESO_PAD_MAP[padIndex]
     local label = labelGrid and labelGrid.children[tostring(padIndex)]
-    if label then label.values.text = HYPER_RESO_PAD_LABELS[padIndex] or "" end
     local button = chordGrid and chordGrid.children[tostring(padIndex)]
     if button then
       if role == "unused" then
         button.visible = false
         button.values.x = 0
+        if label then label.values.text = HYPER_RESO_PAD_LABELS[padIndex] or "" end
       else
         button.visible = true
         local on = (role == "major" and not isMinor)
@@ -1108,6 +1115,10 @@ local function syncHyperResoScalePadUi(busNum)
         button.values.x = on and 1 or 0
         local padColor = hyperResoPadColor(role)
         if padColor then button.color = padColor end
+        if label then
+          label.values.text = HYPER_RESO_PAD_LABELS[padIndex] or ""
+          label.textColor = Color.fromHexString(on and "000000FF" or "FFFFFFFF")
+        end
       end
     end
   end
@@ -1190,6 +1201,7 @@ local function syncChordPadLabelsUi(busNum)
     local label = labelGrid and labelGrid.children[tostring(padIndex)]
     if label then
       label.values.text = (labels and labels[padIndex]) or tostring(padIndex)
+      label.textColor = Color.fromHexString("FFFFFFFF")
     end
   end
   if chordGrid then chordGrid.tag = "1" end
