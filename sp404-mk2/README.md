@@ -44,13 +44,18 @@ flowchart TB
     conn1[Connection1]
     conn2[Connection2]
     conn3[Connection3]
+    conn4[Connection4]
+    conn5[Connection5]
   end
   sp404[SP404MKII]
   bcr[BCR2000]
   launchpad[LaunchpadProMk1]
+  launchkey[LaunchkeyMK4]
   conn1 --> sp404
   conn2 --> bcr
   conn3 --> launchpad
+  conn4 <--> launchkey
+  conn5 --> launchkey
 ```
 
 ---
