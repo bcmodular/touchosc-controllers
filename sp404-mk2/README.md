@@ -50,12 +50,15 @@ flowchart TB
   sp404[SP404MKII]
   bcr[BCR2000]
   launchpad[LaunchpadProMk1]
-  launchkey[LaunchkeyMK4]
+  subgraph launchkey [Launchkey MK4]
+    lk_midi[MIDI port]
+    lk_daw[DAW port]
+  end
   conn1 --> sp404
   conn2 --> bcr
   conn3 --> launchpad
-  conn4 <--> launchkey
-  conn5 --> launchkey
+  conn4 <--> lk_midi
+  conn5 --> lk_daw
 ```
 
 ---
