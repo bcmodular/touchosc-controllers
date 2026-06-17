@@ -72,20 +72,15 @@ This layout is set up to support **two BCR2000 units**:
 
 ### Per-bus control layout
 
-Each bus follows the same control model on BCR:
+Every bus uses the same physical layout on the BCR:
 
-```text
-Bus N
-- Encoder bank: perform parameters for selected effect
-- FX toggle: on/off for that bus
-- Sync button: sync behaviour for mapped params
-- Grab button: momentary grab/preview behaviour
-- Morph controls: morph enable + morph amount
-```
+<img src="docs/bcr2000-bus-layout.svg" alt="BCR2000 per-bus layout" width="200"/>
 
-Import **[`SP404-mk2-BCR2000.syx`](SP404-mk2-BCR2000.syx)** into each BCR2000. The file encodes the per-bus layout above; CC details are not duplicated in this guide.
+- **Top group encoders** — left encoder controls morph amount (CC 1); right encoder is unused for this bus.
+- **Buttons (2×2)** — FX on/off, Sync, Grab, and Morph enable. Button colours match the on-screen perform strip.
+- **Effect param encoders (3×2)** — six slots for the selected effect's perform parameters. Slot labels depend on which effect is loaded.
 
-The recommended tool is **[BC Manager](https://mountainutilities.eu/bcmanager)** (Mountain Utilities) — open the `.syx` file and send it to the controller over USB MIDI. Other SysEx utilities (MIDI-OX, SysEx Librarian, etc.) also work.
+Import **[`SP404-mk2-BCR2000.syx`](SP404-mk2-BCR2000.syx)** into each BCR2000 using **[BC Manager](https://mountainutilities.eu/bcmanager)** (Mountain Utilities) — open the `.syx` file and send it over USB MIDI. Other SysEx utilities (MIDI-OX, SysEx Librarian, etc.) also work.
 
 BC Manager is free to use; if you rely on it, please **[donate to Mountain Utilities](https://mountainutilities.eu/donate)** to support continued development.
 

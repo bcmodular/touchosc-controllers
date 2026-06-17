@@ -1,0 +1,97 @@
+<svg viewBox="0 0 260 500" xmlns="http://www.w3.org/2000/svg" role="img" font-family="ui-monospace, monospace">
+  <title>BCR2000 controls for one SP-404 bus</title>
+  <desc>Physical layout matching the BCR2000 hardware: two group encoders at top (morph amount + unused), four bus control buttons in a 2x2 grid, then six effect parameter encoders in three rows of two.</desc>
+
+  <!-- background -->
+  <rect width="260" height="500" rx="12" fill="#222"/>
+
+  <!-- title -->
+  <text x="130" y="26" text-anchor="middle" font-size="12" font-weight="600" fill="#e0e0e0">BCR2000 — one bus</text>
+
+  <!-- ═══ GROUP ENCODERS ═══ -->
+  <!-- MORPH AMT (CC 1) -->
+  <circle cx="75" cy="75" r="30" fill="#1a1a1a" stroke="#555" stroke-width="1.5"/>
+  <circle cx="75" cy="75" r="22" fill="#2a2a2a"/>
+  <line x1="75" y1="55" x2="75" y2="61" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round"/>
+  <text x="75" y="71" text-anchor="middle" font-size="8" fill="#aaa">CC 1</text>
+  <text x="75" y="82" text-anchor="middle" font-size="8" font-weight="600" fill="#c084fc">MORPH</text>
+  <text x="75" y="92" text-anchor="middle" font-size="8" font-weight="600" fill="#c084fc">AMT</text>
+
+  <!-- second group encoder (unused) -->
+  <circle cx="185" cy="75" r="30" fill="#1a1a1a" stroke="#555" stroke-width="1.5"/>
+  <circle cx="185" cy="75" r="22" fill="#2a2a2a"/>
+  <line x1="185" y1="55" x2="185" y2="61" stroke="#555" stroke-width="2" stroke-linecap="round"/>
+  <text x="185" y="82" text-anchor="middle" font-size="8" fill="#555">—</text>
+
+  <!-- divider -->
+  <line x1="20" y1="118" x2="240" y2="118" stroke="#3a3a3a" stroke-width="1"/>
+
+  <!-- ═══ BUTTONS 2×2 ═══ -->
+  <!-- FX ON/OFF — teal (CC 65) -->
+  <rect x="28" y="133" width="88" height="38" rx="6" fill="#0d2626" stroke="#00b4b4" stroke-width="2"/>
+  <text x="72" y="148" text-anchor="middle" font-size="8" fill="#888">CC 65</text>
+  <text x="72" y="162" text-anchor="middle" font-size="10" font-weight="700" fill="#00e0e0">FX</text>
+
+  <!-- SYNC — orange (CC 66) -->
+  <rect x="144" y="133" width="88" height="38" rx="6" fill="#2a1200" stroke="#cc6600" stroke-width="2"/>
+  <text x="188" y="148" text-anchor="middle" font-size="8" fill="#888">CC 66</text>
+  <text x="188" y="162" text-anchor="middle" font-size="10" font-weight="700" fill="#ff8800">SYNC</text>
+
+  <!-- GRAB — blue/purple (CC 73) -->
+  <rect x="28" y="183" width="88" height="38" rx="6" fill="#0a0a2a" stroke="#4444cc" stroke-width="2"/>
+  <text x="72" y="198" text-anchor="middle" font-size="8" fill="#888">CC 73</text>
+  <text x="72" y="212" text-anchor="middle" font-size="10" font-weight="700" fill="#7777ff">GRAB</text>
+
+  <!-- MORPH toggle — yellow (CC 74) -->
+  <rect x="144" y="183" width="88" height="38" rx="6" fill="#1a1800" stroke="#aaaa00" stroke-width="2"/>
+  <text x="188" y="198" text-anchor="middle" font-size="8" fill="#888">CC 74</text>
+  <text x="188" y="212" text-anchor="middle" font-size="10" font-weight="700" fill="#dddd00">MORPH</text>
+
+  <!-- divider -->
+  <line x1="20" y1="236" x2="240" y2="236" stroke="#3a3a3a" stroke-width="1"/>
+
+  <!-- ═══ FIXED ENCODERS — 3 rows × 2 cols ═══ -->
+  <text x="130" y="256" text-anchor="middle" font-size="10" fill="#666">EFFECT PARAMS</text>
+
+  <!-- row 1 -->
+  <circle cx="80" cy="293" r="28" fill="#1a1a1a" stroke="#555" stroke-width="1.5"/>
+  <circle cx="80" cy="293" r="20" fill="#2a2a2a"/>
+  <line x1="80" y1="275" x2="80" y2="281" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round"/>
+  <text x="80" y="290" text-anchor="middle" font-size="8" fill="#aaa">CC 81</text>
+  <text x="80" y="301" text-anchor="middle" font-size="8" font-weight="600" fill="#e0e0e0">SLOT 1</text>
+
+  <circle cx="180" cy="293" r="28" fill="#1a1a1a" stroke="#555" stroke-width="1.5"/>
+  <circle cx="180" cy="293" r="20" fill="#2a2a2a"/>
+  <line x1="180" y1="275" x2="180" y2="281" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round"/>
+  <text x="180" y="290" text-anchor="middle" font-size="8" fill="#aaa">CC 82</text>
+  <text x="180" y="301" text-anchor="middle" font-size="8" font-weight="600" fill="#e0e0e0">SLOT 4</text>
+
+  <!-- row 2 -->
+  <circle cx="80" cy="363" r="28" fill="#1a1a1a" stroke="#555" stroke-width="1.5"/>
+  <circle cx="80" cy="363" r="20" fill="#2a2a2a"/>
+  <line x1="80" y1="345" x2="80" y2="351" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round"/>
+  <text x="80" y="360" text-anchor="middle" font-size="8" fill="#aaa">CC 89</text>
+  <text x="80" y="371" text-anchor="middle" font-size="8" font-weight="600" fill="#e0e0e0">SLOT 2</text>
+
+  <circle cx="180" cy="363" r="28" fill="#1a1a1a" stroke="#555" stroke-width="1.5"/>
+  <circle cx="180" cy="363" r="20" fill="#2a2a2a"/>
+  <line x1="180" y1="345" x2="180" y2="351" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round"/>
+  <text x="180" y="360" text-anchor="middle" font-size="8" fill="#aaa">CC 90</text>
+  <text x="180" y="371" text-anchor="middle" font-size="8" font-weight="600" fill="#e0e0e0">SLOT 5</text>
+
+  <!-- row 3 -->
+  <circle cx="80" cy="433" r="28" fill="#1a1a1a" stroke="#555" stroke-width="1.5"/>
+  <circle cx="80" cy="433" r="20" fill="#2a2a2a"/>
+  <line x1="80" y1="415" x2="80" y2="421" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round"/>
+  <text x="80" y="430" text-anchor="middle" font-size="8" fill="#aaa">CC 97</text>
+  <text x="80" y="441" text-anchor="middle" font-size="8" font-weight="600" fill="#e0e0e0">SLOT 3</text>
+
+  <circle cx="180" cy="433" r="28" fill="#1a1a1a" stroke="#555" stroke-width="1.5"/>
+  <circle cx="180" cy="433" r="20" fill="#2a2a2a"/>
+  <line x1="180" y1="415" x2="180" y2="421" stroke="#e0e0e0" stroke-width="2" stroke-linecap="round"/>
+  <text x="180" y="430" text-anchor="middle" font-size="8" fill="#aaa">CC 98</text>
+  <text x="180" y="441" text-anchor="middle" font-size="8" font-weight="600" fill="#e0e0e0">SLOT 6</text>
+
+  <!-- footer note -->
+  <text x="130" y="480" text-anchor="middle" font-size="8" fill="#555">Slot labels are effect-dependent</text>
+</svg>
