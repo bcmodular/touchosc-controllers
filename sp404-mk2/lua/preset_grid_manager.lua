@@ -231,7 +231,7 @@ local function echoMorphAmountBcr(busNum, amount)
   end
 end
 
-local function syncMorphControlsUi(busNum)
+local function syncMorphControlsUi(busNum, skipBcrStateEcho)
   local busGroup = getBusGroup(busNum)
   if not busGroup then
     debugMorph(string.format('syncMorphControlsUi bus %d: bus group not found', busNum))
@@ -249,7 +249,9 @@ local function syncMorphControlsUi(busNum)
     if morphBtn then
       morphBtn.values.x = enabled and 1 or 0
     end
-    onOff:notify('echo_morph_bcr', enabled)
+    if not skipBcrStateEcho then
+      onOff:notify('echo_morph_bcr', enabled)
+    end
   end
 
   local morphGroup = controlGroup and controlGroup:findByName('morph_group', true)
@@ -575,7 +577,7 @@ local function setMorphAmount(busNum, amount, skipBcrEcho)
   if not skipBcrEcho then
     echoMorphAmountBcr(busNum, amount)
   end
-  syncMorphControlsUi(busNum)
+  syncMorphControlsUi(busNum, skipBcrEcho)
 end
 
 local function setMorphTarget(busNum, presetNum)
