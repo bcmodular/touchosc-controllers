@@ -1,5 +1,7 @@
 # SP-404 MKII TouchOSC Controller
 
+![SP-404 MKII TouchOSC layout](screenshots/sp404-mk2-layout.png)
+
 TouchOSC layout for the Roland SP-404 MKII sampler, with optional **Behringer BCR2000**, **Launchpad Pro Mk1**, and **Novation Launchkey MK4** control.
 
 > **Launchpad note:** This layout targets the **original Launchpad Pro (Mk1)**. Later Launchpad models use different modes and SysEx behaviour, so they are not supported by this implementation.
