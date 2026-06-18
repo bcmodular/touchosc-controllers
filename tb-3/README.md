@@ -26,8 +26,6 @@ The layout file is **[`TB3.tosc`](TB3.tosc)** in this folder.
 - **TouchOSC Editor network** — open the Editor on your desktop, go to **Sync**, and push the layout to the device over Wi-Fi.
 - **File sharing** — AirDrop (iOS/macOS), Google Drive, or any file manager that can open `.tosc` files with TouchOSC.
 
-> **Known issue — Editor network load:** when the layout is sent via the TouchOSC Editor network, parameter mappings can appear scrambled. **Workaround:** after receiving the layout on the device, save it locally (**File → Save**) and reload from the saved copy. This only needs to be done once per transfer.
-
 ---
 
 ## MIDI Setup
